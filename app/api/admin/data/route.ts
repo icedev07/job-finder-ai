@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CONFIG_KEYS, getAllConfig, isSecretConfigKey } from "@/lib/config";
+import { describeDbError } from "@/lib/dbErrors";
 import { SUPABASE_FREE_DB_BYTES } from "@/lib/status";
 
 export const dynamic = "force-dynamic";
@@ -9,19 +10,6 @@ const DAY_MS = 24 * 60 * 60_000;
 const WIPE_JOBS_PHRASE = "DELETE ALL JOBS";
 
 type TableRow = { name: string; bytes: bigint; rows: bigint };
-
-// The useful line of a Prisma error ("The column `ScrapedJob.stage` does not
-// exist in the current database.") without its "Invalid `prisma…` invocation"
-// header, plus the fix when the database is behind the code.
-function describeDbError(e: unknown): string {
-  const line = String((e as Error)?.message ?? e)
-    .split("\n")
-    .map((l) => l.trim())
-    .find((l) => l && !/^Invalid `.+` invocation/.test(l));
-  const code = (e as { code?: string })?.code;
-  const hint = code === "P2021" || code === "P2022" ? " Open /api/setup once to add the new tables and columns." : "";
-  return (line || "Database query failed.") + hint;
-}
 
 // GET            → storage overview (database size, per-table size and rows).
 // GET ?export=settings → JSON download of the settings, without any secret.

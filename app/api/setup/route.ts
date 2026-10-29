@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { describeDbError } from "@/lib/dbErrors";
 import { DEFAULT_ANALYSIS_PROMPT } from "@/lib/defaultPrompt";
 
 export const dynamic = "force-dynamic";
@@ -243,7 +244,7 @@ export async function GET() {
     await seedDefaults();
 
     return NextResponse.json({ status: "success", message: "All tables created and defaults seeded." });
-  } catch (error: any) {
-    return NextResponse.json({ status: "error", message: error.message }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json({ status: "error", message: describeDbError(error) }, { status: 500 });
   }
 }

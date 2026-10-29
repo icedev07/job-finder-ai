@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { prisma } from "./prisma";
 import { getConfig } from "./config";
 import { claudeSpendThisMonth } from "./aiUsage";
@@ -8,7 +10,9 @@ import { profileCompleteness } from "./profileModel";
 
 // Live status for the admin shell: the top status strip, the sidebar badges
 // and the Setup checklist. Every query is independent and fails soft, so one
-// missing table (before /api/setup ran) never blanks the whole strip.
+// missing table (before /api/setup ran) never blanks the whole strip. Only
+// reading the settings throws (the database is down or refusing connections),
+// so every caller catches.
 
 export const SUPABASE_FREE_DB_BYTES = 500 * 1024 * 1024;
 
@@ -59,7 +63,7 @@ function providerHasKey(id: ProviderId, c: Awaited<ReturnType<typeof getConfig>>
   }
 }
 
-export async function getStatusSnapshot(): Promise<StatusSnapshot> {
+async function loadStatusSnapshot(): Promise<StatusSnapshot> {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
   const config = await getConfig();
@@ -260,3 +264,9 @@ export async function getStatusSnapshot(): Promise<StatusSnapshot> {
     setup: { done: steps.filter((s) => s.done).length, total: steps.length, steps },
   };
 }
+
+// Once per page render: the admin layout and a page that also needs the
+// snapshot (Dashboard, Setup, Extension) share one round of queries instead of
+// doubling the load on the connection pool. Outside a render (the status API)
+// every call runs fresh.
+export const getStatusSnapshot = cache(loadStatusSnapshot);

@@ -100,7 +100,7 @@ export default async function ExtensionPage() {
                 <TableCell className="tabular text-right">{formatNumber(stats.easyApproved)}</TableCell>
                 <TableCell className="tabular text-right">{formatNumber(stats.easyRejected)}</TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" render={<Link href="/admin/jobs?apply=EASY_APPLY" />}>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/jobs?apply=EASY_APPLY" />}>
                     View
                   </Button>
                 </TableCell>
@@ -110,7 +110,7 @@ export default async function ExtensionPage() {
                 <TableCell className="tabular text-right">{formatNumber(stats.externalApproved)}</TableCell>
                 <TableCell className="tabular text-right">{formatNumber(stats.externalRejected)}</TableCell>
                 <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" render={<Link href="/admin/jobs?apply=EXTERNAL" />}>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/jobs?apply=EXTERNAL" />}>
                     View
                   </Button>
                 </TableCell>
@@ -126,7 +126,7 @@ export default async function ExtensionPage() {
         title="Autofill application forms"
         description="Open a company's application form, then the extension popup → Autofill panel. It fills the form from your profile, attaches the right resume, drafts free-text answers with your Answers route, and colours every field: green = from your profile, amber = drafted by AI (read it), red = needs you. It never submits — you review and click Submit yourself, then “Mark as applied”."
         actions={
-          <Button size="sm" variant="outline" render={<Link href="/admin/profile" />}>
+          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/admin/profile" />}>
             Profile & resumes
           </Button>
         }

@@ -52,7 +52,7 @@ export default async function DashboardPage() {
           </AlertTitle>
           <AlertDescription>
             <span>{requiredLeft.map((s) => s.title).join(" · ")}</span>
-            <Button size="sm" variant="outline" className="mt-2 w-fit" render={<Link href="/admin/setup" />}>
+            <Button size="sm" variant="outline" className="mt-2 w-fit" nativeButton={false} render={<Link href="/admin/setup" />}>
               Open the setup checklist
             </Button>
           </AlertDescription>
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
         <SectionCard
           title="Latest approved"
           actions={
-            <Button size="sm" variant="ghost" render={<Link href="/admin/jobs?status=APPROVED" />}>
+            <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/jobs?status=APPROVED" />}>
               All jobs
             </Button>
           }
@@ -167,7 +167,7 @@ export default async function DashboardPage() {
           title="Source yield · 30 days"
           description="Approved jobs per source — keep the boards that pay off."
           actions={
-            <Button size="sm" variant="ghost" render={<Link href="/admin/sources" />}>
+            <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/sources" />}>
               Sources
             </Button>
           }

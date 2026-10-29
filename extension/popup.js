@@ -19,6 +19,9 @@ const easyApplyModeSelect = document.getElementById("easyApplyModeSelect");
 const easyApplyMinRow = document.getElementById("easyApplyMinRow");
 const easyApplyMinScoreInput = document.getElementById("easyApplyMinScoreInput");
 
+// Shown next to the title, so people can tell which release they are running.
+document.getElementById("versionLabel").textContent = `v${chrome.runtime.getManifest().version}`;
+
 // "skip" (default: reject + hide without AI) or "analyze" (judge like any job).
 function normalizeEasyApplyMode(raw) {
   return raw === "analyze" ? "analyze" : "skip";

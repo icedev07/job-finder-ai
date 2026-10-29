@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import type { StatusSnapshot } from '@/lib/status';
 
 const POLL_MS = 30_000;
@@ -36,6 +37,12 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
       inflight.current = false;
     }
   }, []);
+
+  // The server could not build a snapshot (usually the database is down): ask
+  // right away so the strip says why instead of waiting for the first poll.
+  const missingInitial = initial === null;
+  const loadIfMissing = useCallback(() => (missingInitial ? refresh() : undefined), [missingInitial, refresh]);
+  useLoadOnMount(loadIfMissing);
 
   useEffect(() => {
     const tick = () => {

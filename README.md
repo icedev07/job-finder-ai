@@ -120,7 +120,7 @@ The job drawer adds signals that help you spot ghost or stale postings:
 
 ## LinkedIn extension
 
-The `extension/` folder holds a Manifest V3 Chrome extension (version 2.0.0, Chrome 116 or newer) that scans LinkedIn job searches:
+The `extension/` folder holds a Manifest V3 Chrome extension (Chrome 116 or newer) that scans LinkedIn job searches:
 
 1. Open LinkedIn and search for jobs.
 2. Click the extension icon, then **Start Scan**.
@@ -145,11 +145,23 @@ Use the **Job scan limit** field to cap how many jobs a run scans across all pag
 
 ### Install and connect
 
-1. Open `chrome://extensions` and turn on **Developer mode**.
-2. Click **Load unpacked** and select the `extension/` folder. After pulling an update, click the reload icon on the extension card.
+1. Download `job-finder-extension-v<version>.zip` from the [newest release](https://github.com/icedev07/job-finder-ai/releases/latest) and extract it to a folder you keep (or use the `extension/` folder of a clone).
+2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select that folder. The popup shows the version next to its title.
 3. Open **Admin → Extension**, then copy the **Server URL** and **API key** into the extension popup and click **Save**.
 
+To update, extract the new zip into the same folder, replacing the files, and click the reload icon on the extension card; your settings stay. (From a clone: pull, then click the reload icon.)
+
 The key is required: without it the server refuses every extension request, and the popup says so. **New key** on the Extension page rotates it; paste the new key into the popup afterwards.
+
+### Publishing a new version
+
+The **Release extension** workflow (`.github/workflows/release-extension.yml`) publishes the extension as a GitHub release:
+
+1. Raise `"version"` in `extension/manifest.json`, for example from `2.0.1` to `2.0.2`.
+2. Commit and push to `main`.
+3. The workflow checks the manifest, zips `extension/` as `job-finder-extension-v2.0.2.zip` and publishes the release `extension-v2.0.2`. The release notes have install and update steps, a link to the changes since the previous release, and the zip's SHA-256 checksum.
+
+A push that keeps the version publishes nothing; the run notes that the version is already released. **Actions → Release extension → Run workflow** starts it by hand.
 
 ## Autofill application forms
 
@@ -369,6 +381,8 @@ postgresql://postgres.[ref]:[PASSWORD]@aws-[n]-[region].pooler.supabase.com:5432
 ```
 
 Important: use port `5432` (session pooler), not `6543` (transaction pooler).
+
+The session pooler allows about 15 connections for the whole project (free plan), and on Vercel every running function instance keeps its own. The app therefore limits each Vercel instance to 2 connections unless `DATABASE_URL` sets `connection_limit` itself. If **Admin → Setup** or the status bar ever reports "max clients reached", add `connection_limit=1` to the URL (`…/postgres?connection_limit=1`) and redeploy.
 
 ## Google Sheet output
 

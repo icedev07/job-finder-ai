@@ -6,6 +6,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { width: 380px; font-family: system-ui, -apple-system, sans-serif; background: #f9fafb; padding: 16px; }
     h1 { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    h1 .version { font-size: 11px; font-weight: 500; color: #9ca3af; }
     .subtitle { font-size: 11px; color: #6b7280; margin-bottom: 12px; }
     .config-section { margin-bottom: 12px; }
     .config-section label { font-size: 10px; font-weight: 600; color: #374151; display: block; margin-bottom: 3px; }
@@ -68,7 +69,7 @@
   </style>
 </head>
 <body>
-  <h1>LinkedIn Job Scanner</h1>
+  <h1>LinkedIn Job Scanner <span id="versionLabel" class="version"></span></h1>
   <div class="subtitle">AI-powered job filter for Armenian developers</div>
 
   <div class="config-section">

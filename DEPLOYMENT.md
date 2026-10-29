@@ -40,6 +40,8 @@ Upgrading an existing 3.x deployment? Follow [README → Upgrading from 3.x](REA
 
 **Important**: use port `5432` (session pooler), NOT `6543` (transaction pooler). The session pooler is required for Prisma to work correctly with Vercel.
 
+The session pooler allows about 15 connections for the whole project on the free plan, and every running Vercel function instance keeps its own. The app limits each Vercel instance to 2 connections unless your `DATABASE_URL` already sets `connection_limit`, which keeps it inside that limit.
+
 ### Keep Supabase alive
 
 Supabase free tier pauses databases after 1 week of inactivity. The app has a public `/api/health` endpoint that pings the database. Set up a free cron job to call it:
@@ -239,13 +241,21 @@ Enable the job sources you want under **Sources** and run **Scrape all sources**
 
 ## Step 6: Install the Chrome extension
 
-1. Open `chrome://extensions` in Chrome (version 116 or newer)
-2. Enable **Developer mode** (toggle in top-right)
-3. Click **Load unpacked**
-4. Select the `extension/` folder from this project
-5. The extension icon appears in your toolbar
+1. Download `job-finder-extension-v<version>.zip` from the newest release on https://github.com/icedev07/job-finder-ai/releases/latest (or use the `extension/` folder from this project)
+2. Extract the zip to a folder you keep, for example `C:\JobFinder\extension`
+3. Open `chrome://extensions` in Chrome (version 116 or newer)
+4. Enable **Developer mode** (toggle in top-right)
+5. Click **Load unpacked** and select that folder
+6. The extension icon appears in your toolbar; the popup shows its version next to the title
 
-After pulling an update, click the reload icon on the extension's card.
+**Updating:** extract the new zip into the same folder, replacing the files, then click the reload icon on the extension's card. Your settings stay. Loading it from a different folder adds a second copy with empty settings, so remove the old one first in that case. (Using the project folder: pull, then click the reload icon.)
+
+### Publish a new extension version
+
+1. Raise `"version"` in `extension/manifest.json` (for example `2.0.1` → `2.0.2`), commit and push to `main`.
+2. On GitHub, **Actions → Release extension** runs by itself: it checks the manifest, zips the folder and publishes the release `extension-v2.0.2` with the file `job-finder-extension-v2.0.2.zip`, install steps and a SHA-256 checksum. It takes about a minute.
+3. A push that keeps the version publishes nothing. **Run workflow** on the same Actions page starts it by hand.
+4. If a run fails with "Resource not accessible by integration", open **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, save, and re-run it.
 
 ### Connect the extension
 
@@ -346,6 +356,13 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 - A `503` error from `/api/admin/auth` in the Network tab means the app cannot reach Postgres, not a wrong password.
 - "Too many failed attempts. Try again in N min.": after 8 failed sign-ins, wait until the 15-minute window is over.
 - Locked out? Set `ADMIN_PASSWORD` as an environment variable on Vercel and redeploy. It overrides the stored password; remove it again once you have signed in and changed the password.
+
+**An admin page says "This page couldn't load" or "Can't read the database"**
+- The database did not answer that request. **Admin → Setup** and the status bar at the top name the cause and the fix. For the full message, open Vercel → your project → **Logs** and search for the error id shown on the page.
+- "max clients reached": Supabase's session pooler is full (about 15 connections on the free plan). Wait a minute and reload. If it keeps happening, add `connection_limit=1` to `DATABASE_URL` (`…/postgres?connection_limit=1`, or `&connection_limit=1` if the URL already has a `?`) and redeploy.
+- "Can't reach database server": check `DATABASE_URL`, and whether Supabase paused the project (see **Supabase database is paused** below).
+- "Authentication failed" or "Tenant or user not found": copy the session pooler URI again from Supabase → Connect, with the right password.
+- A missing table or column right after an upgrade: open `/api/setup` once.
 
 **The admin panel keeps sending me back to the sign-in page**
 - Sessions last 7 days. Changing `SESSION_SECRET` (or `DATABASE_URL`, when `SESSION_SECRET` is not set) signs everyone out. Sign in again.

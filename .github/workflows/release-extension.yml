@@ -1,0 +1,127 @@
+# Publishes the Chrome extension as a GitHub Release with a versioned zip.
+#
+# Raise "version" in extension/manifest.json and push to main: this workflow
+# zips extension/ as job-finder-extension-v<version>.zip and publishes the
+# release "extension-v<version>" with install steps and a SHA-256 checksum.
+# A push that keeps the version publishes nothing. Actions → Release extension
+# → Run workflow does the same by hand.
+name: Release extension
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "extension/**"
+      - ".github/workflows/release-extension.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the tag and the release
+
+concurrency:
+  group: release-extension
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # every tag, to link the changes since the previous release
+
+      - name: Check the manifest
+        # Chrome must accept the version, and every file the manifest points
+        # at must be in the zip. Sets NAME, VERSION, TAG and ZIP for later steps.
+        run: |
+          node <<'JS'
+          const fs = require("node:fs");
+          const path = "extension/manifest.json";
+          const m = JSON.parse(fs.readFileSync(path, "utf8"));
+          const fail = (msg) => {
+            console.log(`::error file=${path}::${msg}`);
+            process.exitCode = 1;
+          };
+          if (!/^\d+(\.\d+){0,3}$/.test(String(m.version ?? ""))) {
+            fail(`"version" must be 1 to 4 numbers separated by dots, not "${m.version}".`);
+          }
+          const values = (v) => (v && typeof v === "object" ? Object.values(v) : [v]);
+          const files = [
+            m.background?.service_worker,
+            m.action?.default_popup,
+            m.side_panel?.default_path,
+            ...(m.content_scripts ?? []).flatMap((c) => [...(c.js ?? []), ...(c.css ?? [])]),
+            ...values(m.icons),
+            ...values(m.action?.default_icon),
+          ];
+          for (const file of new Set(files.filter(Boolean))) {
+            if (!fs.existsSync(`extension/${file}`)) fail(`${file} is listed in the manifest but missing from extension/.`);
+          }
+          if (!process.exitCode) {
+            fs.appendFileSync(
+              process.env.GITHUB_ENV,
+              `NAME=${m.name}\nVERSION=${m.version}\nTAG=extension-v${m.version}\nZIP=job-finder-extension-v${m.version}.zip\n`,
+            );
+          }
+          JS
+
+      - name: Skip versions that are already released
+        id: check
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$TAG is already published. To publish your changes, raise \"version\" in extension/manifest.json."
+            echo "Nothing to publish: **$TAG** already exists. Raise \`version\` in \`extension/manifest.json\` to publish a new release." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the zip
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          mkdir -p dist
+          # Files sit at the top of the zip, ready for "Load unpacked" once
+          # extracted. Dotfiles (.DS_Store and the like) stay out.
+          (cd extension && zip -r -X -q "../dist/$ZIP" . -x '.*' '*/.*')
+          unzip -l "dist/$ZIP"
+
+      - name: Write the release notes
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          repo="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          notes=dist/notes.md
+          prev=$(git tag --list 'extension-v*' --sort=-v:refname | grep -vxF "$TAG" | head -n 1 || true)
+
+          printf '**%s %s**, built from [`%s`](%s/commit/%s) on %s.\n\n' \
+            "$NAME" "$VERSION" "${GITHUB_SHA::7}" "$repo" "$GITHUB_SHA" "$(date -u +%Y-%m-%d)" > "$notes"
+          cat >> "$notes" <<'EOF'
+          ### Install
+          1. Download the zip under **Assets** below and extract it to a folder you keep, for example `C:\JobFinder\extension`.
+          2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and pick that folder.
+          3. Click the extension's icon, enter your server URL and the API key from **Admin → Extension**, and click **Save**.
+
+          ### Update
+          Extract the new zip into the **same folder**, replacing the old files, then click the reload icon on the extension's card in `chrome://extensions`. Your settings stay. If you extract it somewhere else instead, remove the old copy first (its settings do not move over).
+
+          ### Changes
+          EOF
+          if [ -n "$prev" ]; then
+            printf -- '- Since %s: %s/compare/%s...%s\n' "$prev" "$repo" "$prev" "$TAG" >> "$notes"
+          fi
+          printf -- '- Extension history: %s/commits/%s/extension\n\n' "$repo" "$GITHUB_SHA" >> "$notes"
+          printf 'SHA-256 of `%s`: `%s`\n' "$ZIP" "$(sha256sum "dist/$ZIP" | cut -d ' ' -f 1)" >> "$notes"
+          cat "$notes"
+
+      - name: Publish the release
+        if: steps.check.outputs.publish == 'true'
+        run: |
+          gh release create "$TAG" "dist/$ZIP" \
+            --target "$GITHUB_SHA" \
+            --title "$NAME v$VERSION" \
+            --notes-file dist/notes.md
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          echo "::notice::Published $url"
+          echo "Published [$NAME v$VERSION]($url) with **$ZIP**." >> "$GITHUB_STEP_SUMMARY"

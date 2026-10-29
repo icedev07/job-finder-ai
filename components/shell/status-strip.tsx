@@ -168,9 +168,11 @@ export function StatusStrip({ className }: { className?: string }) {
   const { snapshot, error } = useStatus();
   if (!snapshot) {
     return (
-      <div className={cn('flex items-center gap-1.5 px-2 text-xs text-muted-foreground', className)} role="status">
-        <TriangleAlertIcon className="size-3.5 text-amber-500" />
-        {error ?? 'Status unavailable'}
+      <div className={cn('flex min-w-0 items-center gap-1.5 px-2 text-xs text-muted-foreground', className)} role="status">
+        <TriangleAlertIcon className="size-3.5 shrink-0 text-amber-500" />
+        <span className="truncate" title={error ?? undefined}>
+          {error ?? 'Status unavailable'}
+        </span>
       </div>
     );
   }
