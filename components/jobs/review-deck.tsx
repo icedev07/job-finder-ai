@@ -161,7 +161,7 @@ export function ReviewDeck() {
               Undo last
             </Button>
           ) : null}
-          <Button variant="outline" render={<Link href="/admin/jobs?status=APPROVED" />}>
+          <Button variant="outline" nativeButton={false} render={<Link href="/admin/jobs?status=APPROVED" />}>
             Approved jobs
           </Button>
         </EmptyContent>
@@ -234,7 +234,7 @@ export function ReviewDeck() {
             Skip <Kbd>s</Kbd>
           </Button>
           {href ? (
-            <Button variant="ghost" render={<a href={href} target="_blank" rel="noopener noreferrer" />}>
+            <Button variant="ghost" nativeButton={false} render={<a href={href} target="_blank" rel="noopener noreferrer" />}>
               <ExternalLinkIcon />
               Open <Kbd>o</Kbd>
             </Button>

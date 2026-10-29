@@ -190,7 +190,7 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
                       Make default
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" render={<a href={`/api/admin/resumes/${r.id}/file`} target="_blank" rel="noopener noreferrer" />}>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<a href={`/api/admin/resumes/${r.id}/file`} target="_blank" rel="noopener noreferrer" />}>
                     <DownloadIcon />
                     Open
                   </Button>

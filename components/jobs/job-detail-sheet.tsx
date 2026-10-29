@@ -131,13 +131,13 @@ export function JobDetailSheet({
               </SheetDescription>
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {applyHref ? (
-                  <Button size="sm" render={<a href={applyHref} target="_blank" rel="noopener noreferrer" />}>
+                  <Button size="sm" nativeButton={false} render={<a href={applyHref} target="_blank" rel="noopener noreferrer" />}>
                     <SendIcon />
                     {job.applyMethod === 'EASY_APPLY' ? 'Open on LinkedIn' : 'Apply'}
                   </Button>
                 ) : null}
                 {jobHref && jobHref !== applyHref ? (
-                  <Button size="sm" variant="outline" render={<a href={jobHref} target="_blank" rel="noopener noreferrer" />}>
+                  <Button size="sm" variant="outline" nativeButton={false} render={<a href={jobHref} target="_blank" rel="noopener noreferrer" />}>
                     <ExternalLinkIcon />
                     Job page
                   </Button>
@@ -184,7 +184,7 @@ export function JobDetailSheet({
                     <RefreshCwIcon />
                     Re-analyze
                   </Button>
-                  <Button size="sm" variant="ghost" render={<Link href={`/admin/ai?tab=playground&jobId=${job.id}`} />}>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<Link href={`/admin/ai?tab=playground&jobId=${job.id}`} />}>
                     <FlaskConicalIcon />
                     Try other models
                   </Button>

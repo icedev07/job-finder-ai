@@ -15,11 +15,14 @@ import { api, errorMessage } from '@/lib/clientApi';
 import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 
+// A failed query leaves its part null (or the table list empty) and `error`
+// says why; the rest of the card still shows.
 type Storage = {
-  sizeBytes: number;
+  sizeBytes: number | null;
   limitBytes: number;
   tables: { name: string; bytes: number; rows: number }[];
-  rejectedOlderThan30d: number;
+  rejectedOlderThan30d: number | null;
+  error: string | null;
 };
 
 type ActionResult = { ok: boolean; message?: string; error?: string };
@@ -103,13 +106,13 @@ export function DataPanels() {
     refresh();
   };
 
-  const pct = storage ? storage.sizeBytes / storage.limitBytes : null;
+  const pct = storage?.sizeBytes != null ? storage.sizeBytes / storage.limitBytes : null;
 
   return (
     <div className="space-y-4">
       <div className="grid gap-4 xl:grid-cols-2">
         <SectionCard title="Storage" description="Supabase's free plan allows 500 MB. Old rejected jobs and logs are the usual growth.">
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error || storage?.error ? <p className="text-sm text-destructive">{error || storage?.error}</p> : null}
           {!storage ? (
             <Spinner />
           ) : (
@@ -152,7 +155,11 @@ export function DataPanels() {
           >
             <CleanupRow
               title="Old rejected jobs"
-              description={storage ? `${formatNumber(storage.rejectedOlderThan30d)} rejected jobs are older than 30 days.` : 'Rejected, unrated, not in the pipeline.'}
+              description={
+                storage?.rejectedOlderThan30d != null
+                  ? `${formatNumber(storage.rejectedOlderThan30d)} rejected jobs are older than 30 days.`
+                  : 'Rejected, unrated, not in the pipeline.'
+              }
               defaultDays={60}
               minDays={7}
               action="cleanup-rejected"
@@ -180,11 +187,11 @@ export function DataPanels() {
             <div className="flex flex-wrap gap-2">
               {/* A file download from a route handler, not a page, so a plain <a> rather than <Link>. */}
               {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <Button size="sm" variant="outline" render={<a href="/api/admin/jobs/export" />}>
+              <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/admin/jobs/export" />}>
                 <DownloadIcon />
                 All jobs (CSV)
               </Button>
-              <Button size="sm" variant="outline" render={<a href="/api/admin/data?export=settings" />}>
+              <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/admin/data?export=settings" />}>
                 <DownloadIcon />
                 Settings &amp; profile (JSON, no secrets)
               </Button>

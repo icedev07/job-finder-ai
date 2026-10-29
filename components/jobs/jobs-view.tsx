@@ -274,6 +274,7 @@ export function JobsView() {
               variant="ghost"
               size="icon-xs"
               aria-label="Open the apply page"
+              nativeButton={false}
               render={<a href={href} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} />}
             >
               <ExternalLinkIcon />
@@ -608,7 +609,7 @@ export function JobsView() {
               <SelectItem value="title_asc">Title A–Z</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" render={<a href={csv} />}>
+          <Button variant="outline" size="sm" nativeButton={false} render={<a href={csv} />}>
             <DownloadIcon />
             CSV
           </Button>
