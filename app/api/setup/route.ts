@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { describeDbError } from "@/lib/dbErrors";
 import { DEFAULT_ANALYSIS_PROMPT } from "@/lib/defaultPrompt";
+import { LEGACY_ADMIN_PASSWORD_KEY } from "@/lib/config";
+import { invalidateUserCache } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,21 @@ const EVOLUTION_STATEMENTS = [
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "SavedAnswer_pkey" PRIMARY KEY ("id")
   );`,
+  // Users: everyone signs in with a user ID and password.
+  `CREATE TABLE IF NOT EXISTS "User" (
+    "id" SERIAL NOT NULL,
+    "username" VARCHAR(40) NOT NULL,
+    "name" VARCHAR(80) NOT NULL,
+    "passwordHash" TEXT NOT NULL DEFAULT '',
+    "role" VARCHAR(10) NOT NULL DEFAULT 'USER',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "sessionVersion" INTEGER NOT NULL DEFAULT 1,
+    "lastLoginAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "User_username_key" ON "User"("username");`,
 ];
 
 async function applyEvolution(): Promise<string[]> {
@@ -105,9 +122,23 @@ async function applyEvolution(): Promise<string[]> {
   return applied;
 }
 
+// The first run after users arrived creates the first admin, user ID "admin".
+// On an upgraded install they keep the old admin password (hashed at their
+// first sign-in); on a new install the password is "admin" until changed.
+async function bootstrapAdmin(): Promise<string | null> {
+  if ((await prisma.user.count()) > 0) return null;
+  const legacy = await prisma.appConfig.findUnique({ where: { key: LEGACY_ADMIN_PASSWORD_KEY } });
+  await prisma.user.create({
+    data: { username: "admin", name: "Admin", role: "ADMIN", passwordHash: legacy?.value ?? "" },
+  });
+  invalidateUserCache();
+  return legacy?.value
+    ? 'Created the first admin: user ID "admin" with your current admin password.'
+    : 'Created the first admin: user ID "admin", password "admin". Change it in Settings.';
+}
+
 async function seedDefaults() {
   const defaults: Record<string, string> = {
-    admin_password: "admin",
     // Default to rotating across the four free providers; keys can be filled in
     // one at a time. ai_provider is kept for backward compatibility only.
     ai_provider: "gemini",
@@ -146,11 +177,13 @@ export async function GET() {
 
     if (hasTable[0]?.exists) {
       const appliedAlters = await applyEvolution();
+      const users = await bootstrapAdmin();
       await seedDefaults();
       return NextResponse.json({
         status: "already_initialized",
         message: "Database tables already exist. Default config values seeded.",
         appliedAlters,
+        ...(users ? { users } : {}),
       });
     }
 
@@ -241,9 +274,10 @@ export async function GET() {
     `);
 
     await applyEvolution();
+    const users = await bootstrapAdmin();
     await seedDefaults();
 
-    return NextResponse.json({ status: "success", message: "All tables created and defaults seeded." });
+    return NextResponse.json({ status: "success", message: "All tables created and defaults seeded.", users });
   } catch (error) {
     return NextResponse.json({ status: "error", message: describeDbError(error) }, { status: 500 });
   }

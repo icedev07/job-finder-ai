@@ -179,8 +179,9 @@ DATABASE_URL="postgresql://..." npx prisma migrate deploy
 ### Sign in
 
 1. Open `https://your-project.vercel.app`. It redirects to the admin panel and asks you to sign in.
-2. Sign in with the default password `admin`.
-3. The Dashboard lists the setup steps still open, starting with the default password: open **Settings → Admin password** and set one with at least 8 characters.
+2. Sign in with user ID `admin` and the default password `admin`.
+3. The Dashboard lists the setup steps still open, starting with the default password: open **Settings → Your password** and set one with at least 8 characters.
+4. To let other people in, open **System → Users** and click **Add user**: a user ID (no email needed), a name, a password and a role. **Admin** opens this dashboard; **User** signs in to the Chrome extension only (that sign-in comes with the next extension update).
 
 ---
 
@@ -225,7 +226,7 @@ Set the **Monthly budget** for Claude (default `$10`; `0` = no cap). The page sh
 | | Service Account JSON | paste the **entire** JSON key file content |
 | | LinkedIn sheet tab | `LinkedIn` |
 | | Sheet columns | leave blank for defaults |
-| Admin password | New password | at least 8 characters |
+| Your password | Current and new password | at least 8 characters |
 
 Click **Save** (or press `Ctrl+S`).
 
@@ -350,12 +351,15 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 
 ## Troubleshooting
 
-**Cannot sign in with password `admin`**
-- Make sure the database tables exist: open `/api/setup` first (see Step 4).
+**Cannot sign in**
+- The first admin's user ID is `admin`. On a new install the password is `admin`; after an upgrade from 4.0 it is your old admin password.
+- "Cannot sign in right now … Open /api/setup once": the database has no `User` table yet. Open `/api/setup` once (see Step 4), then sign in.
+- "This account signs in to the Chrome extension only": the account has the **User** role. An admin can change it under **Users**.
+- "This account is disabled": an admin can enable it again under **Users**.
 - If you see "database may be unreachable", your `DATABASE_URL` is wrong. Use the Supabase **session pooler** URI (port `5432`, see Step 1).
 - A `503` error from `/api/admin/auth` in the Network tab means the app cannot reach Postgres, not a wrong password.
 - "Too many failed attempts. Try again in N min.": after 8 failed sign-ins, wait until the 15-minute window is over.
-- Locked out? Set `ADMIN_PASSWORD` as an environment variable on Vercel and redeploy. It overrides the stored password; remove it again once you have signed in and changed the password.
+- Locked out? Set `ADMIN_PASSWORD` as an environment variable on Vercel and redeploy. It becomes the first admin's password (user ID `admin`) and overrides the stored one; remove it again once you have signed in and changed the password. Another admin can also set your password under **Users**.
 
 **An admin page says "This page couldn't load" or "Can't read the database"**
 - The database did not answer that request. **Admin → Setup** and the status bar at the top name the cause and the fix. For the full message, open Vercel → your project → **Logs** and search for the error id shown on the page.
@@ -366,6 +370,7 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 
 **The admin panel keeps sending me back to the sign-in page**
 - Sessions last 7 days. Changing `SESSION_SECRET` (or `DATABASE_URL`, when `SESSION_SECRET` is not set) signs everyone out. Sign in again.
+- An admin may have disabled your account, set a new password, changed your role or used **Sign out everywhere**; each ends your sessions.
 - The session cookie needs HTTPS in production. Open the `https://` URL of your deployment.
 
 **The daily scan does not run**

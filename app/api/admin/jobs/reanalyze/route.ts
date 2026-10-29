@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reanalyzeJobs } from "@/lib/jobAnalyzer";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // POST { ids } → judge these jobs again with the board-scan route.
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let ids: number[] = [];
   try {
     const body = await req.json();

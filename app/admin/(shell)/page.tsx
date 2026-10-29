@@ -22,13 +22,15 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getDashboardData } from "@/lib/dashboard";
 import { formatDayKey, formatNumber, formatPercent, formatUsd, platformLabel, ratio, timeAgo } from "@/lib/format";
+import { pageAdmin } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [data, status] = await Promise.all([getDashboardData(30), getStatusSnapshot().catch(() => null)]);
+  const admin = await pageAdmin();
+  const [data, status] = await Promise.all([getDashboardData(30), getStatusSnapshot(admin.id).catch(() => null)]);
   const last14 = data.perDay.slice(-14);
   const labels14 = last14.map((d) => formatDayKey(d.day));
   const aiToday = data.perDay[data.perDay.length - 1]?.aiCalls ?? 0;

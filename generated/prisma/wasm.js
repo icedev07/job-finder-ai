@@ -122,6 +122,19 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
+exports.Prisma.UserScalarFieldEnum = {
+  id: 'id',
+  username: 'username',
+  name: 'name',
+  passwordHash: 'passwordHash',
+  role: 'role',
+  active: 'active',
+  sessionVersion: 'sessionVersion',
+  lastLoginAt: 'lastLoginAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ScrapedJobScalarFieldEnum = {
   id: 'id',
   platform: 'platform',
@@ -264,6 +277,7 @@ exports.SkipRuleType = exports.$Enums.SkipRuleType = {
 };
 
 exports.Prisma.ModelName = {
+  User: 'User',
   ScrapedJob: 'ScrapedJob',
   AppConfig: 'AppConfig',
   SkipRule: 'SkipRule',

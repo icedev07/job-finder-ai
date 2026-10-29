@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { listResumes, MAX_RESUME_BYTES, RESUME_TYPES, setDefaultResume } from "@/lib/resumes";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   try {
     return NextResponse.json({ resumes: await listResumes() });
   } catch (e) {
@@ -17,6 +20,8 @@ export async function GET() {
 
 // POST multipart/form-data: file, name?, tags?, makeDefault?
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let form: FormData;
   try {
     form = await req.formData();

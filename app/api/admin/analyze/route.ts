@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: { limit?: number; timeBudgetMs?: number } = {};
   try {
     body = await req.json();

@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
 import { listClaudeModels } from "@/lib/claudeClient";
 import { CLAUDE_MODELS } from "@/lib/aiRoutes";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // The Claude models this key can use, straight from Anthropic's Models API —
 // doubles as a key check. Known models carry their price for the cost hints.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const config = await getConfig();
   if (!config.anthropicApiKey) {
     return NextResponse.json({ ok: false, error: "No Claude API key saved yet.", known: CLAUDE_MODELS, live: [] });

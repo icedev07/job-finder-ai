@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CONFIG_KEYS, getAllConfig } from "@/lib/config";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 const REVEALABLE = new Set<string>([CONFIG_KEYS.EXTENSION_API_KEY]);
 
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let key = "";
   try {
     key = String((await req.json())?.key ?? "");

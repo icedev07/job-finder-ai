@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(_req: NextRequest, { params }: Ctx) {
+export async function GET(req: NextRequest, { params }: Ctx) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
   const r = await prisma.resume.findUnique({ where: { id }, select: { data: true, fileName: true, mimeType: true } });

@@ -13,6 +13,7 @@ import {
 } from "@/lib/llmClient";
 import { callClaude, listClaudeModels } from "@/lib/claudeClient";
 import { recordAiUsage } from "@/lib/aiUsage";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   // Everything runs inside one try: a bad request body, a DB error in
   // getConfig(), or any unexpected throw must still leave as JSON. A route
   // handler that throws returns an empty 500 body, which is exactly what the

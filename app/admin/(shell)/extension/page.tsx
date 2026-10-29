@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { pageAdmin } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Extension" };
@@ -46,7 +47,8 @@ async function easyApplyStats() {
 }
 
 export default async function ExtensionPage() {
-  const [status, stats] = await Promise.all([getStatusSnapshot().catch(() => null), easyApplyStats()]);
+  const admin = await pageAdmin();
+  const [status, stats] = await Promise.all([getStatusSnapshot(admin.id).catch(() => null), easyApplyStats()]);
   return (
     <div className="space-y-4">
       <PageHeader

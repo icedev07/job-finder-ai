@@ -174,7 +174,7 @@ export function SqlConsole() {
   async function run() {
     if (running || !hasSql) return;
     if (!isRead && !password) {
-      setResult({ kind: 'error', error: 'Write queries need the admin password. Enter it before running.' });
+      setResult({ kind: 'error', error: 'Write queries need your password. Enter it before running.' });
       return;
     }
     if (!isRead && !confirmWrite) {
@@ -222,7 +222,7 @@ export function SqlConsole() {
   return (
     <SectionCard
       title="SQL console"
-      description="Run SQL against the app database. Reads run in a read-only transaction; writes need the admin password and can’t be undone."
+      description="Run SQL against the app database. Reads run in a read-only transaction; writes need your password and can’t be undone."
     >
       <div className="flex flex-wrap items-center gap-2">
         <Select items={PRESET_ITEMS} value={null} onValueChange={loadPreset}>
@@ -296,7 +296,7 @@ export function SqlConsole() {
             <TriangleAlertIcon />
             <AlertTitle>Write query ({statement})</AlertTitle>
             <AlertDescription>
-              This changes the live database and can’t be undone. Tick “Confirm write” and enter the admin password
+              This changes the live database and can’t be undone. Tick “Confirm write” and enter your password
               to run it.
             </AlertDescription>
           </Alert>
@@ -319,8 +319,8 @@ export function SqlConsole() {
                     void run();
                   }
                 }}
-                placeholder="Admin password"
-                aria-label="Admin password"
+                placeholder="Your password"
+                aria-label="Your password"
                 autoComplete="off"
               />
             </InputGroup>

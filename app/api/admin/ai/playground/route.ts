@@ -3,12 +3,15 @@ import { analyzeJobPreview } from "@/lib/jobAnalyzer";
 import { parseAiRoutes, type AiRoute } from "@/lib/aiRoutes";
 import { getConfig } from "@/lib/config";
 import { prisma } from "@/lib/prisma";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // Judge one job with any route (provider chain + Claude model + effort)
 // without saving a verdict. Body: { jobId? , job?: {...}, route?: AiRoute }.
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: Record<string, any>;
   try {
     body = await req.json();

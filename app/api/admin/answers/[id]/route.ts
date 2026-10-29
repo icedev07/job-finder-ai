@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,8 @@ type Ctx = { params: Promise<{ id: string }> };
 
 // PATCH { question?, answer?, tags? }
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
   let body: Record<string, unknown>;
@@ -24,7 +27,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ ok: true, answer: updated });
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
   const removed = await prisma.savedAnswer.delete({ where: { id } }).catch(() => null);

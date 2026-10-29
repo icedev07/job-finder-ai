@@ -8,8 +8,8 @@ import {
   secretHint,
   setConfigValue,
 } from "@/lib/config";
-import { MIN_ADMIN_PASSWORD_LENGTH, hashPassword } from "@/lib/adminAuth";
 import { parseAiRoutes } from "@/lib/aiRoutes";
+import { requireAdmin } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,9 @@ const WRITABLE_KEYS = new Set<string>(
   Object.values(CONFIG_KEYS).filter((k) => k !== CONFIG_KEYS.AI_PROVIDER),
 );
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
   const all = await getAllConfig();
   const config = await getConfig();
 
@@ -53,8 +55,6 @@ export async function GET() {
     review_band_min: String(config.reviewBandMin),
     review_band_max: String(config.reviewBandMax),
     followup_days: String(config.followUpDays),
-    admin_password_set: !!all.admin_password || !!process.env.ADMIN_PASSWORD?.trim(),
-    admin_password_from_env: !!process.env.ADMIN_PASSWORD?.trim(),
     secrets,
   });
 }
@@ -67,9 +67,11 @@ function badRequest(error: string) {
 //   - non-secret keys are stored as given;
 //   - a secret sent as "" (or not sent) keeps its current value — the UI never
 //     sees the stored secret, so an untouched field must not wipe it;
-//   - secrets listed in __clear are removed;
-//   - admin_password is stored as an scrypt hash.
+//   - secrets listed in __clear are removed.
+// Passwords are not settings: see /api/admin/account and /api/admin/users.
 export async function PUT(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -88,19 +90,6 @@ export async function PUT(req: NextRequest) {
       continue;
     }
     if (typeof value !== "string") continue;
-
-    if (key === CONFIG_KEYS.ADMIN_PASSWORD) {
-      const password = value.trim();
-      if (!password) continue;
-      if (process.env.ADMIN_PASSWORD?.trim()) {
-        return badRequest("The admin password is set by the ADMIN_PASSWORD env var — change it there.");
-      }
-      if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
-        return badRequest(`The admin password must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters.`);
-      }
-      writes.push([key, await hashPassword(password)]);
-      continue;
-    }
 
     if (isSecretConfigKey(key)) {
       const v = value.trim();

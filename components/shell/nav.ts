@@ -12,6 +12,7 @@ import {
   ScrollTextIcon,
   SettingsIcon,
   SparklesIcon,
+  UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -63,6 +64,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: 'System',
     items: [
+      { title: 'Users', href: '/admin/users', icon: UsersIcon, keywords: 'people accounts sign-in team password' },
       { title: 'Logs', href: '/admin/logs', icon: ScrollTextIcon, keywords: 'scan analysis extension errors' },
       { title: 'Data', href: '/admin/data', icon: DatabaseIcon, keywords: 'sql database storage cleanup export' },
       { title: 'Settings', href: '/admin/settings', icon: SettingsIcon, keywords: 'password sheets prompt location' },

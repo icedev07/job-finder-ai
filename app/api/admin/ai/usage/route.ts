@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getConfig } from "@/lib/config";
 import { startOfNextUtcMonth, startOfUtcMonth } from "@/lib/aiUsage";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ type DayRow = { day: Date; provider: string; calls: bigint; failures: bigint; co
 // Usage & cost for the AI page: month-to-date Claude spend vs the budget cap,
 // a per-day series, per task/provider/model totals, and 24h provider health.
 export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const days = Math.min(90, Math.max(1, Number(new URL(req.url).searchParams.get("days")) || 30));
   const since = new Date(Date.now() - days * 24 * 60 * 60_000);
   const since24h = new Date(Date.now() - 24 * 60 * 60_000);

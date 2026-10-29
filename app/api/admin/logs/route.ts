@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const url = new URL(req.url);
   const type = url.searchParams.get("type");
   const from = url.searchParams.get("from");
@@ -69,6 +72,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const body = await req.json();
   const { type, ids } = body;
 

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { CONFIG_KEYS, getAllConfig, isSecretConfigKey } from "@/lib/config";
+import { LEGACY_ADMIN_PASSWORD_KEY, getAllConfig, isSecretConfigKey } from "@/lib/config";
 import { describeDbError } from "@/lib/dbErrors";
 import { SUPABASE_FREE_DB_BYTES } from "@/lib/status";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,12 @@ type TableRow = { name: string; bytes: bigint; rows: bigint };
 // GET            → storage overview (database size, per-table size and rows).
 // GET ?export=settings → JSON download of the settings, without any secret.
 export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   if (new URL(req.url).searchParams.get("export") === "settings") {
     const all = await getAllConfig();
     const settings = Object.fromEntries(
-      Object.entries(all).filter(([k]) => !isSecretConfigKey(k) && k !== CONFIG_KEYS.ADMIN_PASSWORD),
+      Object.entries(all).filter(([k]) => !isSecretConfigKey(k) && k !== LEGACY_ADMIN_PASSWORD_KEY),
     );
     const stamp = new Date().toISOString().slice(0, 10);
     return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), settings }, null, 2), {
@@ -83,6 +86,8 @@ function badRequest(error: string) {
 //   cleanup-usage    — AI usage rows older than N days (≥ 35, so the month's budget is untouched)
 //   wipe-jobs        — every job and its AI history; needs confirm = "DELETE ALL JOBS"
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   try {
     return await runAction(req);
   } catch (e) {

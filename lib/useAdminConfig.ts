@@ -10,8 +10,6 @@ import { api, errorMessage } from '@/lib/clientApi';
 // strings plus `secrets` (set + hint only — never the values).
 export type AdminConfig = Record<string, string> & {
   secrets?: Record<string, SecretState>;
-  admin_password_set?: boolean;
-  admin_password_from_env?: boolean;
 };
 
 export function useAdminConfig() {

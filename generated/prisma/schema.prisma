@@ -20,6 +20,29 @@ enum JobStatus {
   REJECTED
 }
 
+// ── Users ───────────────────────────────────────────────────────────────────
+
+// Everyone who signs in. ADMIN accounts sign in to the dashboard (and the
+// extension) and manage every user; USER accounts only sign in to the Chrome
+// extension.
+model User {
+  id             Int       @id @default(autoincrement())
+  // The sign-in ID, stored lower-case.
+  username       String    @unique @db.VarChar(40)
+  name           String    @db.VarChar(80)
+  // "scrypt$<salt>$<hash>". The first admin of an install upgraded from the
+  // single-password version may still hold the old value (plain text, or empty
+  // for the default "admin"); it is hashed on the first sign-in.
+  passwordHash   String    @default("")
+  role           String    @default("USER") @db.VarChar(10)
+  active         Boolean   @default(true)
+  // Raised to sign the user out everywhere.
+  sessionVersion Int       @default(1)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
+}
+
 // ── Core ────────────────────────────────────────────────────────────────────
 
 model ScrapedJob {

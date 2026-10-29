@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getConfig } from "@/lib/config";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // The review queue: recent verdicts close to the approval line that you have
 // not rated or put in the pipeline yet. Newest first.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const config = await getConfig();
   const where = {
     status: { in: ["APPROVED", "REJECTED"] as ("APPROVED" | "REJECTED")[] },

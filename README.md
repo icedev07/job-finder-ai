@@ -2,7 +2,16 @@
 
 Automated job finder for Armenian developers targeting European and remote positions.
 
-It pulls jobs from 19 job sources, has AI judge every job against your target market (and, optionally, your profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, your profile and resumes, and an extension side panel that fills company application forms for you.
+It pulls jobs from 19 job sources, has AI judge every job against your target market (and, optionally, your profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, your profile and resumes, and an extension side panel that fills company application forms for you. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page.
+
+## Upgrading from 4.0
+
+Version 4.1 replaces the single admin password with user accounts. After you deploy it:
+
+1. **Update the database**: open `https://your-app.vercel.app/api/setup` once. It adds the `User` table and makes you the first admin, user ID `admin`, with your current admin password. Nothing else changes. (Or run `npx prisma migrate deploy`.)
+2. **Sign in again** at `/admin/login` with user ID `admin` and your current password. Sessions from 4.0 end, so everyone signs in once.
+3. **Add people** under **System → Users**: a user ID (no email), a name, a password and a role. **Admins** use this dashboard. **Users** sign in to the Chrome extension only; that sign-in comes with the next extension update.
+4. Change your own password under **Settings → Your password** (it asks for the current one). `ADMIN_PASSWORD`, when set, is now the first admin's password.
 
 ## Upgrading from 3.x
 
@@ -12,7 +21,7 @@ Version 4.0 locks the admin panel down and changes how the extension connects. A
    - `CRON_SECRET` (**required** for the daily scan): any long random string. Vercel sends it to the cron route; without it the daily scan is refused and logged in **Logs**.
    - `SESSION_SECRET` (recommended): signs admin sessions. Without it the signing key is derived from `DATABASE_URL`.
 2. **Update the database**: open `https://your-app.vercel.app/api/setup` once. It adds the new tables and columns and keeps your data. (Or run `npx prisma migrate deploy`.)
-3. **Sign in** at `/admin/login`. If you still use the default password `admin`, change it under **Settings → Admin password** (at least 8 characters).
+3. **Sign in** at `/admin/login` with user ID `admin`. If you still use the default password `admin`, change it under **Settings → Your password** (at least 8 characters).
 4. **Reconnect the extension**. The extension API key is now required.
    1. Reload the extension in `chrome://extensions` so Chrome picks up version 2.0.0, which adds the side panel and the application-form sites.
    2. Open **Admin → Extension**, copy the server URL and the API key into the extension popup, and click **Save**.
@@ -37,7 +46,7 @@ Other changes to know about:
 
 ## Admin panel
 
-Sign in at `/admin/login`. The default password is `admin`; change it right away. Every admin page and admin API needs a session (see [Security](#security)).
+Sign in at `/admin/login` with your user ID and password. The first admin is `admin`, with the password `admin` on a new install; change it right away. Every admin page and admin API needs a session (see [Security](#security)).
 
 | Page | URL | What it is for |
 |---|---|---|
@@ -50,9 +59,10 @@ Sign in at `/admin/login`. The default password is `admin`; change it right away
 | AI | `/admin/ai` | Providers & keys, per-task routes, usage & cost, playground, evaluations |
 | Profile & resumes | `/admin/profile` | Your candidate profile, resume files and the answer bank used by autofill |
 | Extension | `/admin/extension` | Server URL and API key for the popup, install steps, Easy Apply stats, supported form sites |
+| Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role), rename, change the role, set a new password, disable or enable, sign out everywhere, delete |
 | Logs | `/admin/logs` | All jobs, AI analysis log, scan logs, extension logs |
 | Data | `/admin/data` | Storage use against the Supabase free 500 MB, safe clean-ups, exports, SQL console (read-only by default) |
-| Settings | `/admin/settings` | Target market and location, profile in matching, review band, follow-up days, analysis prompt, Google Sheets, admin password |
+| Settings | `/admin/settings` | Target market and location, profile in matching, review band, follow-up days, analysis prompt, Google Sheets, your password |
 | Setup | `/admin/setup` | 12-step checklist from database to first scan |
 
 The top bar shows the last scan, AI calls in the last 24 hours, Claude spend against the budget, database size, and when the extension last reported in.
@@ -291,12 +301,13 @@ Each scan checks every job with AI as it runs, stores only the suitable / not-su
 
 ## Security
 
-- **Sign-in**: every `/admin` page and `/api/admin` endpoint needs a session. The session is an HttpOnly, SameSite=Lax cookie that lasts 7 days, signed with `SESSION_SECRET` (or a key derived from `DATABASE_URL`). Rotating `SESSION_SECRET` signs everyone out.
-- **Password**: stored as an scrypt hash; a new password needs at least 8 characters. After 8 failed sign-ins from one client, further attempts are refused until 15 minutes after the first failure. The `ADMIN_PASSWORD` environment variable, when set, overrides the stored password, and the password can then not be changed in the panel.
+- **Sign-in**: everyone signs in with a user ID and password; only users with the **Admin** role can open the dashboard. Every `/admin` page and `/api/admin` endpoint needs a session: an HttpOnly, SameSite=Lax cookie that lasts 7 days, signed with `SESSION_SECRET` (or a key derived from `DATABASE_URL`). Rotating `SESSION_SECRET` signs everyone out.
+- **Ending sessions**: disabling a user, setting their password, changing their role or **Sign out everywhere** on the Users page ends their sessions within seconds. Nobody can disable, demote or delete themselves, so the dashboard always keeps an admin.
+- **Passwords**: stored as scrypt hashes; a new password needs at least 8 characters, and changing your own asks for the current one. A failed sign-in says "Wrong user ID or password." without saying which. After 8 failed sign-ins from one client, further attempts are refused until 15 minutes after the first failure. The `ADMIN_PASSWORD` environment variable, when set, is the first admin's password and overrides the stored one; it can then not be changed in the panel.
 - **Secrets are write-only**: the AI provider keys, the Google service account and the extension key are never sent back to the browser; the panel only shows whether one is set and its last characters. Leaving a secret field blank keeps the stored value. Only the extension API key can be revealed, because you need to copy it into the popup.
 - **Extension API**: every `/api/extension/*` request needs the `X-API-Key` header with the extension key.
 - **Cron**: the daily scan needs `CRON_SECRET` (see above).
-- **SQL console** (**Admin → Data**): queries run in a read-only transaction with a 15-second timeout. A write needs an explicit confirmation plus your admin password.
+- **SQL console** (**Admin → Data**): queries run in a read-only transaction with a 15-second timeout. A write needs an explicit confirmation plus your own password.
 - **Clean-ups and exports**: clean-ups only delete rows older than a minimum age (rejected jobs: 7 days, logs: 1 day, AI usage: 35 days, so this month's budget stays correct). Wiping all jobs needs the typed phrase `DELETE ALL JOBS`. The settings export never contains secrets.
 - **Without a session**, only `/admin/login`, the sign-in API, `/api/health` and `/api/setup` respond. `/api/setup` is idempotent: it creates or updates tables and seeds defaults, and never returns your data. The extension API and the cron route check their own keys.
 
@@ -355,7 +366,7 @@ npx prisma migrate deploy
 # 4. Start the dev server
 npm run dev
 
-# 5. Open http://localhost:3000/admin and sign in with the default password: admin
+# 5. Open http://localhost:3000/admin and sign in as user ID admin, password admin
 #    Then follow the checklist on /admin/setup.
 ```
 
@@ -422,7 +433,7 @@ Default column config JSON:
 
 | Setting | Default value | Where to change it |
 |---------|---------------|--------------------|
-| Admin password | `admin` | Settings → Admin password |
+| First admin | user ID `admin`, password `admin` | Settings → Your password; more people on **Users** |
 | AI routes | see [Tasks and routes](#tasks-and-routes) | AI → Routes |
 | Gemini model | `gemini-2.5-flash` | AI → Providers & keys |
 | Groq model | `llama-3.1-8b-instant` | AI → Providers & keys |
@@ -473,7 +484,7 @@ Only `DATABASE_URL` is required to boot. Everything else is configured in the ad
 | `DATABASE_URL` | yes | Postgres connection string (Supabase session pooler, port 5432) |
 | `CRON_SECRET` | for the daily scan | Bearer token Vercel Cron sends to `/api/admin/scanners/run` |
 | `SESSION_SECRET` | recommended | Signs admin sessions; rotating it signs everyone out |
-| `ADMIN_PASSWORD` | no | Overrides the stored admin password (and locks password changes in the panel) |
+| `ADMIN_PASSWORD` | no | The first admin's password: overrides the stored one (and locks changing it in the panel) |
 | `ANTHROPIC_BASE_URL` | no | Send Claude calls through a proxy or gateway instead of `https://api.anthropic.com` |
 
 The Anthropic API key itself is stored in the database (**AI → Providers & keys**), not in the environment. See `.env.example`.

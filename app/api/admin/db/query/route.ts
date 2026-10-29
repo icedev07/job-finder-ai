@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyAdminPassword } from "@/lib/adminAuth";
+import { requireAdmin } from "@/lib/scope";
+import { verifyOwnPassword } from "@/lib/users";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,10 @@ function serializeRows(rows: unknown): unknown {
 // The admin session (checked by middleware) is enough to read. Reads run in a
 // READ ONLY transaction, so a "read" that smuggles a write — e.g.
 // WITH x AS (DELETE …) SELECT … — fails inside Postgres instead of running.
-// Writes additionally require the admin password, re-entered for each query.
+// Writes additionally require the signed-in admin's password, re-entered for each query.
 export async function POST(req: NextRequest) {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
   let body: { sql?: unknown; password?: unknown; confirmWrite?: unknown };
   try {
     body = await req.json();
@@ -52,10 +55,9 @@ export async function POST(req: NextRequest) {
       );
     }
     const password = typeof body.password === "string" ? body.password : "";
-    const check = password ? await verifyAdminPassword(password) : { ok: false };
-    if (!check.ok) {
+    if (!(await verifyOwnPassword(admin.id, password))) {
       return NextResponse.json(
-        { error: "Write queries need the admin password. Enter it and try again." },
+        { error: "Write queries need your password. Enter it and try again." },
         { status: 401 },
       );
     }

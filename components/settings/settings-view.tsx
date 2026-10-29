@@ -8,6 +8,7 @@ import { TestResultBox, type TestResult } from '@/components/ai/shared';
 import { SaveBar } from '@/components/common/save-bar';
 import { SecretField } from '@/components/common/secret-field';
 import { SectionCard } from '@/components/common/section-card';
+import { PasswordCard } from '@/components/settings/password-card';
 import { Button } from '@/components/ui/button';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -54,9 +55,6 @@ export function SettingsView() {
   const [draft, setDraft] = useState(saved);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [password, setPassword] = useState('');
-  const [password2, setPassword2] = useState('');
-  const [changingPassword, setChangingPassword] = useState(false);
   const [sheetsTest, setSheetsTest] = useState<TestResult>(null);
   const [testingSheets, setTestingSheets] = useState(false);
 
@@ -104,29 +102,6 @@ export function SettingsView() {
       setSaveError(errorMessage(e));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function changePassword() {
-    if (password.length < 8) {
-      toast.error('Use at least 8 characters');
-      return;
-    }
-    if (password !== password2) {
-      toast.error('The two passwords differ');
-      return;
-    }
-    setChangingPassword(true);
-    try {
-      await saveAdminConfig({ admin_password: password });
-      setPassword('');
-      setPassword2('');
-      toast.success('Password changed — use it next time you sign in');
-      await reload();
-    } catch (e) {
-      toast.error(errorMessage(e));
-    } finally {
-      setChangingPassword(false);
     }
   }
 
@@ -265,45 +240,8 @@ export function SettingsView() {
         </SectionCard>
       </div>
 
-      <div id="admin" className="scroll-mt-20">
-        <SectionCard
-          title="Admin password"
-          description={
-            config.admin_password_from_env
-              ? 'Set by the ADMIN_PASSWORD environment variable — change it in your hosting settings.'
-              : 'Stored as a salted hash. Signing in again is not needed after a change.'
-          }
-        >
-          <FieldGroup className="grid gap-4 sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="pw1">New password</FieldLabel>
-              <Input
-                id="pw1"
-                type="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={!!config.admin_password_from_env}
-                placeholder="At least 8 characters"
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="pw2">Repeat it</FieldLabel>
-              <Input
-                id="pw2"
-                type="password"
-                autoComplete="new-password"
-                value={password2}
-                onChange={(e) => setPassword2(e.target.value)}
-                disabled={!!config.admin_password_from_env}
-              />
-            </Field>
-          </FieldGroup>
-          <Button size="sm" onClick={() => void changePassword()} disabled={changingPassword || !password || !!config.admin_password_from_env}>
-            {changingPassword ? <Spinner /> : null}
-            Change password
-          </Button>
-        </SectionCard>
+      <div id="password" className="scroll-mt-20">
+        <PasswordCard />
       </div>
 
       <SaveBar

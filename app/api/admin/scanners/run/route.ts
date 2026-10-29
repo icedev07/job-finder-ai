@@ -5,6 +5,7 @@ import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
 import { getAllConfig } from "@/lib/config";
 import { safeEqual } from "@/lib/adminAuth";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -157,6 +158,8 @@ function outcomeBody(o: RunOutcome) {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const functionStartedAt = Date.now();
   let body: { board?: string } = {};
   try {

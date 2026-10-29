@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getProfile, saveProfile } from "@/lib/profile";
 import { profileCompleteness } from "@/lib/profileModel";
 import { CONFIG_KEYS, getAllConfig } from "@/lib/config";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const [profile, all] = await Promise.all([getProfile(), getAllConfig()]);
   return NextResponse.json({
     profile,
@@ -16,6 +19,8 @@ export async function GET() {
 
 // PUT { profile } — the whole profile; anything malformed is repaired field by field.
 export async function PUT(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: { profile?: unknown };
   try {
     body = await req.json();

@@ -31,7 +31,7 @@ const BADGE_LABEL: Record<NavBadge, (n: number) => string> = {
 };
 
 /** Left navigation: grouped sections with active state and live counts (review queue, follow-ups, setup). */
-export function AppSidebar({ version }: { version: string }) {
+export function AppSidebar({ version, account }: { version: string; account: { name: string; username: string } }) {
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
   const { snapshot } = useStatus();
@@ -105,7 +105,7 @@ export function AppSidebar({ version }: { version: string }) {
         ))}
       </SidebarContent>
       <SidebarFooter className="gap-1">
-        <NavUser version={version} />
+        <NavUser version={version} account={account} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

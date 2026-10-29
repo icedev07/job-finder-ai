@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ function csvCell(v: unknown): string {
 
 // GET (same filters as the Jobs list) → CSV download of every matching job.
 export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const q = parseJobsQuery(new URL(req.url).searchParams);
   const jobs = await prisma.scrapedJob.findMany({
     where: jobsWhere(q),

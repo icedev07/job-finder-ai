@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { PATH_HEADER, SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
 // The single gate in front of the admin (Next 16 "proxy", formerly middleware).
 //   - /api/admin/**  → 401 JSON without a valid session, except /api/admin/auth
 //     (sign in/out) and the Vercel cron GET on /api/admin/scanners/run, which
 //     checks "Authorization: Bearer $CRON_SECRET" itself.
 //   - /admin/**      → redirect to /admin/login (the login page itself is open).
+// A validly signed session can still be revoked (disabled user, new password):
+// the pages check that themselves (lib/scope.ts), so the requested path goes
+// along in a header for their redirect to /admin/login?next=….
 export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
@@ -30,7 +33,9 @@ export async function proxy(req: NextRequest) {
     url.search = `?next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
-  return NextResponse.next();
+  const headers = new Headers(req.headers);
+  headers.set(PATH_HEADER, pathname + search);
+  return NextResponse.next({ request: { headers } });
 }
 
 export const config = {

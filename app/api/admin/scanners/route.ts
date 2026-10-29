@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { invalidateConfigCache } from "@/lib/config";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,9 @@ function isAllowedKey(key: string): boolean {
   return SCANNER_KEY_PREFIXES.some((p) => SCANNER_KEY_SUFFIXES.some((s) => key === `${p}${s}`));
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const expectedKeys = [
     ...GLOBAL_SCANNER_KEYS,
     ...SCANNER_SECRET_KEYS,
@@ -72,6 +75,8 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const body = await req.json();
   let wrote = false;
   for (const [key, value] of Object.entries(body)) {

@@ -1,15 +1,33 @@
 // Signed admin session cookie. Built on Web Crypto only, so the same code runs
-// in middleware (Edge runtime) and in route handlers (Node runtime).
+// in the proxy and in route handlers.
 //
 // Token format: base64url(JSON payload) + "." + base64url(HMAC-SHA256(payload)).
 // The signing key comes from SESSION_SECRET when set, otherwise it is derived
 // from DATABASE_URL (already a server-only secret), so a deployment works
 // without a new env var. Rotating SESSION_SECRET signs every session out.
+//
+// The payload names the user and their session version: raising the version
+// on the User row (disable, new password, "sign out everywhere") ends every
+// session issued before. The proxy only checks the signature and expiry; the
+// pages and API routes also check the user row (lib/scope.ts).
 
 export const SESSION_COOKIE = "jf_session";
+// Set by proxy.ts on admin page requests: the path asked for, so a page that
+// finds the session revoked can send the visitor back there after sign-in.
+export const PATH_HEADER = "x-jf-path";
 export const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-type SessionPayload = { sub: "admin"; iat: number; exp: number };
+export type SessionPayload = {
+  /** User id. */
+  sub: number;
+  /** The user's sessionVersion when the token was issued. */
+  ver: number;
+  /** User ID and name, to draw the shell while the database is unreachable. */
+  usr: string;
+  nm: string;
+  iat: number;
+  exp: number;
+};
 
 const encoder = new TextEncoder();
 
@@ -70,39 +88,64 @@ export function sessionSigningAvailable(): boolean {
   return secretMaterial().length > 0;
 }
 
-export async function createSessionToken(now = Date.now()): Promise<string> {
+export async function createSessionToken(
+  user: { id: number; sessionVersion: number; username: string; name: string },
+  now = Date.now(),
+): Promise<string> {
   const key = signingKey();
   if (!key) throw new Error("Cannot sign sessions: set SESSION_SECRET (or DATABASE_URL).");
   const iat = Math.floor(now / 1000);
-  const payload: SessionPayload = { sub: "admin", iat, exp: iat + SESSION_TTL_SECONDS };
+  const payload: SessionPayload = {
+    sub: user.id,
+    ver: user.sessionVersion,
+    usr: user.username,
+    nm: user.name,
+    iat,
+    exp: iat + SESSION_TTL_SECONDS,
+  };
   const body = toBase64Url(encoder.encode(JSON.stringify(payload)));
   const sig = new Uint8Array(await crypto.subtle.sign("HMAC", await key, encoder.encode(body)));
   return `${body}.${toBase64Url(sig)}`;
 }
 
+// The payload of a correctly signed, unexpired token; null otherwise (also for
+// tokens from the single-password version, which had no user id).
 // crypto.subtle.verify compares the signature in constant time.
-export async function verifySessionToken(
+export async function readSessionToken(
   token: string | null | undefined,
   now = Date.now(),
-): Promise<boolean> {
-  if (!token) return false;
+): Promise<SessionPayload | null> {
+  if (!token) return null;
   const key = signingKey();
-  if (!key) return false;
+  if (!key) return null;
   const dot = token.indexOf(".");
-  if (dot <= 0 || dot === token.length - 1) return false;
+  if (dot <= 0 || dot === token.length - 1) return null;
   const body = token.slice(0, dot);
   const sig = fromBase64Url(token.slice(dot + 1));
-  if (!sig) return false;
+  if (!sig) return null;
   const valid = await crypto.subtle.verify("HMAC", await key, sig, encoder.encode(body));
-  if (!valid) return false;
+  if (!valid) return null;
   const raw = fromBase64Url(body);
-  if (!raw) return false;
+  if (!raw) return null;
   try {
-    const payload = JSON.parse(new TextDecoder().decode(raw)) as Partial<SessionPayload>;
-    return payload.sub === "admin" && typeof payload.exp === "number" && payload.exp > now / 1000;
+    const p = JSON.parse(new TextDecoder().decode(raw)) as Partial<SessionPayload>;
+    if (!Number.isInteger(p.sub) || !Number.isInteger(p.ver)) return null;
+    if (typeof p.exp !== "number" || p.exp <= now / 1000) return null;
+    return {
+      sub: p.sub as number,
+      ver: p.ver as number,
+      usr: typeof p.usr === "string" ? p.usr : "",
+      nm: typeof p.nm === "string" ? p.nm : "",
+      iat: typeof p.iat === "number" ? p.iat : 0,
+      exp: p.exp,
+    };
   } catch {
-    return false;
+    return null;
   }
+}
+
+export async function verifySessionToken(token: string | null | undefined, now = Date.now()): Promise<boolean> {
+  return (await readSessionToken(token, now)) !== null;
 }
 
 export function sessionCookieOptions(maxAgeSeconds = SESSION_TTL_SECONDS) {

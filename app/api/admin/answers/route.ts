@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   try {
     const answers = await prisma.savedAnswer.findMany({ orderBy: [{ uses: "desc" }, { updatedAt: "desc" }] });
     return NextResponse.json({ answers });
@@ -14,6 +17,8 @@ export async function GET() {
 
 // POST { question, answer, tags? }
 export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: Record<string, unknown>;
   try {
     body = await req.json();

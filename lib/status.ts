@@ -3,10 +3,10 @@ import { cache } from "react";
 import { prisma } from "./prisma";
 import { getConfig } from "./config";
 import { claudeSpendThisMonth } from "./aiUsage";
-import { isDefaultPasswordActive } from "./adminAuth";
 import { parseAiRoutes, type ProviderId } from "./aiRoutes";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
+import { usesDefaultPassword } from "./users";
 
 // Live status for the admin shell: the top status strip, the sidebar badges
 // and the Setup checklist. Every query is independent and fails soft, so one
@@ -63,7 +63,8 @@ function providerHasKey(id: ProviderId, c: Awaited<ReturnType<typeof getConfig>>
   }
 }
 
-async function loadStatusSnapshot(): Promise<StatusSnapshot> {
+// adminId: the signed-in admin, for the "change the default password" step.
+async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapshot> {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
   const config = await getConfig();
@@ -133,7 +134,7 @@ async function loadStatusSnapshot(): Promise<StatusSnapshot> {
     ),
     soft(prisma.scrapedJob.count({ where: { status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
     soft(prisma.scrapedJob.count({ where: { stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
-    soft(isDefaultPasswordActive(), false),
+    soft(adminId == null ? Promise.resolve(false) : usesDefaultPassword(adminId), false),
     soft(getProfile(), null),
     soft(prisma.resume.count(), 0),
     soft(prisma.$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Resume"') IS NOT NULL AS ok`.then((r) => !!r[0]?.ok), false),
@@ -164,7 +165,7 @@ async function loadStatusSnapshot(): Promise<StatusSnapshot> {
       title: "Change the default admin password",
       done: !defaultPassword,
       optional: false,
-      href: "/admin/settings#admin",
+      href: "/admin/settings#password",
       hint: "The shipped password is “admin”.",
     },
     {
@@ -267,6 +268,6 @@ async function loadStatusSnapshot(): Promise<StatusSnapshot> {
 
 // Once per page render: the admin layout and a page that also needs the
 // snapshot (Dashboard, Setup, Extension) share one round of queries instead of
-// doubling the load on the connection pool. Outside a render (the status API)
-// every call runs fresh.
+// doubling the load on the connection pool (React's cache() matches on the
+// admin id argument). Outside a render (the status API) every call runs fresh.
 export const getStatusSnapshot = cache(loadStatusSnapshot);

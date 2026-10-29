@@ -28,7 +28,6 @@ export const CONFIG_KEYS = {
   CLOUDFLARE_MODEL: "cloudflare_model",
   GOOGLE_SHEETS_CREDENTIALS: "google_sheets_credentials",
   GOOGLE_SHEET_ID: "google_sheet_id",
-  ADMIN_PASSWORD: "admin_password",
   TARGET_MARKET: "target_market",
   CURRENT_LOCATION: "current_location",
   JOB_ANALYSIS_PROMPT: "job_analysis_prompt",
@@ -54,6 +53,10 @@ export const CONFIG_KEYS = {
   // Days after "Applied" before a follow-up is due.
   FOLLOWUP_DAYS: "followup_days",
 } as const;
+
+// Where the single-password version kept the admin password. Passwords now live
+// on the User row; /api/setup copies this value to the first admin.
+export const LEGACY_ADMIN_PASSWORD_KEY = "admin_password";
 
 // Settings that are write-only from the admin UI: the API returns only whether
 // they are set plus a short hint, never the value itself.

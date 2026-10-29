@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseJobPatch, updateJobs } from "@/lib/jobActions";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,9 @@ type Ctx = { params: Promise<{ id: string }> };
 
 // Full job for the detail panel: description, AI history, apply links, and
 // how often the same company has shown up (a ghost-job / spam signal).
-export async function GET(_req: NextRequest, { params }: Ctx) {
+export async function GET(req: NextRequest, { params }: Ctx) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
   const job = await prisma.scrapedJob.findUnique({
@@ -48,6 +51,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
   let body: unknown;

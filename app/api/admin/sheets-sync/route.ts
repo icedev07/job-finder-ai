@@ -1,7 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { fullSyncToSheet } from "@/lib/googleSheetsSync";
+import { adminOnly } from "@/lib/scope";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   try {
     const result = await fullSyncToSheet();
     return NextResponse.json({ success: true, ...result });

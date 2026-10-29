@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { JOB_LIST_SELECT, jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
 import { deleteJobs, parseJobPatch, updateJobs } from "@/lib/jobActions";
+import { adminOnly } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,8 @@ export const dynamic = "force-dynamic";
 // DELETE { ids } → bulk delete (max 500).
 
 export async function GET(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   const params = new URL(req.url).searchParams;
   const q = parseJobsQuery(params);
   const where = jobsWhere(q);
@@ -57,6 +60,8 @@ function idsFrom(body: unknown): number[] | null {
 }
 
 export async function PATCH(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await req.json();
@@ -72,6 +77,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await adminOnly(req);
+  if (denied) return denied;
   let body: unknown;
   try {
     body = await req.json();
