@@ -8,6 +8,7 @@ import { SaveBar } from '@/components/common/save-bar';
 import { AnswersPanel } from '@/components/profile/answers-panel';
 import { ProfileForm } from '@/components/profile/profile-form';
 import { ResumesPanel, type MergeMode } from '@/components/profile/resumes-panel';
+import { ChooseUser, useViewing } from '@/components/shell/viewing';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -51,7 +52,14 @@ function merge(current: CandidateProfile, extracted: CandidateProfile, mode: Mer
 
 const TABS = ['profile', 'resumes', 'answers'] as const;
 
+/** The viewed user's profile, resumes and answer bank (each user has their own). */
 export function ProfileView() {
+  const { viewing } = useViewing();
+  if (viewing === 'all') return <ChooseUser what="The profile, resumes and saved answers" />;
+  return <ProfileEditor />;
+}
+
+function ProfileEditor() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();

@@ -21,7 +21,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { api, errorMessage } from '@/lib/clientApi';
+import { api, errorMessage, viewingParam } from '@/lib/clientApi';
 import { formatBytes, formatUsd, timeAgo } from '@/lib/format';
 import { fullName, type CandidateProfile } from '@/lib/profileModel';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
@@ -190,7 +190,7 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
                       Make default
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" nativeButton={false} render={<a href={`/api/admin/resumes/${r.id}/file`} target="_blank" rel="noopener noreferrer" />}>
+                  <Button size="sm" variant="ghost" nativeButton={false} render={<a href={`/api/admin/resumes/${r.id}/file?${viewingParam()}`} target="_blank" rel="noopener noreferrer" />}>
                     <DownloadIcon />
                     Open
                   </Button>

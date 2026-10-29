@@ -187,7 +187,7 @@ DATABASE_URL="postgresql://..." npx prisma migrate deploy
 
 ## Step 5: Configure the admin panel
 
-**Admin → Setup** (`/admin/setup`) is a 12-step checklist that ticks itself off as you go and links to the right page for each step. The main places:
+**Admin → Setup** (`/admin/setup`) is a 14-step checklist that ticks itself off as you go and links to the right page for each step. The main places:
 
 ### AI → Providers & keys
 
@@ -214,18 +214,21 @@ Set the **Monthly budget** for Claude (default `$10`; `0` = no cap). The page sh
 
 ### Settings
 
+The first sections belong to the user selected in the **Viewing** menu (with one user, that is you). Each user has their own.
+
 | Section | Setting | Example value |
 |---------|---------|---------------|
-| Target & matching | Target market | `Europe, Eastern Europe, Remote worldwide` |
-| | Current location | `Armenia` |
-| | Use my profile when judging jobs | on |
+| Target & matching | Target market | `Europe, remote worldwide` |
+| | Where they are based | `Poland` |
+| | Use the profile when judging jobs | on |
 | | Review band | `45` – `70` |
 | | Follow-up days | `7` |
 | Job analysis prompt | (blank = built-in prompt) | |
-| Google Sheets | Google Sheet ID | the spreadsheet ID from Step 2 |
-| | Service Account JSON | paste the **entire** JSON key file content |
-| | LinkedIn sheet tab | `LinkedIn` |
+| Job boards | which boards' new jobs are judged for this user | all |
+| Google Sheet | Spreadsheet ID | the spreadsheet ID from Step 2 |
+| | Jobs / LinkedIn tab names | `Jobs` / `LinkedIn` |
 | | Sheet columns | leave blank for defaults |
+| Google service account (all users) | Service Account JSON | paste the **entire** JSON key file content |
 | Your password | Current and new password | at least 8 characters |
 
 Click **Save** (or press `Ctrl+S`).

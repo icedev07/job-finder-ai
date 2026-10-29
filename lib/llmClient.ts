@@ -948,6 +948,8 @@ export type GenerateOptions = {
   routeOverride?: AiRoute;
   /** Task name written to AiUsage (default: the task) — e.g. "playground". */
   usageTask?: string;
+  /** Whose work this call is for, written to AiUsage (cost per user). */
+  userId?: number | null;
 };
 
 // Run a request through the task's provider chain.
@@ -1014,6 +1016,7 @@ export async function generateForTask(
     try {
       const result = await p.run(request, config, route, attemptSignal(signal, timeoutMs), timeoutMs);
       await recordAiUsage({
+        userId: options.userId,
         task: usageTask,
         provider: p.id,
         model: result.model,
@@ -1033,6 +1036,7 @@ export async function generateForTask(
       const message = String(e?.message || e);
       // A Claude refusal / truncated answer was still billed — record its cost.
       await recordAiUsage({
+        userId: options.userId,
         task: usageTask,
         provider: p.id,
         model: e?.model || p.modelOf(config, route),

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
+import { useViewing } from '@/components/shell/viewing';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import type { StatusSnapshot } from '@/lib/status';
 
@@ -15,17 +16,21 @@ type StatusContextValue = {
 
 const StatusContext = createContext<StatusContextValue>({ snapshot: null, error: null, refresh: () => {} });
 
-/** Live status for the shell (strip, badges, checklist): first value from the server, then polled every 30 s. */
+/**
+ * Live status for the shell (strip, badges, checklist) of the user being viewed: first value from the server,
+ * then polled every 30 s, and loaded again when the Viewing menu changes.
+ */
 export function StatusProvider({ initial, children }: { initial: StatusSnapshot | null; children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<StatusSnapshot | null>(initial);
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef(false);
+  const { viewing } = useViewing();
 
   const refresh = useCallback(async () => {
     if (inflight.current) return;
     inflight.current = true;
     try {
-      const res = await fetch('/api/admin/status', { cache: 'no-store' });
+      const res = await fetch('/api/admin/status', { cache: 'no-store', headers: { 'X-JF-View': String(viewing) } });
       if (res.status === 401) return;
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
@@ -36,7 +41,16 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
     } finally {
       inflight.current = false;
     }
-  }, []);
+  }, [viewing]);
+
+  // Another user picked in the Viewing menu: their numbers, right away.
+  const shown = useRef(viewing);
+  useEffect(() => {
+    if (shown.current === viewing) return;
+    shown.current = viewing;
+    inflight.current = false;
+    void refresh();
+  }, [viewing, refresh]);
 
   // The server could not build a snapshot (usually the database is down): ask
   // right away so the strip says why instead of waiting for the first poll.

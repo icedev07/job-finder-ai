@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +15,20 @@ function csvCell(v: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-// GET (same filters as the Jobs list) → CSV download of every matching job.
+// GET (same filters as the Jobs list, ?user= for whose) → CSV download of every matching job.
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   const q = parseJobsQuery(new URL(req.url).searchParams);
+  const userId = viewingUserId(scope);
+  const userName = new Map(scope.users.map((u) => [u.id, u.username]));
   const jobs = await prisma.scrapedJob.findMany({
-    where: jobsWhere(q),
+    where: jobsWhere(q, userId),
     orderBy: jobsOrderBy(q.sort),
     take: MAX_ROWS,
     select: {
       id: true,
+      userId: true,
       createdAt: true,
       platform: true,
       title: true,
@@ -48,6 +51,7 @@ export async function GET(req: NextRequest) {
   });
   const header = [
     "id",
+    "user",
     "found",
     "source",
     "title",
@@ -72,6 +76,7 @@ export async function GET(req: NextRequest) {
     lines.push(
       [
         j.id,
+        userName.get(j.userId) ?? j.userId,
         j.createdAt,
         j.platform,
         j.title,
@@ -99,7 +104,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(`﻿${lines.join("\r\n")}`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="jobs-${stamp}.csv"`,
+      "Content-Disposition": `attachment; filename="jobs-${userId != null ? `${userName.get(userId)}-` : ""}${stamp}.csv"`,
       "Cache-Control": "no-store",
     },
   });

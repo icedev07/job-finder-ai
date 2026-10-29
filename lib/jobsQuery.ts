@@ -56,8 +56,10 @@ export function parseJobsQuery(params: URLSearchParams): JobsQuery {
   };
 }
 
-export function jobsWhere(q: JobsQuery): Prisma.ScrapedJobWhereInput {
+// userId: one user's jobs, or null for every user's (the "All users" view).
+export function jobsWhere(q: JobsQuery, userId: number | null = null): Prisma.ScrapedJobWhereInput {
   const and: Prisma.ScrapedJobWhereInput[] = [];
+  if (userId != null) and.push({ userId });
   if (q.q) {
     // "exact phrase" is matched as-is; -word excludes; other words must all match.
     const tokens = q.q.match(/-?"[^"]+"|\S+/g) ?? [];
@@ -122,6 +124,7 @@ export function jobsOrderBy(sort: string | undefined): Prisma.ScrapedJobOrderByW
 // Columns returned by the list (the description is fetched per job).
 export const JOB_LIST_SELECT = {
   id: true,
+  userId: true,
   platform: true,
   title: true,
   company: true,

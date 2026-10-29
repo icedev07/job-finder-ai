@@ -6,12 +6,13 @@ import { useCallback, useState } from 'react';
 import { ConfirmButton } from '@/components/common/confirm-button';
 import { SectionCard } from '@/components/common/section-card';
 import { useStatus } from '@/components/shell/status-provider';
+import { useViewing } from '@/components/shell/viewing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { api, errorMessage } from '@/lib/clientApi';
+import { api, errorMessage, viewingParam } from '@/lib/clientApi';
 import { formatBytes, formatNumber, formatPercent } from '@/lib/format';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 
@@ -87,6 +88,9 @@ function CleanupRow({
 
 /** Storage, clean-ups, danger zone and settings export for the Data page. */
 export function DataPanels() {
+  const { viewing, userName } = useViewing();
+  // Clean-ups, exports and the danger zone work on the user being viewed.
+  const whose = viewing === 'all' ? 'all' : userName(viewing);
   const [storage, setStorage] = useState<Storage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { refresh } = useStatus();
@@ -151,7 +155,7 @@ export function DataPanels() {
         <div className="space-y-4">
           <SectionCard
             title="Clean up"
-            description="Jobs you rated or put in the pipeline are never touched. Note: a deleted rejected job can be found and judged again by a later scan."
+            description={`${whose === 'all' ? 'Jobs and logs of every user' : `${whose}'s jobs and logs`}. Jobs rated or put in the pipeline are never touched. Note: a deleted rejected job can be found and judged again by a later scan.`}
           >
             <CleanupRow
               title="Old rejected jobs"
@@ -186,12 +190,11 @@ export function DataPanels() {
           <SectionCard title="Export" description="Downloads for your own backups.">
             <div className="flex flex-wrap gap-2">
               {/* A file download from a route handler, not a page, so a plain <a> rather than <Link>. */}
-              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-              <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/admin/jobs/export" />}>
+              <Button size="sm" variant="outline" nativeButton={false} render={<a href={`/api/admin/jobs/export?${viewingParam()}`} />}>
                 <DownloadIcon />
-                All jobs (CSV)
+                {whose === 'all' ? 'All jobs (CSV)' : `${whose}'s jobs (CSV)`}
               </Button>
-              <Button size="sm" variant="outline" nativeButton={false} render={<a href="/api/admin/data?export=settings" />}>
+              <Button size="sm" variant="outline" nativeButton={false} render={<a href={`/api/admin/data?export=settings&${viewingParam()}`} />}>
                 <DownloadIcon />
                 Settings &amp; profile (JSON, no secrets)
               </Button>
@@ -200,13 +203,13 @@ export function DataPanels() {
 
           <SectionCard
             title="Danger zone"
-            description="Deletes every job (approved, rejected, in the pipeline) and its AI history. Settings, profile, resumes, skip rules and AI usage stay."
+            description={`Deletes ${whose === 'all' ? 'every job of every user' : `every job of ${whose}`} (approved, rejected, in the pipeline) and its AI history. Settings, profile, resumes, skip rules and AI usage stay.`}
             className="border-destructive/40"
           >
             <ConfirmButton
               destructive
               typeToConfirm="DELETE ALL JOBS"
-              title="Delete every job?"
+              title={whose === 'all' ? 'Delete every job of every user?' : `Delete every job of ${whose}?`}
               description="This cannot be undone. Export the jobs first if you might need them."
               confirmLabel="Delete everything"
               onConfirm={async () => {

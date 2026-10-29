@@ -11,8 +11,10 @@ import {
   type ImportResult,
   type SkipRule,
 } from '@/components/rules/lib/skip-rules';
+import { useViewing } from '@/components/shell/viewing';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogClose,
@@ -58,6 +60,12 @@ export function ImportRulesDialog({
   onImported: () => Promise<void>;
 }) {
   const hydrated = useHydrated();
+  const { viewing, userName, multiUser } = useViewing();
+  // Which rule set the import replaces: the viewed user's, or the rules for everyone.
+  const [everyoneTicked, setEveryone] = useState(false);
+  const everyone = viewing === 'all' || everyoneTicked;
+  const target = !multiUser ? 'every current rule' : everyone ? 'every rule for everyone' : `every rule of ${userName(viewing as number)}`;
+  const targetRules = (rules ?? []).filter((r) => (everyone ? r.userId == null : r.userId != null));
   const [open, setOpen] = useState(false);
   const [csv, setCsv] = useState('');
   const [source, setSource] = useState<string | null>(null);
@@ -82,8 +90,9 @@ export function ImportRulesDialog({
 
   function startFromCurrentRules() {
     if (!rules) return;
-    setCsv(rulesToCsv(rules));
-    setSource(`Loaded the current ${plural(rules.length, 'rule')}`);
+    const list = multiUser ? targetRules : rules;
+    setCsv(rulesToCsv(list));
+    setSource(`Loaded the current ${plural(list.length, 'rule')}`);
     setOutcome(null);
   }
 
@@ -92,7 +101,7 @@ export function ImportRulesDialog({
     setPending(true);
     setOutcome(null);
     try {
-      const result = await api<ImportResult>('/api/admin/skip-rules/import', { method: 'POST', json: { csv } });
+      const result = await api<ImportResult>('/api/admin/skip-rules/import', { method: 'POST', json: { csv, everyone } });
       if (!result?.ok) throw new Error('The server did not confirm the import');
       setOutcome({ ok: true, result });
       setCsv('');
@@ -123,7 +132,13 @@ export function ImportRulesDialog({
       <DialogContent className="sm:max-w-xl" initialFocus={textarea} showCloseButton={!pending}>
         <DialogHeader>
           <DialogTitle>Import rules from CSV</DialogTitle>
-          <DialogDescription>Paste CSV or load a file. Importing replaces every current rule.</DialogDescription>
+          <DialogDescription>Paste CSV or load a file. Importing replaces {target}.</DialogDescription>
+          {multiUser && viewing !== 'all' ? (
+            <label className="flex w-fit items-center gap-2 text-sm">
+              <Checkbox checked={everyoneTicked} onCheckedChange={(on) => setEveryone(on)} disabled={pending} />
+              Replace the rules for everyone instead
+            </label>
+          ) : null}
         </DialogHeader>
         {outcome?.ok ? (
           <ImportSummary result={outcome.result} />

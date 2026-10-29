@@ -197,10 +197,10 @@ export function ProfileForm({ profile, onChange }: { profile: CandidateProfile; 
           <TextField id="first" label="First name" value={profile.firstName} onChange={text('firstName')} />
           <TextField id="last" label="Last name" value={profile.lastName} onChange={text('lastName')} />
           <TextField id="email" label="E-mail" type="email" value={profile.email} onChange={text('email')} />
-          <TextField id="phone" label="Phone" type="tel" value={profile.phone} onChange={text('phone')} placeholder="+374 …" />
-          <TextField id="city" label="City" value={profile.city} onChange={text('city')} placeholder="Yerevan" />
-          <TextField id="country" label="Country" value={profile.country} onChange={text('country')} placeholder="Armenia" />
-          <TextField id="tz" label="Time zone" value={profile.timezone} onChange={text('timezone')} placeholder="UTC+4" />
+          <TextField id="phone" label="Phone" type="tel" value={profile.phone} onChange={text('phone')} placeholder="+48 …" />
+          <TextField id="city" label="City" value={profile.city} onChange={text('city')} placeholder="Warsaw" />
+          <TextField id="country" label="Country" value={profile.country} onChange={text('country')} placeholder="Poland" />
+          <TextField id="tz" label="Time zone" value={profile.timezone} onChange={text('timezone')} placeholder="UTC+1" />
           <TextField id="li" label="LinkedIn URL" value={profile.linkedin} onChange={text('linkedin')} placeholder="https://linkedin.com/in/…" />
           <TextField id="gh" label="GitHub URL" value={profile.github} onChange={text('github')} placeholder="https://github.com/…" />
           <TextField id="pf" label="Portfolio / website" value={profile.portfolio} onChange={text('portfolio')} />
@@ -241,7 +241,7 @@ export function ProfileForm({ profile, onChange }: { profile: CandidateProfile; 
               rows={2}
               value={profile.workAuthorization}
               onChange={(e) => set({ workAuthorization: e.target.value })}
-              placeholder="Armenian citizen. No EU/US work permit — I work as a contractor (B2B) or through an employer of record."
+              placeholder="EU citizen. No US work permit — open to contractor (B2B) or employer-of-record roles."
             />
           </Field>
           <TriSelect label="Needs visa sponsorship" value={profile.needsSponsorship} onChange={(v) => set({ needsSponsorship: v })} />

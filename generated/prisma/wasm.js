@@ -135,8 +135,16 @@ exports.Prisma.UserScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.UserConfigScalarFieldEnum = {
+  userId: 'userId',
+  key: 'key',
+  value: 'value',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.ScrapedJobScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   platform: 'platform',
   title: 'title',
   company: 'company',
@@ -173,6 +181,7 @@ exports.Prisma.AppConfigScalarFieldEnum = {
 
 exports.Prisma.SkipRuleScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   type: 'type',
   pattern: 'pattern',
   active: 'active',
@@ -181,6 +190,7 @@ exports.Prisma.SkipRuleScalarFieldEnum = {
 
 exports.Prisma.ScanLogScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   board: 'board',
   jobsFound: 'jobsFound',
   jobsSaved: 'jobsSaved',
@@ -203,6 +213,7 @@ exports.Prisma.AnalysisLogScalarFieldEnum = {
 
 exports.Prisma.ResumeScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   name: 'name',
   fileName: 'fileName',
   mimeType: 'mimeType',
@@ -218,6 +229,7 @@ exports.Prisma.ResumeScalarFieldEnum = {
 
 exports.Prisma.SavedAnswerScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   question: 'question',
   answer: 'answer',
   tags: 'tags',
@@ -228,6 +240,7 @@ exports.Prisma.SavedAnswerScalarFieldEnum = {
 
 exports.Prisma.AiUsageScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   task: 'task',
   provider: 'provider',
   model: 'model',
@@ -244,6 +257,7 @@ exports.Prisma.AiUsageScalarFieldEnum = {
 
 exports.Prisma.ExtensionLogScalarFieldEnum = {
   id: 'id',
+  userId: 'userId',
   level: 'level',
   message: 'message',
   sessionId: 'sessionId',
@@ -278,6 +292,7 @@ exports.SkipRuleType = exports.$Enums.SkipRuleType = {
 
 exports.Prisma.ModelName = {
   User: 'User',
+  UserConfig: 'UserConfig',
   ScrapedJob: 'ScrapedJob',
   AppConfig: 'AppConfig',
   SkipRule: 'SkipRule',

@@ -1,6 +1,6 @@
 import { prisma } from "./prisma";
-import { getConfig } from "./config";
 import { isJobStage, type JobStage } from "./format";
+import { getUserSettings } from "./userSettings";
 
 // Changes the admin makes to jobs (Jobs table, Review queue, Applications
 // board, extension "Mark as applied"). One place for the rules:
@@ -47,12 +47,15 @@ export function parseJobPatch(raw: unknown): JobPatch | string {
   return patch;
 }
 
-export async function updateJobs(ids: number[], patch: JobPatch): Promise<number> {
+// `scope` limits the change to one user's jobs ({} = any user's); ids outside
+// it are ignored, so a stale tab can never change another user's jobs.
+export async function updateJobs(ids: number[], patch: JobPatch, scope: { userId?: number } = {}): Promise<number> {
   const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n) && n > 0))).slice(0, 500);
   if (unique.length === 0) return 0;
+  const rows = await prisma.scrapedJob.findMany({ where: { id: { in: unique }, ...scope }, select: { id: true, userId: true } });
+  const inScope = rows.map((r) => r.id);
+  if (inScope.length === 0) return 0;
   const now = new Date();
-  const config = await getConfig();
-  const followUpDefault = new Date(now.getTime() + config.followUpDays * 24 * 60 * 60_000);
 
   const data: Record<string, unknown> = {};
   if (patch.notes !== undefined) data.notes = patch.notes;
@@ -75,37 +78,39 @@ export async function updateJobs(ids: number[], patch: JobPatch): Promise<number
 
   let updated = 0;
   if (Object.keys(data).length > 0) {
-    updated = (await prisma.scrapedJob.updateMany({ where: { id: { in: unique } }, data })).count;
+    updated = (await prisma.scrapedJob.updateMany({ where: { id: { in: inScope } }, data })).count;
   }
 
-  // Per-row rules that depend on the current value.
+  // Per-row rules that depend on the current value. The default follow-up
+  // date is each job's own user's setting.
+  const needsFollowUp =
+    patch.followUpAt === undefined && (patch.stage === "APPLIED" || patch.stage === "INTERVIEW");
   if (patch.stage === "APPLIED") {
-    await prisma.scrapedJob.updateMany({ where: { id: { in: unique }, appliedAt: null }, data: { appliedAt: now } });
-    if (patch.followUpAt === undefined) {
+    await prisma.scrapedJob.updateMany({ where: { id: { in: inScope }, appliedAt: null }, data: { appliedAt: now } });
+  }
+  if (needsFollowUp) {
+    const byUser = new Map<number, number[]>();
+    for (const r of rows) byUser.set(r.userId, [...(byUser.get(r.userId) ?? []), r.id]);
+    for (const [userId, userIds] of byUser) {
+      const days = (await getUserSettings(userId)).followUpDays;
       await prisma.scrapedJob.updateMany({
-        where: { id: { in: unique }, followUpAt: null },
-        data: { followUpAt: followUpDefault },
+        where: { id: { in: userIds }, followUpAt: null },
+        data: { followUpAt: new Date(now.getTime() + days * 24 * 60 * 60_000) },
       });
     }
-  }
-  if (patch.stage === "INTERVIEW" && patch.followUpAt === undefined) {
-    await prisma.scrapedJob.updateMany({
-      where: { id: { in: unique }, followUpAt: null },
-      data: { followUpAt: followUpDefault },
-    });
   }
   // A job approved by hand enters the pipeline as Saved.
   if (patch.status === "APPROVED" && patch.stage === undefined) {
     await prisma.scrapedJob.updateMany({
-      where: { id: { in: unique }, stage: null },
+      where: { id: { in: inScope }, stage: null },
       data: { stage: "SAVED", stageUpdatedAt: now },
     });
   }
-  return updated || unique.length;
+  return updated || inScope.length;
 }
 
-export async function deleteJobs(ids: number[]): Promise<number> {
+export async function deleteJobs(ids: number[], scope: { userId?: number } = {}): Promise<number> {
   const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n) && n > 0))).slice(0, 500);
   if (unique.length === 0) return 0;
-  return (await prisma.scrapedJob.deleteMany({ where: { id: { in: unique } } })).count;
+  return (await prisma.scrapedJob.deleteMany({ where: { id: { in: unique }, ...scope } })).count;
 }

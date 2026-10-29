@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, userWhere, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
+// Logs of the user being viewed (or of every user).
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const mine = userWhere(scope);
+  const userId = viewingUserId(scope);
   const url = new URL(req.url);
   const type = url.searchParams.get("type");
   const from = url.searchParams.get("from");
@@ -23,7 +26,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "analysis") {
     const logs = await prisma.analysisLog.findMany({
-      where: { ...createdAtWhere },
+      where: { ...createdAtWhere, ...(userId != null ? { scrapedJob: { userId } } : {}) },
       orderBy: { createdAt: "desc" },
       take: 500,
       include: { scrapedJob: { select: { title: true, company: true, url: true, platform: true } } },
@@ -34,7 +37,7 @@ export async function GET(req: NextRequest) {
   if (type === "jobs") {
     const platform = url.searchParams.get("platform");
     const status = url.searchParams.get("status");
-    const where: Record<string, any> = { ...createdAtWhere };
+    const where: Record<string, any> = { ...createdAtWhere, ...mine };
     if (platform) where.platform = platform;
     if (status) where.status = status.toUpperCase();
 
@@ -48,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   if (type === "extension") {
     const sessionId = url.searchParams.get("sessionId");
-    const where: Record<string, any> = { ...createdAtWhere };
+    const where: Record<string, any> = { ...createdAtWhere, ...mine };
     if (sessionId) where.sessionId = sessionId;
 
     try {
@@ -64,16 +67,19 @@ export async function GET(req: NextRequest) {
   }
 
   const logs = await prisma.scanLog.findMany({
-    where: { ...createdAtWhere },
+    where: { ...createdAtWhere, ...mine },
     orderBy: { createdAt: "desc" },
     take: 200,
   });
   return NextResponse.json(logs);
 }
 
+// Deletes only rows of the user being viewed (any user's with all users).
 export async function DELETE(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const mine = userWhere(scope);
+  const userId = viewingUserId(scope);
   const body = await req.json();
   const { type, ids } = body;
 
@@ -91,24 +97,26 @@ export async function DELETE(req: NextRequest) {
   }
 
   if (type === "jobs") {
-    await prisma.analysisLog.deleteMany({ where: { scrapedJobId: { in: ids } } });
-    await prisma.scrapedJob.deleteMany({ where: { id: { in: ids } } });
-    return NextResponse.json({ deleted: ids.length });
+    // Their analysis logs go with them (ON DELETE CASCADE).
+    const r = await prisma.scrapedJob.deleteMany({ where: { id: { in: ids }, ...mine } });
+    return NextResponse.json({ deleted: r.count });
   }
 
   if (type === "analysis") {
-    await prisma.analysisLog.deleteMany({ where: { id: { in: ids } } });
-    return NextResponse.json({ deleted: ids.length });
+    const r = await prisma.analysisLog.deleteMany({
+      where: { id: { in: ids }, ...(userId != null ? { scrapedJob: { userId } } : {}) },
+    });
+    return NextResponse.json({ deleted: r.count });
   }
 
   if (type === "scans") {
-    await prisma.scanLog.deleteMany({ where: { id: { in: ids } } });
-    return NextResponse.json({ deleted: ids.length });
+    const r = await prisma.scanLog.deleteMany({ where: { id: { in: ids }, ...mine } });
+    return NextResponse.json({ deleted: r.count });
   }
 
   if (type === "extension") {
-    await prisma.extensionLog.deleteMany({ where: { id: { in: ids } } });
-    return NextResponse.json({ deleted: ids.length });
+    const r = await prisma.extensionLog.deleteMany({ where: { id: { in: ids }, ...mine } });
+    return NextResponse.json({ deleted: r.count });
   }
 
   return NextResponse.json({ error: "invalid type" }, { status: 400 });

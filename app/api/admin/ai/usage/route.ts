@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const config = await getConfig();
 
   try {
-    const [monthAgg, byDay, byKey, health, lastErrors] = await Promise.all([
+    const [monthAgg, byDay, byKey, health, lastErrors, byUser] = await Promise.all([
       prisma.aiUsage.aggregate({
         _sum: { costUsd: true },
         _count: { _all: true },
@@ -54,6 +54,12 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: 40,
         select: { provider: true, model: true, task: true, error: true, createdAt: true },
+      }),
+      prisma.aiUsage.groupBy({
+        by: ["userId"],
+        where: { createdAt: { gte: since } },
+        _count: { _all: true },
+        _sum: { costUsd: true },
       }),
     ]);
 
@@ -122,6 +128,10 @@ export async function GET(req: NextRequest) {
         successRate: h.ok + h.failed > 0 ? h.ok / (h.ok + h.failed) : null,
       })),
       recentErrors: lastErrors.slice(0, 15),
+      // Calls and cost per user over the same window (null = app-wide calls such as model lists).
+      byUser: byUser
+        .map((r) => ({ userId: r.userId, calls: r._count._all, costUsd: r._sum.costUsd || 0 }))
+        .sort((a, b) => b.costUsd - a.costUsd || b.calls - a.calls),
     });
   } catch (e) {
     return NextResponse.json(

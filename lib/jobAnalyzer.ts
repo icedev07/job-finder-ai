@@ -4,6 +4,7 @@ import { getConfig } from "./config";
 import { DEFAULT_ANALYSIS_PROMPT } from "./defaultPrompt";
 import { profileForMatching } from "./profile";
 import { profileSummary, type CandidateProfile } from "./profileModel";
+import { getUserSettings, promptLocation, promptMarket } from "./userSettings";
 
 export type AnalysisResult = {
   approved: boolean;
@@ -34,16 +35,22 @@ type PromptConfig = {
   profile?: CandidateProfile | null;
 };
 
-// Config + profile for one analysis run.
-async function analysisConfig() {
-  const config = await getConfig();
+// What one user's jobs are judged against: their location, target market,
+// prompt and (when turned on) profile.
+export async function promptConfigFor(userId: number): Promise<PromptConfig> {
+  const settings = await getUserSettings(userId);
   let profile: CandidateProfile | null = null;
   try {
-    profile = await profileForMatching();
+    profile = await profileForMatching(userId);
   } catch {
     // profile unavailable — judge without it
   }
-  return { ...config, profile };
+  return {
+    targetMarket: promptMarket(settings),
+    currentLocation: promptLocation(settings),
+    jobAnalysisPrompt: settings.jobAnalysisPrompt,
+    profile,
+  };
 }
 
 // The profile only nudges the score; the hard reject rules always win.
@@ -434,7 +441,7 @@ export async function analyzeJob(
     return { approved: false, score: 0, reason: "No description available for analysis", techStack: [] };
   }
 
-  const config = await analysisConfig();
+  const config = await promptConfigFor(job.userId);
   const startTime = Date.now();
 
   let llmResult: { text: string; model: string; tokensUsed: number };
@@ -443,6 +450,7 @@ export async function analyzeJob(
     // extension route's 60s function limit.
     llmResult = await generateForTask("extension", buildSingleRequest(job, config), signal, {
       callTimeoutMs: 25_000,
+      userId: job.userId,
     });
   } catch (err: any) {
     // Rate-limit / quota errors are surfaced to the caller without marking the
@@ -535,6 +543,8 @@ export type AnalyzeBatchOptions = {
   batchSize?: number;
   /** Only analyze these job ids (still only while they are PENDING). */
   onlyIds?: number[];
+  /** Only this user's jobs; all users when omitted. */
+  userId?: number;
 };
 
 // Leave at least this much wall-clock for the response + post-batch sheets
@@ -577,6 +587,7 @@ async function delay(ms: number, signal?: AbortSignal): Promise<void> {
 async function analyzeBatch(
   jobs: PendingJobRow[],
   config: PromptConfig,
+  userId: number,
   signal?: AbortSignal,
 ): Promise<{ approved: number; rejected: number; resolved: number; unresolved: number }> {
   let approved = 0;
@@ -626,7 +637,7 @@ async function analyzeBatch(
     description: job.description,
   }));
   const startTime = Date.now();
-  const llmResult = await generateForTask("scan", buildBatchRequest(promptRows, config), signal);
+  const llmResult = await generateForTask("scan", buildBatchRequest(promptRows, config), signal, { userId });
   const durationMs = Date.now() - startTime;
   const verdicts = matchVerdictsByPosition(
     parseBatchVerdicts(llmResult.text),
@@ -687,7 +698,7 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
   retryAfterMs?: number;
   batchError?: string;
 }> {
-  const config = await analysisConfig();
+  const config = await getConfig();
   const batchSize = Math.min(12, Math.max(1, options.batchSize ?? config.analyzerBatchSize));
   // Vercel caps this route at 60s. Keep 48s of working budget so there is
   // always headroom to return a response and run the post-batch sheets sync.
@@ -705,11 +716,26 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
   // Hard kill the in-flight LLM call once we're inside the headroom window.
   const killTimer = setTimeout(() => batchController.abort(), Math.max(1_000, deadline));
 
+  const scope = options.userId != null ? { userId: options.userId } : {};
   const pending = await prisma.scrapedJob.findMany({
-    where: { status: "PENDING", ...(options.onlyIds ? { id: { in: options.onlyIds } } : {}) },
+    where: { status: "PENDING", ...scope, ...(options.onlyIds ? { id: { in: options.onlyIds } } : {}) },
     orderBy: { createdAt: "asc" },
     take: fetchLimit,
   });
+
+  // A batch is judged against one user's search options, so chunk each user's
+  // jobs separately (oldest first within each user).
+  const chunks: { userId: number; jobs: typeof pending }[] = [];
+  const byUser = new Map<number, typeof pending>();
+  for (const job of pending) {
+    const list = byUser.get(job.userId) ?? [];
+    list.push(job);
+    byUser.set(job.userId, list);
+  }
+  for (const [userId, list] of byUser) {
+    for (let i = 0; i < list.length; i += batchSize) chunks.push({ userId, jobs: list.slice(i, i + batchSize) });
+  }
+  const promptConfigs = new Map<number, PromptConfig>();
 
   let approved = 0;
   let rejected = 0;
@@ -721,15 +747,20 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
   let batchError: string | undefined;
 
   try {
-    for (let i = 0; i < pending.length; i += batchSize) {
+    for (let c = 0; c < chunks.length; c++) {
       // Only start a chunk if it has a full working window before the abort.
       if (deadline - (Date.now() - startedAt) < MIN_BATCH_BUDGET_MS) {
         timedOut = true;
         break;
       }
-      const chunk = pending.slice(i, i + batchSize);
+      const { userId, jobs: chunk } = chunks[c];
+      let promptConfig = promptConfigs.get(userId);
+      if (!promptConfig) {
+        promptConfig = await promptConfigFor(userId);
+        promptConfigs.set(userId, promptConfig);
+      }
       try {
-        const r = await analyzeBatch(chunk, config, batchController.signal);
+        const r = await analyzeBatch(chunk, promptConfig, userId, batchController.signal);
         approved += r.approved;
         rejected += r.rejected;
         analyzed += r.resolved;
@@ -756,7 +787,7 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
 
       // Small courtesy pause between batched calls. With ~5 jobs per call this
       // is far under the free-tier 20 req/min ceiling.
-      if (i + batchSize < pending.length && requestDelayMs > 0) {
+      if (c + 1 < chunks.length && requestDelayMs > 0) {
         const left = deadline - (Date.now() - startedAt);
         if (left < MIN_BATCH_BUDGET_MS) {
           timedOut = true;
@@ -769,7 +800,7 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
     clearTimeout(killTimer);
   }
 
-  const remaining = await prisma.scrapedJob.count({ where: { status: "PENDING" } });
+  const remaining = await prisma.scrapedJob.count({ where: { status: "PENDING", ...scope } });
 
   return {
     analyzed,
@@ -816,16 +847,19 @@ export type AnalyzeScrapedResult = {
 export async function analyzeScrapedJobs(
   jobs: ScrapedJobInput[],
   options: {
+    /** Whose search options the jobs are judged against. */
+    userId: number;
     batchSize?: number;
     timeBudgetMs?: number;
     requestDelayMs?: number;
     signal?: AbortSignal;
-  } = {},
+  },
 ): Promise<AnalyzeScrapedResult> {
   const verdicts = new Map<number, InlineVerdict>();
   if (jobs.length === 0) return { verdicts, rateLimited: false, timedOut: false };
 
-  const config = await analysisConfig();
+  const config = await getConfig();
+  const promptConfig = await promptConfigFor(options.userId);
   const batchSize = Math.min(12, Math.max(1, options.batchSize ?? config.analyzerBatchSize));
   const requestDelayMs = Math.max(0, options.requestDelayMs ?? config.analyzerRequestDelayMs);
   const budgetMs = options.timeBudgetMs;
@@ -879,12 +913,12 @@ export async function analyzeScrapedJobs(
     // index after matching — same robustness as the DB-batched path.
     const request = buildBatchRequest(
       chunk.map((c, j) => ({ ...c.row, id: j + 1 })),
-      config,
+      promptConfig,
     );
     const t0 = Date.now();
     let llmResult: { text: string; model: string; tokensUsed: number };
     try {
-      llmResult = await generateForTask("scan", request, signal);
+      llmResult = await generateForTask("scan", request, signal, { userId: options.userId });
     } catch (err: any) {
       if (err instanceof LLMRateLimitedError) {
         rateLimited = true;
@@ -957,14 +991,21 @@ export type PlaygroundResult = {
 
 export async function analyzeJobPreview(
   job: PlaygroundJob,
-  options: { route?: import("./aiRoutes").AiRoute; task?: "scan" | "extension"; signal?: AbortSignal } = {},
+  options: {
+    /** Whose search options to judge against. */
+    userId: number;
+    route?: import("./aiRoutes").AiRoute;
+    task?: "scan" | "extension";
+    signal?: AbortSignal;
+  },
 ): Promise<PlaygroundResult> {
-  const config = await analysisConfig();
+  const config = await promptConfigFor(options.userId);
   const startedAt = Date.now();
   const result = await generateForTask(options.task ?? "extension", buildSingleRequest(job, config), options.signal, {
     routeOverride: options.route,
     usageTask: "playground",
     callTimeoutMs: 30_000,
+    userId: options.userId,
   });
   return {
     verdict: parseAIResponse(result.text),
@@ -980,14 +1021,20 @@ export async function analyzeJobPreview(
 // Re-judge specific jobs (Jobs table / detail panel): reset them to PENDING and
 // run the batched board-scan route over exactly those rows. Rows the AI could
 // not reach in this run stay PENDING for the next analyze pass or cron.
-export async function reanalyzeJobs(ids: number[], options: { timeBudgetMs?: number } = {}) {
+export async function reanalyzeJobs(ids: number[], options: { timeBudgetMs?: number; userId?: number } = {}) {
   const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n) && n > 0))).slice(0, 60);
   if (unique.length === 0) {
     return { analyzed: 0, approved: 0, rejected: 0, skipped: 0, remaining: 0, timedOut: false };
   }
+  const scope = options.userId != null ? { userId: options.userId } : {};
   await prisma.scrapedJob.updateMany({
-    where: { id: { in: unique } },
+    where: { id: { in: unique }, ...scope },
     data: { status: "PENDING", aiScore: null, aiReason: null, techStack: null, eligibility: null, sheetSynced: false },
   });
-  return analyzeAllPending({ onlyIds: unique, limit: unique.length, timeBudgetMs: options.timeBudgetMs });
+  return analyzeAllPending({
+    onlyIds: unique,
+    limit: unique.length,
+    timeBudgetMs: options.timeBudgetMs,
+    userId: options.userId,
+  });
 }

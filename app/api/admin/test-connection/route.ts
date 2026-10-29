@@ -13,7 +13,8 @@ import {
 } from "@/lib/llmClient";
 import { callClaude, listClaudeModels } from "@/lib/claudeClient";
 import { recordAiUsage } from "@/lib/aiUsage";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, CHOOSE_USER_MESSAGE, viewingUserId } from "@/lib/scope";
+import { getUserSettings } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,8 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   // Everything runs inside one try: a bad request body, a DB error in
   // getConfig(), or any unexpected throw must still leave as JSON. A route
   // handler that throws returns an empty 500 body, which is exactly what the
@@ -425,8 +426,11 @@ export async function POST(req: NextRequest) {
       if (!config.googleSheetsCredentials) {
         return NextResponse.json({ ok: false, error: "Service Account JSON is empty" });
       }
-      if (!config.googleSheetId) {
-        return NextResponse.json({ ok: false, error: "Google Sheet ID is empty" });
+      const userId = viewingUserId(scope);
+      if (userId == null) return NextResponse.json({ ok: false, error: CHOOSE_USER_MESSAGE });
+      const googleSheetId = (await getUserSettings(userId)).googleSheetId;
+      if (!googleSheetId) {
+        return NextResponse.json({ ok: false, error: "This user's Google Sheet ID is empty" });
       }
       try {
         const credentials = JSON.parse(config.googleSheetsCredentials);
@@ -436,7 +440,7 @@ export async function POST(req: NextRequest) {
         });
         const sheets = google.sheets({ version: "v4", auth });
         const meta = await withTimeout(
-          sheets.spreadsheets.get({ spreadsheetId: config.googleSheetId }),
+          sheets.spreadsheets.get({ spreadsheetId: googleSheetId }),
           TEST_DEADLINE_MS,
           "Google Sheets request",
         );

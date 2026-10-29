@@ -6,13 +6,15 @@ import { claudeSpendThisMonth } from "./aiUsage";
 import { parseAiRoutes, type ProviderId } from "./aiRoutes";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
-import { usesDefaultPassword } from "./users";
+import type { AdminScope } from "./scope";
+import { usesDefaultPassword, type UserRow } from "./users";
+import { getUserSettings, type UserSettings } from "./userSettings";
 
 // Live status for the admin shell: the top status strip, the sidebar badges
-// and the Setup checklist. Every query is independent and fails soft, so one
-// missing table (before /api/setup ran) never blanks the whole strip. Only
-// reading the settings throws (the database is down or refusing connections),
-// so every caller catches.
+// and the Setup checklist, for the user being viewed (or all users). Every
+// query is independent and fails soft, so one missing table (before /api/setup
+// ran) never blanks the whole strip. Only reading the settings throws (the
+// database is down or refusing connections), so every caller catches.
 
 export const SUPABASE_FREE_DB_BYTES = 500 * 1024 * 1024;
 
@@ -63,20 +65,39 @@ function providerHasKey(id: ProviderId, c: Awaited<ReturnType<typeof getConfig>>
   }
 }
 
-// adminId: the signed-in admin, for the "change the default password" step.
-async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapshot> {
+/**
+ * The Review queue's filter: recent verdicts inside each user's own score band
+ * that nobody has rated or put in the pipeline yet.
+ */
+export function reviewQueueWhere(users: { id: number; settings: UserSettings }[], now = new Date()) {
+  return {
+    status: { in: ["APPROVED", "REJECTED"] as ("APPROVED" | "REJECTED")[] },
+    feedback: null,
+    stage: null,
+    createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60_000) },
+    OR: users.map((u) => ({
+      userId: u.id,
+      aiScore: { gte: u.settings.reviewBandMin, lte: u.settings.reviewBandMax },
+    })),
+  };
+}
+
+/** The users a scope covers, with their settings: the viewed one, or every user. */
+export async function scopedUsers(scope: AdminScope): Promise<{ id: number; user: UserRow; settings: UserSettings }[]> {
+  const list = scope.viewing === "all" ? scope.users : scope.users.filter((u) => u.id === scope.viewing);
+  return Promise.all(list.map(async (user) => ({ id: user.id, user, settings: await getUserSettings(user.id) })));
+}
+
+async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
   const config = await getConfig();
   const routes = parseAiRoutes(config.aiRoutesRaw, config.aiProviders);
-
-  const reviewWhere = {
-    status: { in: ["APPROVED", "REJECTED"] as ("APPROVED" | "REJECTED")[] },
-    feedback: null,
-    stage: null,
-    aiScore: { gte: config.reviewBandMin, lte: config.reviewBandMax },
-    createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60_000) },
-  };
+  const users = await scopedUsers(scope);
+  // Only users whose searches run count for "every user has …" steps.
+  const activeScoped = users.filter((u) => u.user.active);
+  const mine = scope.viewing === "all" ? {} : { userId: scope.viewing };
+  const reviewWhere = reviewQueueWhere(users, now);
 
   const [
     lastScan,
@@ -92,14 +113,14 @@ async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapsho
     approved24h,
     applied,
     defaultPassword,
-    profile,
-    resumeCount,
+    profiles,
+    resumeGroups,
     tablesReady,
   ] = await Promise.all([
-    soft(prisma.scanLog.findFirst({ orderBy: { createdAt: "desc" } }), null),
+    soft(prisma.scanLog.findFirst({ where: mine, orderBy: { createdAt: "desc" } }), null),
     soft(claudeSpendThisMonth(), 0),
     soft(
-      prisma.aiUsage.groupBy({ by: ["ok"], where: { createdAt: { gte: dayAgo } }, _count: { _all: true } }),
+      prisma.aiUsage.groupBy({ by: ["ok"], where: { ...mine, createdAt: { gte: dayAgo } }, _count: { _all: true } }),
       [] as { ok: boolean; _count: { _all: number } }[],
     ),
     soft(
@@ -108,35 +129,43 @@ async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapsho
         .then((r) => Number(r[0]?.size ?? 0)),
       null as number | null,
     ),
-    soft(prisma.scrapedJob.count({ where: { status: "APPROVED", sheetSynced: false } }), 0),
+    soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", sheetSynced: false } }), 0),
     soft(
-      prisma.aiUsage.findFirst({ where: { task: "extension" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
-      null,
-    ),
-    soft(
-      prisma.scrapedJob.findFirst({
-        where: { platform: "linkedin" },
+      prisma.aiUsage.findFirst({
+        where: { ...mine, task: "extension" },
         orderBy: { createdAt: "desc" },
         select: { createdAt: true },
       }),
       null,
     ),
-    soft(prisma.scrapedJob.count({ where: { status: "PENDING" } }), 0),
-    soft(prisma.scrapedJob.count({ where: reviewWhere }), 0),
+    soft(
+      prisma.scrapedJob.findFirst({
+        where: { ...mine, platform: "linkedin" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      }),
+      null,
+    ),
+    soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
+    soft(users.length ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
     soft(
       prisma.scrapedJob.count({
         where: {
+          ...mine,
           stage: { in: ["APPLIED", "INTERVIEW"] },
           followUpAt: { lte: new Date(now.getTime() + 24 * 60 * 60_000) },
         },
       }),
       0,
     ),
-    soft(prisma.scrapedJob.count({ where: { status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
-    soft(prisma.scrapedJob.count({ where: { stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
-    soft(adminId == null ? Promise.resolve(false) : usesDefaultPassword(adminId), false),
-    soft(getProfile(), null),
-    soft(prisma.resume.count(), 0),
+    soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
+    soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
+    soft(scope.degraded ? Promise.resolve(false) : usesDefaultPassword(scope.admin.id), false),
+    soft(Promise.all(activeScoped.map((u) => getProfile(u.id))), []),
+    soft(
+      prisma.resume.groupBy({ by: ["userId"], where: mine, _count: { _all: true } }),
+      [] as { userId: number; _count: { _all: number } }[],
+    ),
     soft(prisma.$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Resume"') IS NOT NULL AS ok`.then((r) => !!r[0]?.ok), false),
   ]);
 
@@ -144,12 +173,26 @@ async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapsho
   const failures24h = aiGroups.filter((g) => !g.ok).reduce((s, g) => s + g._count._all, 0);
   const seen = [lastExtensionCall?.createdAt, lastLinkedInJob?.createdAt].filter(Boolean) as Date[];
   const extensionLastSeen = seen.length ? new Date(Math.max(...seen.map((d) => d.getTime()))) : null;
-  const sheetsConfigured = !!(config.googleSheetsCredentials && config.googleSheetId);
   const cronSecretMissing = !process.env.CRON_SECRET?.trim();
   const sessionSecretMissing = !process.env.SESSION_SECRET?.trim();
 
   const routeReady = (task: "scan" | "extension") => routes[task].providers.some((p) => providerHasKey(p, config));
-  const completeness = profile ? profileCompleteness(profile) : { filled: 0, total: 1, missing: [] };
+
+  // Per-user steps are done when every active user in view has it; with more
+  // than one user, the hint names who is missing.
+  const many = activeScoped.length > 1;
+  const missing = (has: (u: (typeof activeScoped)[number], i: number) => boolean) =>
+    activeScoped.filter((u, i) => !has(u, i)).map((u) => u.user.name);
+  const hintFor = (hint: string, names: string[]) => (many && names.length ? `${hint} Missing for: ${names.join(", ")}.` : hint);
+  const noSearch = missing((u) => !!(u.settings.currentLocation && u.settings.targetMarket));
+  const noProfile = missing((_u, i) => {
+    const c = profiles[i] ? profileCompleteness(profiles[i]) : { filled: 0, total: 1 };
+    return c.filled >= Math.ceil(c.total * 0.6);
+  });
+  const resumeUsers = new Set(resumeGroups.filter((g) => g._count._all > 0).map((g) => g.userId));
+  const noResume = missing((u) => resumeUsers.has(u.id));
+  const noSheet = missing((u) => !!(config.googleSheetsCredentials && u.settings.googleSheetId));
+  const sheetsConfigured = !!config.googleSheetsCredentials && users.some((u) => !!u.settings.googleSheetId);
 
   const steps: SetupStep[] = [
     {
@@ -225,28 +268,44 @@ async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapsho
       hint: "Load the extension/ folder in chrome://extensions, paste the server URL and key, scan a search.",
     },
     {
+      key: "search",
+      title: "Set where each user is based and their target market",
+      done: noSearch.length === 0,
+      optional: false,
+      href: "/admin/settings",
+      hint: hintFor("The AI judges every job against them (Settings → Target & matching).", noSearch),
+    },
+    {
       key: "profile",
-      title: "Fill in your profile",
-      done: completeness.filled >= Math.ceil(completeness.total * 0.6),
+      title: "Fill in the profile",
+      done: noProfile.length === 0,
       optional: true,
       href: "/admin/profile",
-      hint: "Autofill and AI answers use it; matching can use it too.",
+      hint: hintFor("Autofill and AI answers use it; matching can use it too.", noProfile),
     },
     {
       key: "resume",
       title: "Upload a resume",
-      done: resumeCount > 0,
+      done: noResume.length === 0,
       optional: true,
       href: "/admin/profile?tab=resumes",
-      hint: "Autofill attaches it to application forms.",
+      hint: hintFor("Autofill attaches it to application forms.", noResume),
     },
     {
       key: "sheets",
       title: "Connect Google Sheets",
-      done: sheetsConfigured,
+      done: noSheet.length === 0,
       optional: true,
       href: "/admin/settings#sheets",
-      hint: "Optional export of approved jobs.",
+      hint: hintFor("Optional export of approved jobs to each user's own spreadsheet.", noSheet),
+    },
+    {
+      key: "users",
+      title: "Add the people you search for",
+      done: scope.users.length > 1,
+      optional: true,
+      href: "/admin/users",
+      hint: "Each user gets their own location, profile, results and extension sign-in.",
     },
   ];
 
@@ -269,5 +328,6 @@ async function loadStatusSnapshot(adminId: number | null): Promise<StatusSnapsho
 // Once per page render: the admin layout and a page that also needs the
 // snapshot (Dashboard, Setup, Extension) share one round of queries instead of
 // doubling the load on the connection pool (React's cache() matches on the
-// admin id argument). Outside a render (the status API) every call runs fresh.
+// scope object, which pageScope() returns once per render). Outside a render
+// (the status API) every call runs fresh.
 export const getStatusSnapshot = cache(loadStatusSnapshot);

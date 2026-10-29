@@ -7,10 +7,46 @@ import { describeDbError } from "./dbErrors";
 import { PATH_HEADER, SESSION_COOKIE, readSessionToken, type SessionPayload } from "./session";
 import { getUserFresh, invalidateUserCache, listUsers, type UserRow } from "./users";
 
-// Who is signed in. Only ADMIN users sign in to the dashboard. proxy.ts already
-// turns away requests without a validly signed cookie; these helpers also check
-// the user row, so a disabled user, a changed password or "sign out
-// everywhere" ends a session (within the users cache, ~10 s).
+// Who is signed in, and whose data a request works on.
+//
+// Only ADMIN users sign in to the dashboard. proxy.ts already turns away
+// requests without a validly signed cookie; these helpers also check the user
+// row, so a disabled user, a changed password or "sign out everywhere" ends a
+// session (within the users cache, ~10 s).
+//
+// Admins pick whose data to see in the Viewing menu: one user, or all of them.
+// The choice travels with every API request (the X-JF-View header that
+// lib/clientApi adds, or ?user= on download links), so two tabs viewing
+// different users never mix them up. The jf_view cookie only remembers the
+// last choice for server-rendered pages and new tabs.
+
+export const VIEW_COOKIE = "jf_view";
+export const VIEW_HEADER = "x-jf-view";
+
+export type Viewing = number | "all";
+
+export type AdminScope = {
+  admin: UserRow;
+  users: UserRow[];
+  /** One user's id, or "all". With a single user it is always that user. */
+  viewing: Viewing;
+  /** The database did not answer: the admin comes from the signed cookie, and pages show their own errors. */
+  degraded?: boolean;
+};
+
+export function parseViewing(raw: string | null | undefined): Viewing | null {
+  if (!raw) return null;
+  if (raw === "all") return "all";
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export function resolveViewing(raw: string | null | undefined, users: UserRow[]): Viewing {
+  if (users.length === 1) return users[0].id;
+  const v = parseViewing(raw);
+  if (typeof v === "number" && users.some((u) => u.id === v)) return v;
+  return "all";
+}
 
 function isSignedIn(user: UserRow | null | undefined, payload: SessionPayload): user is UserRow {
   return !!user && user.active && user.role === "ADMIN" && user.sessionVersion === payload.ver;
@@ -42,6 +78,20 @@ export async function requireAdmin(req: NextRequest): Promise<UserRow | NextResp
     return NextResponse.json({ error: describeDbError(e) }, { status: 503 });
   }
   return admin ?? NextResponse.json(UNAUTHENTICATED, { status: 401 });
+}
+
+/** For API routes that work on users' data: the admin, the users and whose data to use. */
+export async function adminScope(req: NextRequest): Promise<AdminScope | NextResponse> {
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
+  let users: UserRow[];
+  try {
+    users = await listUsers();
+  } catch (e) {
+    return NextResponse.json({ error: describeDbError(e) }, { status: 503 });
+  }
+  const raw = req.headers.get(VIEW_HEADER) ?? req.nextUrl.searchParams.get("user") ?? req.cookies.get(VIEW_COOKIE)?.value;
+  return { admin, users, viewing: resolveViewing(raw, users) };
 }
 
 /** requireAdmin for routes that don't need the admin: the response to return, or null to go on. */
@@ -88,3 +138,43 @@ async function loadPageAdmin(): Promise<PageAdmin> {
 
 /** For server components: the signed-in admin of this render (redirects to the login page otherwise). */
 export const pageAdmin = cache(loadPageAdmin);
+
+async function loadPageScope(): Promise<AdminScope> {
+  const admin = await pageAdmin();
+  if (admin.degraded) return { admin, users: [admin], viewing: admin.id, degraded: true };
+  let users: UserRow[];
+  try {
+    users = await listUsers();
+  } catch {
+    return { admin, users: [admin], viewing: admin.id, degraded: true };
+  }
+  const jar = await cookies();
+  return { admin, users, viewing: resolveViewing(jar.get(VIEW_COOKIE)?.value, users) };
+}
+
+/** For server components: the admin and whose data this render shows (from the jf_view cookie). */
+export const pageScope = cache(loadPageScope);
+
+/** The viewed user's id, or null when viewing all users. */
+export function viewingUserId(scope: AdminScope): number | null {
+  return scope.viewing === "all" ? null : scope.viewing;
+}
+
+/** A Prisma filter for the viewed user's rows ({} for all users). */
+export function userWhere(scope: AdminScope): { userId?: number } {
+  const id = viewingUserId(scope);
+  return id == null ? {} : { userId: id };
+}
+
+export function inScope(scope: AdminScope, userId: number): boolean {
+  return scope.viewing === "all" || scope.viewing === userId;
+}
+
+export const CHOOSE_USER_MESSAGE = "Pick a user in the Viewing menu first: this works on one user's data.";
+
+/** The viewed user's id, or a 400 response when viewing all users. */
+export function requireOneUser(scope: AdminScope): number | NextResponse {
+  const id = viewingUserId(scope);
+  if (id != null) return id;
+  return NextResponse.json({ error: CHOOSE_USER_MESSAGE, code: "choose_user" }, { status: 400 });
+}

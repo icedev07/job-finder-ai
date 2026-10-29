@@ -16,6 +16,8 @@ import { ConfirmButton } from '@/components/common/confirm-button';
 import { SectionCard } from '@/components/common/section-card';
 import { RULE_TYPE_META, SKIP_RULE_TYPES, type SkipRule, type SkipRuleType } from '@/components/rules/lib/skip-rules';
 import { RuleTypeBadge, RuleTypeDot } from '@/components/rules/rule-type-badge';
+import { UserChip, useViewing } from '@/components/shell/viewing';
+import { Badge } from '@/components/ui/badge';
 import { Alert, AlertAction, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -47,6 +49,7 @@ function RuleRow({
   onDelete: (rule: SkipRule) => Promise<DeleteResult>;
 }) {
   const meta = RULE_TYPE_META[rule.type];
+  const { multiUser } = useViewing();
   return (
     <TableRow>
       <TableCell className="pl-3">
@@ -56,6 +59,13 @@ function RuleRow({
         className={cn('font-mono text-xs whitespace-normal wrap-anywhere', !rule.active && 'text-muted-foreground')}
       >
         {rule.pattern}
+        {multiUser && rule.userId == null ? (
+          <Badge variant="outline" className="ml-2 font-sans">
+            Everyone
+          </Badge>
+        ) : (
+          <UserChip userId={rule.userId} className="ml-2 font-sans" />
+        )}
       </TableCell>
       <TableCell>
         <Switch

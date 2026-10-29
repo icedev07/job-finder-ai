@@ -49,11 +49,18 @@ const MATCH_SELECT = {
   description: true,
 } as const;
 
-export async function findJobForPage(params: { url: string; title?: string; company?: string }): Promise<MatchedJob | null> {
+// Only within the user's own jobs.
+export async function findJobForPage(params: {
+  userId: number;
+  url: string;
+  title?: string;
+  company?: string;
+}): Promise<MatchedJob | null> {
+  const { userId } = params;
   const candidates = urlCandidates(params.url);
   if (candidates.length) {
     const byUrl = await prisma.scrapedJob.findFirst({
-      where: { OR: [{ manualApplyUrl: { in: candidates } }, { url: { in: candidates } }] },
+      where: { userId, OR: [{ manualApplyUrl: { in: candidates } }, { url: { in: candidates } }] },
       orderBy: { createdAt: "desc" },
       select: MATCH_SELECT,
     });
@@ -63,7 +70,11 @@ export async function findJobForPage(params: { url: string; title?: string; comp
   const company = params.company?.trim();
   if (title && company) {
     return prisma.scrapedJob.findFirst({
-      where: { title: { equals: title, mode: "insensitive" }, company: { equals: company, mode: "insensitive" } },
+      where: {
+        userId,
+        title: { equals: title, mode: "insensitive" },
+        company: { equals: company, mode: "insensitive" },
+      },
       orderBy: { createdAt: "desc" },
       select: MATCH_SELECT,
     });
@@ -94,6 +105,7 @@ export function platformFromUrl(raw: string): string {
 }
 
 export type ApplyInput = {
+  userId: number;
   url: string;
   title?: string;
   company?: string;
@@ -114,6 +126,7 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
     try {
       const row = await prisma.scrapedJob.create({
         data: {
+          userId: input.userId,
           platform,
           title,
           company,
@@ -130,7 +143,10 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
     } catch {
       // A concurrent request (or the same posting stored under another URL
       // spelling) created it first.
-      job = await prisma.scrapedJob.findFirst({ where: { platform, title, company }, select: MATCH_SELECT });
+      job = await prisma.scrapedJob.findFirst({
+        where: { userId: input.userId, platform, title, company },
+        select: MATCH_SELECT,
+      });
       if (!job) throw new Error("Could not create the job record");
     }
   }
@@ -140,7 +156,7 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
     .slice(0, 60)
     .map((a) => ({ question: a.question.slice(0, 1000), answer: a.answer.slice(0, 8000) }));
 
-  await updateJobs([job.id], { stage: "APPLIED" });
+  await updateJobs([job.id], { stage: "APPLIED" }, { userId: input.userId });
   await prisma.scrapedJob.update({
     where: { id: job.id },
     data: {
@@ -153,6 +169,6 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
       }),
     },
   });
-  const savedAnswers = input.saveAnswers ? await rememberAnswers(answers) : 0;
+  const savedAnswers = input.saveAnswers ? await rememberAnswers(input.userId, answers) : 0;
   return { jobId: job.id, created, savedAnswers };
 }

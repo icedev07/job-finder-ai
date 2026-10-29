@@ -49,7 +49,10 @@ type UpsertOptions = {
   rescanAfterDays?: number;
 };
 
+// Every lookup below is within one user's jobs: the same posting found for two
+// users is two rows, each with its own verdict.
 export async function upsertScrapedJob(params: {
+  userId: number;
   platform: string;
   title: string;
   company: string;
@@ -67,11 +70,11 @@ export async function upsertScrapedJob(params: {
   rescanned: boolean;
 } | null> {
   const {
-    platform, title, company, url, location, description, salary, manualApplyUrl,
+    userId, platform, title, company, url, location, description, salary, manualApplyUrl,
     rescanAfterDays = 0,
   } = params;
 
-  if (await shouldSkipJob({ title, company, externalUrl: url })) {
+  if (await shouldSkipJob({ userId, title, company, externalUrl: url })) {
     return null;
   }
 
@@ -118,7 +121,7 @@ export async function upsertScrapedJob(params: {
 
   // same-platform URL dedup
   const byUrl = await prisma.scrapedJob.findFirst({
-    where: { platform, url: normUrl },
+    where: { userId, platform, url: normUrl },
     select: { id: true, title: true, company: true, createdAt: true, description: true },
   });
   if (byUrl) {
@@ -128,7 +131,7 @@ export async function upsertScrapedJob(params: {
 
   // same-platform title+company dedup
   const byTitle = await prisma.scrapedJob.findFirst({
-    where: { platform, title, company },
+    where: { userId, platform, title, company },
     select: { id: true, title: true, company: true, createdAt: true, description: true },
   });
   if (byTitle) {
@@ -139,7 +142,8 @@ export async function upsertScrapedJob(params: {
   // cross-platform dedup: same normalized title+company on any platform
   const crossPlatform = await prisma.$queryRaw<{ id: number; title: string; company: string; createdAt: Date; description: string | null }[]>`
     SELECT id, title, company, "createdAt", description FROM "ScrapedJob"
-    WHERE LOWER(TRIM(title)) = ${normTitle}
+    WHERE "userId" = ${userId}
+      AND LOWER(TRIM(title)) = ${normTitle}
       AND LOWER(TRIM(
         REGEXP_REPLACE(company, ',?\s*(inc\.?|llc|ltd\.?|corp\.?|co\.?|gmbh|s\.?a\.?)$', '', 'i')
       )) = ${normCompany}
@@ -153,6 +157,7 @@ export async function upsertScrapedJob(params: {
 
   const job = await prisma.scrapedJob.create({
     data: {
+      userId,
       platform,
       title,
       company,
@@ -186,21 +191,23 @@ export type ExistingJob = {
 // URL, same-platform title+company, cross-platform normalized title+company)
 // but it returns the existing row instead of mutating anything.
 export async function findExistingJob(params: {
+  userId: number;
   platform: string;
   url: string;
   title: string;
   company: string;
 }): Promise<ExistingJob | null> {
   const normUrl = normalizeUrl(params.url);
+  const { userId } = params;
 
   const byUrl = await prisma.scrapedJob.findFirst({
-    where: { platform: params.platform, url: normUrl },
+    where: { userId, platform: params.platform, url: normUrl },
     select: { id: true, title: true, company: true, createdAt: true, description: true, status: true },
   });
   if (byUrl) return byUrl as ExistingJob;
 
   const byTitle = await prisma.scrapedJob.findFirst({
-    where: { platform: params.platform, title: params.title, company: params.company },
+    where: { userId, platform: params.platform, title: params.title, company: params.company },
     select: { id: true, title: true, company: true, createdAt: true, description: true, status: true },
   });
   if (byTitle) return byTitle as ExistingJob;
@@ -209,7 +216,8 @@ export async function findExistingJob(params: {
   const normCompany = normalizeCompany(params.company);
   const crossPlatform = await prisma.$queryRaw<ExistingJob[]>`
     SELECT id, title, company, "createdAt", description, status FROM "ScrapedJob"
-    WHERE LOWER(TRIM(title)) = ${normTitle}
+    WHERE "userId" = ${userId}
+      AND LOWER(TRIM(title)) = ${normTitle}
       AND LOWER(TRIM(
         REGEXP_REPLACE(company, ',?\s*(inc\.?|llc|ltd\.?|corp\.?|co\.?|gmbh|s\.?a\.?)$', '', 'i')
       )) = ${normCompany}
@@ -264,6 +272,7 @@ export type JobVerdict = {
 // a scanned job is never stored without first being checked. Returns null when
 // a concurrent scan already inserted the same job (unique-constraint race).
 export async function createAnalyzedScrapedJob(params: {
+  userId: number;
   platform: string;
   title: string;
   company: string;
@@ -283,6 +292,7 @@ export async function createAnalyzedScrapedJob(params: {
   try {
     const job = await prisma.scrapedJob.create({
       data: {
+        userId: params.userId,
         platform: params.platform,
         title: params.title,
         company: params.company,
@@ -341,73 +351,4 @@ export async function applyVerdictToJob(rowId: number, verdict: JobVerdict): Pro
       durationMs: verdict.durationMs,
     },
   });
-}
-
-export async function saveJobDescription(jobId: number, description: string) {
-  const job = await prisma.scrapedJob.findUnique({
-    where: { id: jobId },
-    select: { description: true },
-  });
-  if (job?.description && job.description.length >= description.length) return;
-
-  await prisma.scrapedJob.update({
-    where: { id: jobId },
-    data: { description },
-  });
-}
-
-export async function getPendingJobs(limit = 50) {
-  return prisma.scrapedJob.findMany({
-    where: { status: "PENDING" },
-    orderBy: { createdAt: "asc" },
-    take: limit,
-  });
-}
-
-export async function getApprovedUnsyncedJobs() {
-  return prisma.scrapedJob.findMany({
-    where: { status: "APPROVED", sheetSynced: false },
-    orderBy: { createdAt: "asc" },
-  });
-}
-
-export async function markSheetSynced(ids: number[]) {
-  await prisma.scrapedJob.updateMany({
-    where: { id: { in: ids } },
-    data: { sheetSynced: true },
-  });
-}
-
-export async function isDuplicate(params: {
-  platform: string;
-  url: string;
-  title: string;
-  company: string;
-}): Promise<boolean> {
-  const normUrl = normalizeUrl(params.url);
-  const normTitle = normalizeTitle(params.title);
-  const normCompany = normalizeCompany(params.company);
-
-  const byUrl = await prisma.scrapedJob.findFirst({
-    where: { platform: params.platform, url: normUrl },
-    select: { id: true },
-  });
-  if (byUrl) return true;
-
-  const byTitle = await prisma.scrapedJob.findFirst({
-    where: { platform: params.platform, title: params.title, company: params.company },
-    select: { id: true },
-  });
-  if (byTitle) return true;
-
-  // cross-platform check
-  const crossPlatform = await prisma.$queryRaw<{ id: number }[]>`
-    SELECT id FROM "ScrapedJob"
-    WHERE LOWER(TRIM(title)) = ${normTitle}
-      AND LOWER(TRIM(
-        REGEXP_REPLACE(company, ',?\s*(inc\.?|llc|ltd\.?|corp\.?|co\.?|gmbh|s\.?a\.?)$', '', 'i')
-      )) = ${normCompany}
-    LIMIT 1
-  `;
-  return crossPlatform.length > 0;
 }

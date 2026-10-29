@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { JOB_LIST_SELECT, jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
 import { deleteJobs, parseJobPatch, updateJobs } from "@/lib/jobActions";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, userWhere, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
+// All for the user being viewed (or every user):
 // GET  → one page of jobs for the admin Jobs table (+ facet counts with facets=1).
 // PATCH { ids, set } → bulk stage / feedback / status / notes changes.
 // DELETE { ids } → bulk delete (max 500).
 
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   const params = new URL(req.url).searchParams;
   const q = parseJobsQuery(params);
-  const where = jobsWhere(q);
+  const where = jobsWhere(q, viewingUserId(scope));
+  const mine = userWhere(scope);
   const page = q.page ?? 1;
   const limit = q.limit ?? 25;
 
@@ -33,11 +35,11 @@ export async function GET(req: NextRequest) {
   let facets: Record<string, { value: string | null; count: number }[]> | undefined;
   if (params.get("facets") === "1") {
     const [platforms, statuses, stages, applyMethods, eligibility] = await Promise.all([
-      prisma.scrapedJob.groupBy({ by: ["platform"], _count: { _all: true } }),
-      prisma.scrapedJob.groupBy({ by: ["status"], _count: { _all: true } }),
-      prisma.scrapedJob.groupBy({ by: ["stage"], _count: { _all: true } }),
-      prisma.scrapedJob.groupBy({ by: ["applyMethod"], _count: { _all: true } }),
-      prisma.scrapedJob.groupBy({ by: ["eligibility"], _count: { _all: true } }),
+      prisma.scrapedJob.groupBy({ by: ["platform"], where: mine, _count: { _all: true } }),
+      prisma.scrapedJob.groupBy({ by: ["status"], where: mine, _count: { _all: true } }),
+      prisma.scrapedJob.groupBy({ by: ["stage"], where: mine, _count: { _all: true } }),
+      prisma.scrapedJob.groupBy({ by: ["applyMethod"], where: mine, _count: { _all: true } }),
+      prisma.scrapedJob.groupBy({ by: ["eligibility"], where: mine, _count: { _all: true } }),
     ]);
     const rows = <T extends { _count: { _all: number } }>(list: T[], key: (r: T) => string | null) =>
       list.map((r) => ({ value: key(r), count: r._count._all })).sort((a, b) => b.count - a.count);
@@ -60,8 +62,8 @@ function idsFrom(body: unknown): number[] | null {
 }
 
 export async function PATCH(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   let body: unknown;
   try {
     body = await req.json();
@@ -72,13 +74,13 @@ export async function PATCH(req: NextRequest) {
   if (!ids?.length) return NextResponse.json({ error: "ids[] is required" }, { status: 400 });
   const patch = parseJobPatch((body as { set?: unknown }).set);
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
-  const updated = await updateJobs(ids, patch);
+  const updated = await updateJobs(ids, patch, userWhere(scope));
   return NextResponse.json({ ok: true, updated });
 }
 
 export async function DELETE(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   let body: unknown;
   try {
     body = await req.json();
@@ -87,6 +89,6 @@ export async function DELETE(req: NextRequest) {
   }
   const ids = idsFrom(body);
   if (!ids?.length) return NextResponse.json({ error: "ids[] is required" }, { status: 400 });
-  const deleted = await deleteJobs(ids);
+  const deleted = await deleteJobs(ids, userWhere(scope));
   return NextResponse.json({ ok: true, deleted });
 }

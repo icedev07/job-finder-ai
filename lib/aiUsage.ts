@@ -1,6 +1,8 @@
 import { prisma } from "./prisma";
 
 export type AiUsageEntry = {
+  /** Whose work the call was for; omitted for app-wide calls. */
+  userId?: number | null;
   task: string;
   provider: string;
   model: string;
@@ -21,6 +23,7 @@ export async function recordAiUsage(entry: AiUsageEntry): Promise<void> {
   try {
     await prisma.aiUsage.create({
       data: {
+        userId: entry.userId ?? null,
         task: entry.task.slice(0, 30),
         provider: entry.provider.slice(0, 30),
         model: (entry.model || "unknown").slice(0, 120),

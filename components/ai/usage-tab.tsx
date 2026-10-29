@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 
 import { HealthLine, type UsageResponse } from '@/components/ai/shared';
 import { SectionCard } from '@/components/common/section-card';
+import { useViewing } from '@/components/shell/viewing';
 import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
@@ -45,6 +46,7 @@ export function UsageTab({
   loading: boolean;
   reload: () => void;
 }) {
+  const { userName, multiUser } = useViewing();
   const savedBudget = config.claude_monthly_budget_usd ?? '10';
   const [budget, setBudget] = useState(savedBudget);
   const [saving, setSaving] = useState(false);
@@ -225,6 +227,29 @@ export function UsageTab({
           </div>
         )}
       </SectionCard>
+
+      {multiUser && usage.byUser?.length ? (
+        <SectionCard title="By user" description="Whose work the calls were for. Model lists and connection tests count as app-wide.">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead className="text-right">Calls</TableHead>
+                <TableHead className="text-right">Claude cost</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {usage.byUser.map((r) => (
+                <TableRow key={r.userId ?? 'app'}>
+                  <TableCell>{r.userId == null ? 'App-wide' : userName(r.userId)}</TableCell>
+                  <TableCell className="tabular text-right">{formatNumber(r.calls)}</TableCell>
+                  <TableCell className="tabular text-right">{formatUsd(r.costUsd)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </SectionCard>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard title="Provider health · 24h">

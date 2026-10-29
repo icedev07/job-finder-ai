@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findJobForPage } from "@/lib/applications";
 import { pickResumeForJob } from "@/lib/resumes";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,9 @@ export async function OPTIONS() {
 // POST { url, title?, company?, pageText? } → the stored job this form belongs
 // to (its AI verdict and stage) and the resume variant to attach.
 export async function POST(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -25,12 +26,13 @@ export async function POST(req: NextRequest) {
   const url = typeof body.url === "string" ? body.url : "";
   if (!url) return NextResponse.json({ error: "url is required" }, { status: 400, headers: CORS });
   const job = await findJobForPage({
+    userId,
     url,
     title: typeof body.title === "string" ? body.title : undefined,
     company: typeof body.company === "string" ? body.company : undefined,
   });
   const text = [job?.title, job?.description, typeof body.pageText === "string" ? body.pageText : ""].filter(Boolean).join("\n");
-  const resume = await pickResumeForJob(text).catch(() => null);
+  const resume = await pickResumeForJob(userId, text).catch(() => null);
   return NextResponse.json(
     {
       job: job

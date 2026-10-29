@@ -17,18 +17,26 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useHydrated } from '@/hooks/use-hydrated';
+import { useViewing } from '@/components/shell/viewing';
+import { Checkbox } from '@/components/ui/checkbox';
 import { errorMessage } from '@/lib/clientApi';
 
-/** Type + pattern form. `onAdd` creates the rule and refreshes the list; it throws on failure. */
+/**
+ * Type + pattern form. `onAdd` creates the rule and refreshes the list; it throws on failure. A rule belongs to the
+ * user being viewed unless "For everyone" is ticked; with all users shown, every new rule is for everyone.
+ */
 export function AddRuleCard({
   rules,
   onAdd,
 }: {
   rules: SkipRule[] | null;
-  onAdd: (type: SkipRuleType, pattern: string) => Promise<void>;
+  onAdd: (type: SkipRuleType, pattern: string, everyone: boolean) => Promise<void>;
 }) {
   const hydrated = useHydrated();
+  const { viewing, userName, multiUser } = useViewing();
   const [type, setType] = useState<SkipRuleType>('COMPANY');
+  const [everyoneTicked, setEveryone] = useState(false);
+  const everyone = viewing === 'all' || everyoneTicked;
   const [pattern, setPattern] = useState('');
   const [pending, setPending] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -42,9 +50,11 @@ export function AddRuleCard({
     if (!trimmed || pending) return;
     setPending(true);
     try {
-      await onAdd(type, trimmed);
+      await onAdd(type, trimmed, everyone);
       setPattern('');
-      toast.success(`Added the ${meta.noun} rule “${trimmed}”`);
+      toast.success(
+        `Added the ${meta.noun} rule “${trimmed}”${multiUser ? (everyone ? ' for everyone' : ` for ${userName(viewing as number)}`) : ''}`,
+      );
       input.current?.focus();
     } catch (e) {
       toast.error(`Could not add the rule: ${errorMessage(e)}`);
@@ -102,6 +112,16 @@ export function AddRuleCard({
         </Button>
       </form>
       <p className="text-xs text-muted-foreground">{meta.hint}</p>
+      {multiUser ? (
+        viewing === 'all' ? (
+          <p className="text-xs text-muted-foreground">With all users shown, new rules apply to everyone.</p>
+        ) : (
+          <label className="flex w-fit items-center gap-2 text-sm">
+            <Checkbox checked={everyoneTicked} onCheckedChange={(on) => setEveryone(on)} />
+            For everyone, not only {userName(viewing)}
+          </label>
+        )
+      ) : null}
       {duplicate ? (
         <p className="text-xs text-tier-maybe-ink">
           A {meta.noun} rule for “{trimmed}” already exists.

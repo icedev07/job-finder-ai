@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { CommandPalette } from '@/components/shell/command-palette';
 import { breadcrumbFor } from '@/components/shell/nav';
 import { StatusStrip } from '@/components/shell/status-strip';
+import { ViewingPicker } from '@/components/shell/viewing';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 
@@ -26,7 +27,7 @@ function Crumbs() {
   );
 }
 
-/** Sticky header: sidebar toggle, breadcrumb, live status strip (own row on phones) and command palette. */
+/** Sticky header: sidebar toggle, breadcrumb, live status strip (own row on phones), whose data to view and command palette. */
 export function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b bg-background/85 backdrop-blur supports-backdrop-filter:bg-background/70">
@@ -37,6 +38,7 @@ export function TopBar() {
         <div className="flex min-w-0 flex-1 justify-end">
           <StatusStrip className="hidden md:flex" />
         </div>
+        <ViewingPicker />
         <CommandPalette />
       </div>
       <div className="border-t px-2 py-1 md:hidden">

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { describeDbError } from "@/lib/dbErrors";
-import { pageAdmin } from "@/lib/scope";
+import { pageScope, type AdminScope } from "@/lib/scope";
 import { getStatusSnapshot, type StatusSnapshot } from "@/lib/status";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +20,9 @@ export const dynamic = "force-dynamic";
 // The checklist needs the settings table. When the database cannot be read
 // (down, paused, pool full, wrong DATABASE_URL) the page says why instead of
 // failing: this is where people come to fix exactly that.
-async function loadStatus(adminId: number): Promise<{ status: StatusSnapshot | null; dbError: string | null }> {
+async function loadStatus(scope: AdminScope): Promise<{ status: StatusSnapshot | null; dbError: string | null }> {
   try {
-    return { status: await getStatusSnapshot(adminId), dbError: null };
+    return { status: await getStatusSnapshot(scope), dbError: null };
   } catch (e) {
     console.error("[setup] status unavailable:", (e as Error)?.message);
     return { status: null, dbError: describeDbError(e) };
@@ -80,8 +80,8 @@ function Checklist({ setup }: { setup: StatusSnapshot["setup"] }) {
 }
 
 export default async function SetupPage() {
-  const admin = await pageAdmin();
-  const { status, dbError } = await loadStatus(admin.id);
+  const scope = await pageScope();
+  const { status, dbError } = await loadStatus(scope);
 
   return (
     <div className="space-y-4">

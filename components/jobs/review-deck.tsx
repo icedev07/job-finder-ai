@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
 import { useStatus } from '@/components/shell/status-provider';
+import { UserChip } from '@/components/shell/viewing';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -20,6 +21,7 @@ import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 
 type ReviewJob = {
   id: number;
+  userId: number;
   platform: string;
   title: string;
   company: string;
@@ -46,6 +48,7 @@ type Decision = { job: ReviewJob; kind: 'good' | 'bad' | 'skip' };
 export function ReviewDeck() {
   const [queue, setQueue] = useState<ReviewJob[] | null>(null);
   const [total, setTotal] = useState(0);
+  // One user's score band (null with all users: each has their own).
   const [band, setBand] = useState<{ min: number; max: number } | null>(null);
   const [done, setDone] = useState<Decision[]>([]);
   const [busy, setBusy] = useState(false);
@@ -54,7 +57,7 @@ export function ReviewDeck() {
 
   const load = useCallback(async () => {
     try {
-      const r = await api<{ jobs: ReviewJob[]; total: number; band: { min: number; max: number } }>('/api/admin/review');
+      const r = await api<{ jobs: ReviewJob[]; total: number; band: { min: number; max: number } | null }>('/api/admin/review');
       setQueue(r.jobs);
       setTotal(r.total);
       setBand(r.band);
@@ -190,6 +193,7 @@ export function ReviewDeck() {
             <EligibilityChip value={current.eligibility} />
             <ApplyMethodChip method={current.applyMethod} />
             <Badge variant="outline">{platformLabel(current.platform)}</Badge>
+            <UserChip userId={current.userId} />
             <span className="ml-auto text-xs text-muted-foreground">found {timeAgo(current.createdAt)}</span>
           </div>
           <h2 className="text-lg leading-snug font-semibold">{current.title}</h2>

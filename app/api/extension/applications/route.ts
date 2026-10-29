@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { markApplied } from "@/lib/applications";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,9 @@ export async function OPTIONS() {
 // → moves the job to Applied (creating it when this form was found outside
 // the scanners), stores what was sent, optionally keeps the answers.
 export async function POST(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
   if (!/^https?:\/\//i.test(url)) return NextResponse.json({ error: "url is required" }, { status: 400, headers: CORS });
   try {
     const r = await markApplied({
+      userId,
       url,
       title: typeof body.title === "string" ? body.title.slice(0, 500) : undefined,
       company: typeof body.company === "string" ? body.company.slice(0, 300) : undefined,

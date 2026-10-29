@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { adminOnly } from "@/lib/scope";
+import { Prisma } from "@/generated/prisma";
+import { adminScope, userWhere, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,13 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
+// Job counts and scan results of the user being viewed (or of every user);
+// database metrics are app-wide.
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const mine = userWhere(scope);
+  const userId = viewingUserId(scope);
   const [
     totalJobs,
     pendingJobs,
@@ -28,17 +33,18 @@ export async function GET(req: NextRequest) {
     activeConnRows,
     tableSizeRows,
   ] = await Promise.all([
-    safe(prisma.scrapedJob.count(), 0),
-    safe(prisma.scrapedJob.count({ where: { status: "PENDING" } }), 0),
-    safe(prisma.scrapedJob.count({ where: { status: "APPROVED" } }), 0),
-    safe(prisma.scrapedJob.count({ where: { status: "REJECTED" } }), 0),
-    safe(prisma.scrapedJob.count({ where: { sheetSynced: true } }), 0),
+    safe(prisma.scrapedJob.count({ where: mine }), 0),
+    safe(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
+    safe(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED" } }), 0),
+    safe(prisma.scrapedJob.count({ where: { ...mine, status: "REJECTED" } }), 0),
+    safe(prisma.scrapedJob.count({ where: { ...mine, sheetSynced: true } }), 0),
     safe(
-      prisma.scanLog.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
+      prisma.scanLog.findMany({ where: mine, orderBy: { createdAt: "desc" }, take: 10 }),
       [] as Awaited<ReturnType<typeof prisma.scanLog.findMany>>,
     ),
     safe(
-      prisma.$queryRaw<{ board: string; jobs_found: number; jobs_saved: number; errors: string | null; created_at: Date }[]>`
+      // One Prisma.sql query, not a nested fragment (see lib/prisma.ts).
+      prisma.$queryRaw<{ board: string; jobs_found: number; jobs_saved: number; errors: string | null; created_at: Date }[]>(Prisma.sql`
         SELECT DISTINCT ON (board)
           board,
           "jobsFound" AS jobs_found,
@@ -46,8 +52,9 @@ export async function GET(req: NextRequest) {
           errors,
           "createdAt" AS created_at
         FROM "ScanLog"
+        ${userId != null ? Prisma.sql`WHERE "userId" = ${userId}` : Prisma.empty}
         ORDER BY board, "createdAt" DESC
-      `,
+      `),
       [] as { board: string; jobs_found: number; jobs_saved: number; errors: string | null; created_at: Date }[],
     ),
     safe(

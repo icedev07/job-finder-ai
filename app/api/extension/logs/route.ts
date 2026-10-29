@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +11,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
 
   let body: { logs?: unknown; sessionId?: unknown };
   try {
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest) {
   const data = logs.slice(0, 500).map((entry: any) => {
     const ts = entry?.timestamp ? new Date(entry.timestamp) : new Date();
     return {
+      userId,
       level: String(entry?.level || "info").substring(0, 20),
       message: String(entry?.message || "").substring(0, 2000),
       sessionId: sessionId ? String(sessionId).substring(0, 100) : null,

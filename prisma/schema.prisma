@@ -22,9 +22,10 @@ enum JobStatus {
 
 // ── Users ───────────────────────────────────────────────────────────────────
 
-// Everyone who signs in. ADMIN accounts sign in to the dashboard (and the
-// extension) and manage every user; USER accounts only sign in to the Chrome
-// extension.
+// Everyone who uses the app. Each user is one job search with their own
+// location, profile, settings and results. ADMIN accounts sign in to the
+// dashboard (and the extension) and manage every user; USER accounts only
+// sign in to the Chrome extension.
 model User {
   id             Int       @id @default(autoincrement())
   // The sign-in ID, stored lower-case.
@@ -41,12 +42,34 @@ model User {
   lastLoginAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
+
+  settings  UserConfig[]
+  jobs      ScrapedJob[]
+  resumes   Resume[]
+  answers   SavedAnswer[]
+  skipRules SkipRule[]
+}
+
+// A user's own settings (search options, Google Sheet, profile …), one row per
+// key. App-wide settings stay in AppConfig.
+model UserConfig {
+  userId    Int
+  key       String   @db.VarChar(255)
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, key])
 }
 
 // ── Core ────────────────────────────────────────────────────────────────────
 
+// A job as found for one user: the same posting found for two users is two
+// rows, each with its own verdict, pipeline and notes.
 model ScrapedJob {
   id          Int       @id @default(autoincrement())
+  userId      Int
   platform    String    @db.VarChar(50)
   title       String
   company     String
@@ -89,11 +112,14 @@ model ScrapedJob {
   signals     String?
 
   analysisLogs AnalysisLog[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([platform, url])
-  @@unique([platform, title, company])
+  @@unique([userId, platform, url])
+  @@unique([userId, platform, title, company])
   @@index([stage])
   @@index([status, createdAt])
+  @@index([userId, status, createdAt])
+  @@index([userId, stage])
 }
 
 // ── Admin configuration ─────────────────────────────────────────────────────
@@ -104,18 +130,27 @@ model AppConfig {
   updatedAt DateTime @default(now()) @updatedAt
 }
 
+// A user's own rule, or a rule for everyone when userId is null.
 model SkipRule {
   id        Int          @id @default(autoincrement())
+  userId    Int?
   type      SkipRuleType
   pattern   String
   active    Boolean      @default(true)
   createdAt DateTime     @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ── Logging ─────────────────────────────────────────────────────────────────
 
+// Logs keep the user they were for (no foreign key: a deleted user's logs
+// stay until they age out).
 model ScanLog {
   id         Int      @id @default(autoincrement())
+  userId     Int?
   board      String   @db.VarChar(50)
   jobsFound  Int      @default(0)
   jobsSaved  Int      @default(0)
@@ -145,6 +180,7 @@ model AnalysisLog {
 // single database with no extra storage service.
 model Resume {
   id          Int      @id @default(autoincrement())
+  userId      Int
   name        String   @db.VarChar(120)
   fileName    String   @db.VarChar(255)
   mimeType    String   @db.VarChar(100)
@@ -159,23 +195,34 @@ model Resume {
   isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Answers to recurring application questions, reused by autofill.
 model SavedAnswer {
   id        Int      @id @default(autoincrement())
+  userId    Int
   question  String
   answer    String
   tags      String?  @db.VarChar(300)
   uses      Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // One row per AI call (every provider, success or failure). Drives the usage
 // & cost page, the Claude monthly budget cap, and provider health stats.
 model AiUsage {
   id               Int      @id @default(autoincrement())
+  // Whose work the call was for; null for app-wide calls (model lists, tests).
+  userId           Int?
   task             String   @db.VarChar(30)
   provider         String   @db.VarChar(30)
   model            String   @db.VarChar(120)
@@ -191,10 +238,12 @@ model AiUsage {
 
   @@index([createdAt])
   @@index([provider, createdAt])
+  @@index([userId, createdAt])
 }
 
 model ExtensionLog {
   id        Int      @id @default(autoincrement())
+  userId    Int?
   level     String   @db.VarChar(20) @default("info")
   message   String
   sessionId String?  @db.VarChar(100)

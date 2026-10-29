@@ -47,8 +47,8 @@ export function SkipRulesView() {
     void load();
   }, [load]);
 
-  async function addRule(type: SkipRuleType, pattern: string) {
-    await api(RULES_URL, { method: 'POST', json: { type, pattern } });
+  async function addRule(type: SkipRuleType, pattern: string, everyone: boolean) {
+    await api(RULES_URL, { method: 'POST', json: { type, pattern, everyone } });
     await load();
   }
 
@@ -86,7 +86,7 @@ export function SkipRulesView() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Skip rules"
-        description="Jobs that match an active rule are skipped before they are stored or analyzed, which saves AI quota."
+        description="Jobs that match an active rule are skipped before they are stored or analyzed, which saves AI quota. Each user has their own rules; rules for everyone apply to all users."
         actions={
           <>
             <Button variant="outline" disabled={!rules?.length} onClick={() => rules && downloadRulesCsv(rules)}>

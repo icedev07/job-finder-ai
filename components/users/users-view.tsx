@@ -26,6 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -48,6 +49,10 @@ type UserItem = {
   isOwner: boolean;
   isYou: boolean;
   passwordFromEnv: boolean;
+  currentLocation: string;
+  targetMarket: string;
+  jobs: number;
+  approved: number;
 };
 
 const ROLE_INFO: Record<Role, { label: string; hint: string }> = {
@@ -95,7 +100,7 @@ export function UsersView() {
   const header = (
     <PageHeader
       title="Users"
-      description="Everyone who can sign in, with a user ID and password (no email). Admins use this dashboard; users sign in to the Chrome extension."
+      description="Everyone who can sign in, with a user ID and password (no email). Each user is one job search: their own location, target market, profile, results and Google Sheet. Admins use this dashboard; users sign in to the Chrome extension."
       actions={
         <Button onClick={() => setDialog({ kind: 'add' })} disabled={!users}>
           <UserPlusIcon />
@@ -130,6 +135,8 @@ export function UsersView() {
               <TableHead>Name</TableHead>
               <TableHead>User ID</TableHead>
               <TableHead>Role</TableHead>
+              <TableHead className="hidden lg:table-cell">Search</TableHead>
+              <TableHead className="hidden text-right sm:table-cell">Jobs</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="hidden md:table-cell">Last sign-in</TableHead>
               <TableHead className="hidden md:table-cell">Added</TableHead>
@@ -150,6 +157,18 @@ export function UsersView() {
                 </TableCell>
                 <TableCell className="font-mono text-xs">{u.username}</TableCell>
                 <TableCell>{ROLE_INFO[u.role].label}</TableCell>
+                <TableCell className="hidden max-w-64 lg:table-cell">
+                  {u.currentLocation || u.targetMarket ? (
+                    <span className="block truncate" title={`Based in ${u.currentLocation || '?'}, targeting ${u.targetMarket || '?'}`}>
+                      {u.currentLocation || '?'} → {u.targetMarket || '?'}
+                    </span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-400">Not set</span>
+                  )}
+                </TableCell>
+                <TableCell className="tabular hidden text-right sm:table-cell" title={`${u.approved} approved`}>
+                  {u.jobs.toLocaleString()}
+                </TableCell>
                 <TableCell>
                   <StatusDot tone={u.active ? 'ok' : 'idle'} label={u.active ? 'Active' : 'Disabled'} />
                 </TableCell>
@@ -222,6 +241,7 @@ export function UsersView() {
       </p>
 
       <AddUserDialog
+        users={users}
         open={dialog?.kind === 'add'}
         onClose={() => setDialog(null)}
         onDone={async (name) => {
@@ -288,14 +308,36 @@ function passwordProblem(password: string, repeat: string): string | null {
   return null;
 }
 
-function AddUserDialog({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: (name: string) => Promise<void> }) {
+const NO_COPY = 'none';
+
+function AddUserDialog({
+  users,
+  open,
+  onClose,
+  onDone,
+}: {
+  users: UserItem[];
+  open: boolean;
+  onClose: () => void;
+  onDone: (name: string) => Promise<void>;
+}) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [role, setRole] = useState<Role>('USER');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
+  const [location, setLocation] = useState('');
+  const [market, setMarket] = useState('');
+  const [copyFrom, setCopyFrom] = useState<string>(NO_COPY);
+  const [copy, setCopy] = useState({ search: true, rules: true, profile: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const source = users.find((u) => String(u.id) === copyFrom);
+  const copiesSearch = !!source && copy.search;
+  const copyItems = [
+    { value: NO_COPY, label: 'Nobody — start empty' },
+    ...users.map((u) => ({ value: String(u.id), label: `${u.name} (${u.username})` })),
+  ];
 
   const id = username.trim().toLowerCase();
   const idProblem = id && !USERNAME_RE.test(id) ? '3–32 characters: letters, digits, dot, dash or underscore.' : null;
@@ -306,12 +348,21 @@ function AddUserDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
     setRole('USER');
     setPassword('');
     setRepeat('');
+    setLocation('');
+    setMarket('');
+    setCopyFrom(NO_COPY);
+    setCopy({ search: true, rules: true, profile: false });
     setError(null);
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const problem = idProblem ?? passwordProblem(password, repeat);
+    const problem =
+      idProblem ??
+      passwordProblem(password, repeat) ??
+      (!copiesSearch && (!location.trim() || !market.trim())
+        ? 'Say where they are based and which market they target (or copy the search options of another user).'
+        : null);
     if (problem) {
       setError(problem);
       return;
@@ -319,7 +370,18 @@ function AddUserDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
     setBusy(true);
     setError(null);
     try {
-      await api('/api/admin/users', { method: 'POST', json: { name: name.trim() || id, username: id, role, password } });
+      await api('/api/admin/users', {
+        method: 'POST',
+        json: {
+          name: name.trim() || id,
+          username: id,
+          role,
+          password,
+          currentLocation: location,
+          targetMarket: market,
+          ...(source ? { copyFrom: source.id, copy } : {}),
+        },
+      });
       const shown = name.trim() || id;
       reset();
       await onDone(shown);
@@ -340,11 +402,14 @@ function AddUserDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
         }
       }}
     >
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={submit} className="grid gap-4">
           <DialogHeader>
             <DialogTitle>Add user</DialogTitle>
-            <DialogDescription>They sign in with this user ID and password. No email is needed.</DialogDescription>
+            <DialogDescription>
+              They sign in with this user ID and password; no email is needed. The AI judges their jobs against where they are
+              based and the market they target.
+            </DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
@@ -369,6 +434,62 @@ function AddUserDialog({ open, onClose, onDone }: { open: boolean; onClose: () =
               <FieldLabel>Role</FieldLabel>
               <RoleSelect value={role} onChange={setRole} />
               <FieldDescription>{ROLE_INFO[role].hint}</FieldDescription>
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="u-location">Based in</FieldLabel>
+                <Input
+                  id="u-location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder={copiesSearch ? `As ${source!.name}: ${source!.currentLocation || '?'}` : 'e.g. Poland'}
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="u-market">Target market</FieldLabel>
+                <Input
+                  id="u-market"
+                  value={market}
+                  onChange={(e) => setMarket(e.target.value)}
+                  placeholder={copiesSearch ? `As ${source!.name}: ${source!.targetMarket || '?'}` : 'e.g. Europe, remote worldwide'}
+                />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel>Copy the set-up of</FieldLabel>
+              <Select items={copyItems} value={copyFrom} onValueChange={(v) => setCopyFrom(String(v))}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {copyItems.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {source ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 text-sm">
+                  {(
+                    [
+                      ['search', 'Search options & job boards'],
+                      ['rules', 'Skip rules'],
+                      ['profile', 'Profile, resumes & answers'],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <label key={k} className="flex items-center gap-2">
+                      <Checkbox checked={copy[k]} onCheckedChange={(on) => setCopy((c) => ({ ...c, [k]: on }))} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+              <FieldDescription>
+                {source
+                  ? 'Never their jobs. Fill in Based in / Target market above to change the copied ones.'
+                  : 'Optional: start from another user’s search options, skip rules or profile.'}
+              </FieldDescription>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
@@ -573,8 +694,9 @@ function DeleteUserDialog({ user, onClose, onDeleted }: { user: UserItem; onClos
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {user.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            Their account is removed and their sign-ins stop working. To keep the account but stop them signing in, disable it
-            instead. Type <span className="font-mono font-medium text-foreground">{user.username}</span> to confirm.
+            Their account is removed with everything that is theirs: jobs, settings, profile, resumes, saved answers and skip
+            rules. To keep it all but stop them signing in, disable the account instead. Type{' '}
+            <span className="font-mono font-medium text-foreground">{user.username}</span> to confirm.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <Input

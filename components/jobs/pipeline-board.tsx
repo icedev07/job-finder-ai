@@ -8,6 +8,7 @@ import { ScoreChip } from '@/components/jobs/chips';
 import { JobDetailSheet } from '@/components/jobs/job-detail-sheet';
 import { patchJobs, stageLabel } from '@/components/jobs/job-commands';
 import { useStatus } from '@/components/shell/status-provider';
+import { UserChip } from '@/components/shell/viewing';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,6 +30,7 @@ import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 
 type Card = {
   id: number;
+  userId: number;
   title: string;
   company: string;
   aiScore: number | null;
@@ -250,7 +252,10 @@ export function PipelineBoard() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">{c.company}</p>
+                    <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+                      <span className="truncate">{c.company}</span>
+                      <UserChip userId={c.userId} className="ml-auto shrink-0" />
+                    </p>
                     <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
                       {c.appliedAt ? <span>applied {timeAgo(c.appliedAt)}</span> : <span>added {timeAgo(c.createdAt)}</span>}
                       {tone ? (

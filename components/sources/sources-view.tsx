@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/common/page-header';
+import { useViewing } from '@/components/shell/viewing';
 import { useStatus } from '@/components/shell/status-provider';
 import { AnalysisCard, type AnalysisProgress } from '@/components/sources/analysis-card';
 import { isSourceTab, SOURCE_TABS, SOURCES, sourcesInTab, type SourceDef } from '@/components/sources/catalog';
@@ -122,6 +123,7 @@ function HiddenGemsNote() {
 /** The Sources page: scanner settings per job board, single and full scans, and the pending-analysis queue. */
 export function SourcesView({ initialTab }: { initialTab: string }) {
   const { refresh: refreshStatus } = useStatus();
+  const { viewing, userName } = useViewing();
   const now = useSyncExternalStore(subscribeMinute, thisMinute, serverMinute);
   const [tab, setTab] = useState(initialTab);
   const [config, setConfig] = useState<ScannerConfig>({});
@@ -452,7 +454,11 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
     <div className="@container/sources flex flex-col gap-6">
       <PageHeader
         title="Sources"
-        description="Job boards and public APIs scanned server-side; each scan analyzes every job with AI inline and stores only the verdict."
+        description={`Job boards and public APIs scanned server-side; each scan analyzes every job with AI inline and stores only the verdict. ${
+          viewing === 'all'
+            ? 'Runs judge new jobs for every user who gets each board (Settings → Job boards).'
+            : `Runs judge new jobs for ${userName(viewing)} only.`
+        } The board settings here are shared by everyone.`}
       />
 
       <div className="grid gap-4 @4xl/sources:grid-cols-2">

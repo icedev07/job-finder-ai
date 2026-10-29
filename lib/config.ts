@@ -1,5 +1,8 @@
 import { prisma } from "./prisma";
 
+// App-wide settings: AI providers and keys, routes, the Claude budget, the
+// Google service account and the extension key. Each user's own settings
+// (search options, sheet, profile) live in UserConfig (lib/userSettings.ts).
 export const CONFIG_KEYS = {
   // Legacy single-provider key — still read for backward-compatible migration
   // into AI_PROVIDERS, no longer written by the settings page.
@@ -26,13 +29,9 @@ export const CONFIG_KEYS = {
   CLOUDFLARE_ACCOUNT_ID: "cloudflare_account_id",
   CLOUDFLARE_API_KEY: "cloudflare_api_key",
   CLOUDFLARE_MODEL: "cloudflare_model",
+  // One service account for everyone; each user shares their own sheet with it.
   GOOGLE_SHEETS_CREDENTIALS: "google_sheets_credentials",
-  GOOGLE_SHEET_ID: "google_sheet_id",
-  TARGET_MARKET: "target_market",
-  CURRENT_LOCATION: "current_location",
-  JOB_ANALYSIS_PROMPT: "job_analysis_prompt",
-  SHEET_COLUMNS: "sheet_columns",
-  LINKEDIN_SHEET_TAB: "linkedin_sheet_tab",
+  // The old shared extension key: it still works and acts as the first admin.
   EXTENSION_API_KEY: "extension_api_key",
   ANALYZER_REQUEST_DELAY_MS: "analyzer_request_delay_ms",
   ANALYZER_BATCH_SIZE: "analyzer_batch_size",
@@ -43,15 +42,6 @@ export const CONFIG_KEYS = {
   // Monthly Claude spend cap in USD. Once reached, Claude is skipped and the
   // routes fall back to the free providers until the next month. 0 = no cap.
   CLAUDE_MONTHLY_BUDGET_USD: "claude_monthly_budget_usd",
-  // JSON CandidateProfile (lib/profileModel.ts) — written by /api/admin/profile.
-  CANDIDATE_PROFILE: "candidate_profile",
-  // "false" keeps the profile out of the job-matching prompts.
-  PROFILE_IN_MATCHING: "profile_in_matching",
-  // Score band whose verdicts land in the Review queue (inclusive).
-  REVIEW_BAND_MIN: "review_band_min",
-  REVIEW_BAND_MAX: "review_band_max",
-  // Days after "Applied" before a follow-up is due.
-  FOLLOWUP_DAYS: "followup_days",
 } as const;
 
 // Where the single-password version kept the admin password. Passwords now live
@@ -220,21 +210,10 @@ export async function getConfig() {
     cloudflareApiKey: all[CONFIG_KEYS.CLOUDFLARE_API_KEY] || "",
     cloudflareModel: all[CONFIG_KEYS.CLOUDFLARE_MODEL] || "@cf/meta/llama-3.1-8b-instruct",
     googleSheetsCredentials: all[CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS] || "",
-    googleSheetId: all[CONFIG_KEYS.GOOGLE_SHEET_ID] || "",
-    targetMarket: all[CONFIG_KEYS.TARGET_MARKET] || "Europe, Eastern Europe, Remote worldwide",
-    currentLocation: all[CONFIG_KEYS.CURRENT_LOCATION] || "Armenia",
-    jobAnalysisPrompt: all[CONFIG_KEYS.JOB_ANALYSIS_PROMPT] || "",
-    sheetColumns: all[CONFIG_KEYS.SHEET_COLUMNS] || "",
-    linkedinSheetTab: all[CONFIG_KEYS.LINKEDIN_SHEET_TAB] || "LinkedIn",
     extensionApiKey: all[CONFIG_KEYS.EXTENSION_API_KEY] || "",
     anthropicApiKey: all[CONFIG_KEYS.ANTHROPIC_API_KEY] || "",
     aiRoutesRaw: all[CONFIG_KEYS.AI_ROUTES] || "",
     claudeMonthlyBudgetUsd: parseBudget(all[CONFIG_KEYS.CLAUDE_MONTHLY_BUDGET_USD]),
-    // Verdicts scored inside this band go to the Review queue: close to the
-    // approval line (60), where a quick human check helps most.
-    reviewBandMin: clampInt(all[CONFIG_KEYS.REVIEW_BAND_MIN], 0, 100, 45),
-    reviewBandMax: clampInt(all[CONFIG_KEYS.REVIEW_BAND_MAX], 0, 100, 70),
-    followUpDays: clampInt(all[CONFIG_KEYS.FOLLOWUP_DAYS], 1, 60, 7),
     // Inter-request pacing for the LLM. 500ms is well under any free-tier
     // per-minute cap (OpenRouter free is 20 req/min ≈ one request every 3s,
     // and batching already cuts request count ~5×). Set higher only if you see
@@ -256,12 +235,6 @@ export async function getConfig() {
 }
 
 export const DEFAULT_CLAUDE_MONTHLY_BUDGET_USD = 10;
-
-function clampInt(raw: string | undefined, min: number, max: number, fallback: number): number {
-  const n = Number(raw);
-  if (raw == null || raw.trim() === "" || !Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
 
 // Blank → the default cap. Anything non-numeric or negative also falls back to
 // the default, so a typo can never silently remove the cap. 0 means "no cap".

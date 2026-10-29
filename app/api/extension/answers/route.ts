@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { draftAnswers, type QuestionIn, type QuestionKind } from "@/lib/answers";
 import { LLMRateLimitedError } from "@/lib/llmClient";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,9 @@ export async function OPTIONS() {
 // POST { questions: [{ id, label, kind, options?, maxLength? }], job: { title, company, url, text } }
 // → [{ id, answer, source: "bank" | "ai", needsUser }]
 export async function POST(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
   let body: { questions?: unknown; job?: Record<string, unknown> };
   try {
     body = await req.json();
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   const job = body.job ?? {};
   try {
     const answers = await draftAnswers(
+      userId,
       questions,
       {
         title: typeof job.title === "string" ? job.title.slice(0, 300) : undefined,

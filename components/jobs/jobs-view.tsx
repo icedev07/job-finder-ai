@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 
 import { BulkBar } from '@/components/jobs/bulk-bar';
 import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
+import { UserChip, useViewing } from '@/components/shell/viewing';
 import { FacetFilter } from '@/components/jobs/facet-filter';
 import { FeedbackButtons } from '@/components/jobs/feedback-buttons';
 import { JobDetailSheet } from '@/components/jobs/job-detail-sheet';
@@ -62,6 +63,7 @@ import { cn } from '@/lib/utils';
 
 type JobRow = {
   id: number;
+  userId: number;
   platform: string;
   title: string;
   company: string;
@@ -192,6 +194,9 @@ export function JobsView() {
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
   const openJob = useCallback((id: number | null) => setParams({ job: id == null ? null : String(id) }, false), [setParams]);
 
+  // With all users shown, a User column says whose each job is.
+  const { viewing, multiUser } = useViewing();
+  const showUser = multiUser && viewing === 'all';
   const columns = useMemo<ColumnDef<JobRow>[]>(
     () => [
       {
@@ -233,6 +238,9 @@ export function JobsView() {
           );
         },
       },
+      ...(showUser
+        ? [{ id: 'user', header: 'User', cell: ({ row }) => <UserChip userId={row.original.userId} /> } satisfies ColumnDef<JobRow>]
+        : []),
       { id: 'source', header: 'Source', cell: ({ row }) => <span className="text-xs">{platformLabel(row.original.platform)}</span> },
       { id: 'status', header: 'Status', cell: ({ row }) => <StatusChip status={row.original.status} /> },
       {
@@ -283,7 +291,7 @@ export function JobsView() {
         },
       },
     ],
-    [reload],
+    [reload, showUser],
   );
 
   // TanStack Table hands back fresh functions each render; this app does not use the React Compiler.
@@ -338,6 +346,8 @@ export function JobsView() {
     const p = new URLSearchParams(fetchKey);
     p.delete('page');
     p.delete('limit');
+    // A download link can't send the Viewing header: whose jobs goes in the URL.
+    p.set('user', String(viewing));
     return `/api/admin/jobs/export?${p.toString()}`;
   })();
   const hasFilters = FILTER_KEYS.some((k) => params.get(k));

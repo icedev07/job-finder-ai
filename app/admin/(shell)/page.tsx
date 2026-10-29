@@ -16,21 +16,45 @@ import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { Funnel } from "@/components/dashboard/funnel";
 import { KpiTile } from "@/components/dashboard/kpi-tile";
 import { QuickActions } from "@/components/dashboard/quick-actions";
+import { UsersTable, type UserSummaryRow } from "@/components/dashboard/users-table";
 import { ScoreChip } from "@/components/jobs/chips";
+import { UserChip } from "@/components/shell/viewing";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getDashboardData } from "@/lib/dashboard";
 import { formatDayKey, formatNumber, formatPercent, formatUsd, platformLabel, ratio, timeAgo } from "@/lib/format";
-import { pageAdmin } from "@/lib/scope";
+import { pageScope, viewingUserId } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const admin = await pageAdmin();
-  const [data, status] = await Promise.all([getDashboardData(30), getStatusSnapshot(admin.id).catch(() => null)]);
+  const scope = await pageScope();
+  const [data, status] = await Promise.all([
+    getDashboardData(30, viewingUserId(scope)),
+    getStatusSnapshot(scope).catch(() => null),
+  ]);
+  // All users: one row per user, quiet ones included.
+  const userRows: UserSummaryRow[] | null =
+    data.perUser && scope.users.length > 1
+      ? scope.users.map((u) => {
+          const s = data.perUser!.find((p) => p.userId === u.id);
+          return {
+            userId: u.id,
+            name: u.name,
+            username: u.username,
+            active: u.active,
+            found7: s?.found7 ?? 0,
+            approved7: s?.approved7 ?? 0,
+            applied: s?.applied ?? 0,
+            lastLinkedInAt: s?.lastLinkedInAt ? s.lastLinkedInAt.toISOString() : null,
+            aiCalls7: s?.aiCalls7 ?? 0,
+            aiCostMonthUsd: s?.aiCostMonthUsd ?? 0,
+          };
+        })
+      : null;
   const last14 = data.perDay.slice(-14);
   const labels14 = last14.map((d) => formatDayKey(d.day));
   const aiToday = data.perDay[data.perDay.length - 1]?.aiCalls ?? 0;
@@ -123,6 +147,20 @@ export default async function DashboardPage() {
         />
       </div>
 
+      {userRows ? (
+        <SectionCard
+          title="Users"
+          description="Each user's last 7 days, applications, LinkedIn activity and AI use. View opens their data."
+          actions={
+            <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/users" />}>
+              Manage users
+            </Button>
+          }
+        >
+          <UsersTable rows={userRows} />
+        </SectionCard>
+      ) : null}
+
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
         <SectionCard title="Activity · 30 days" description="Jobs judged per day (approved vs rejected) and AI calls.">
           <ActivityChart data={data.perDay.map((d) => ({ day: d.day, approved: d.approved, rejected: d.rejected, aiCalls: d.aiCalls }))} />
@@ -158,6 +196,7 @@ export default async function DashboardPage() {
                         {j.company} · {platformLabel(j.platform)}
                       </span>
                     </span>
+                    <UserChip userId={j.userId} />
                     <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(j.createdAt)}</span>
                   </Link>
                 </li>

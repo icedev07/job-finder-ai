@@ -33,6 +33,8 @@ export type UsageResponse = {
   }[];
   health: ProviderHealth[];
   recentErrors: { provider: string; model: string; task: string; error: string | null; createdAt: string }[];
+  /** Calls and cost per user over the same days (userId null = app-wide calls). */
+  byUser?: { userId: number | null; calls: number; costUsd: number }[];
 };
 
 export type TestResult = ({ ok: boolean } & Record<string, unknown>) | null;

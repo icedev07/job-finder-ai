@@ -10,7 +10,7 @@ export default function SettingsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Settings"
-        description="Matching targets, the analysis prompt, Google Sheets export and your password. AI keys and models live on the AI page; the extension key on the Extension page."
+        description="Each user's target market and location, analysis prompt, job boards and Google Sheet, plus the app-wide Google service account and your password. AI keys and models live on the AI page; the extension key on the Extension page."
       />
       <SettingsView />
     </div>

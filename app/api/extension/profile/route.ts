@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getProfile } from "@/lib/profile";
 import { listResumes } from "@/lib/resumes";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,19 @@ export async function OPTIONS() {
 // Everything autofill needs up front: the profile, the resume variants (no
 // file bytes) and the most-used saved answers.
 export async function GET(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
   const [profile, resumes, answers] = await Promise.all([
-    getProfile(),
-    listResumes().catch(() => []),
+    getProfile(userId),
+    listResumes(userId).catch(() => []),
     prisma.savedAnswer
-      .findMany({ orderBy: [{ uses: "desc" }, { updatedAt: "desc" }], take: 100, select: { question: true, answer: true } })
+      .findMany({
+        where: { userId },
+        orderBy: [{ uses: "desc" }, { updatedAt: "desc" }],
+        take: 100,
+        select: { question: true, answer: true },
+      })
       .catch(() => []),
   ]);
   return NextResponse.json(

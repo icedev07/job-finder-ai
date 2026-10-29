@@ -89,6 +89,11 @@ export async function isOwner(id: number): Promise<boolean> {
   return (await ownerUser())?.id === id;
 }
 
+/** Users whose searches run: board scans, the daily cron and Sheets skip disabled ones. */
+export async function activeUsers(): Promise<UserRow[]> {
+  return (await listUsers()).filter((u) => u.active);
+}
+
 /** A user as the Users page shows it. */
 export type UserListItem = Omit<UserRow, "sessionVersion"> & {
   /** The first admin: the account an upgraded install's data went to. */

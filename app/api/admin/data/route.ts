@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { LEGACY_ADMIN_PASSWORD_KEY, getAllConfig, isSecretConfigKey } from "@/lib/config";
 import { describeDbError } from "@/lib/dbErrors";
 import { SUPABASE_FREE_DB_BYTES } from "@/lib/status";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, userWhere, viewingUserId, type AdminScope } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -13,17 +13,27 @@ const WIPE_JOBS_PHRASE = "DELETE ALL JOBS";
 type TableRow = { name: string; bytes: bigint; rows: bigint };
 
 // GET            → storage overview (database size, per-table size and rows).
-// GET ?export=settings → JSON download of the settings, without any secret.
+// GET ?export=settings → JSON download of the app settings and each user's own
+// settings (the user being viewed, or every user), without any secret.
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   if (new URL(req.url).searchParams.get("export") === "settings") {
     const all = await getAllConfig();
     const settings = Object.fromEntries(
       Object.entries(all).filter(([k]) => !isSecretConfigKey(k) && k !== LEGACY_ADMIN_PASSWORD_KEY),
     );
+    const rows = await prisma.userConfig.findMany({ where: userWhere(scope), orderBy: [{ userId: "asc" }, { key: "asc" }] });
+    const users = scope.users
+      .filter((u) => scope.viewing === "all" || u.id === scope.viewing)
+      .map((u) => ({
+        username: u.username,
+        name: u.name,
+        role: u.role,
+        settings: Object.fromEntries(rows.filter((r) => r.userId === u.id).map((r) => [r.key, r.value])),
+      }));
     const stamp = new Date().toISOString().slice(0, 10);
-    return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), settings }, null, 2), {
+    return new NextResponse(JSON.stringify({ exportedAt: new Date().toISOString(), settings, users }, null, 2), {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Content-Disposition": `attachment; filename="job-finder-settings-${stamp}.json"`,
@@ -61,7 +71,13 @@ export async function GET(req: NextRequest) {
     ),
     soft(
       prisma.scrapedJob.count({
-        where: { status: "REJECTED", feedback: null, stage: null, createdAt: { lt: new Date(Date.now() - 30 * DAY_MS) } },
+        where: {
+          ...userWhere(scope),
+          status: "REJECTED",
+          feedback: null,
+          stage: null,
+          createdAt: { lt: new Date(Date.now() - 30 * DAY_MS) },
+        },
       }),
       null as number | null,
     ),
@@ -85,18 +101,23 @@ function badRequest(error: string) {
 //   cleanup-logs     — scan / analysis / extension logs older than N days
 //   cleanup-usage    — AI usage rows older than N days (≥ 35, so the month's budget is untouched)
 //   wipe-jobs        — every job and its AI history; needs confirm = "DELETE ALL JOBS"
+// Jobs and logs: only the user being viewed (every user's with all users).
+// AI usage is app-wide (it feeds the shared Claude budget).
 export async function POST(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
   try {
-    return await runAction(req);
+    return await runAction(req, scope);
   } catch (e) {
     console.error("[admin/data] action failed:", (e as Error)?.message);
     return NextResponse.json({ ok: false, error: describeDbError(e) }, { status: 500 });
   }
 }
 
-async function runAction(req: NextRequest) {
+async function runAction(req: NextRequest, scope: AdminScope) {
+  const mine = userWhere(scope);
+  const userId = viewingUserId(scope);
+  const whose = userId != null ? `${scope.users.find((u) => u.id === userId)?.name ?? "this user"}'s ` : "";
   let body: { action?: unknown; olderThanDays?: unknown; confirm?: unknown };
   try {
     body = await req.json();
@@ -114,20 +135,22 @@ async function runAction(req: NextRequest) {
       const before = cutoff(7);
       if (!before) return badRequest("olderThanDays must be between 7 and 3650");
       const r = await prisma.scrapedJob.deleteMany({
-        where: { status: "REJECTED", feedback: null, stage: null, createdAt: { lt: before } },
+        where: { ...mine, status: "REJECTED", feedback: null, stage: null, createdAt: { lt: before } },
       });
-      return NextResponse.json({ ok: true, deleted: r.count, message: `Deleted ${r.count} old rejected jobs` });
+      return NextResponse.json({ ok: true, deleted: r.count, message: `Deleted ${r.count} of ${whose}old rejected jobs` });
     }
     case "cleanup-logs": {
       const before = cutoff(1);
       if (!before) return badRequest("olderThanDays must be between 1 and 3650");
       const [scans, analysis, extension] = await prisma.$transaction([
-        prisma.scanLog.deleteMany({ where: { createdAt: { lt: before } } }),
-        prisma.analysisLog.deleteMany({ where: { createdAt: { lt: before } } }),
-        prisma.extensionLog.deleteMany({ where: { createdAt: { lt: before } } }),
+        prisma.scanLog.deleteMany({ where: { ...mine, createdAt: { lt: before } } }),
+        prisma.analysisLog.deleteMany({
+          where: { ...(userId != null ? { scrapedJob: { userId } } : {}), createdAt: { lt: before } },
+        }),
+        prisma.extensionLog.deleteMany({ where: { ...mine, createdAt: { lt: before } } }),
       ]);
       const total = scans.count + analysis.count + extension.count;
-      return NextResponse.json({ ok: true, deleted: total, message: `Deleted ${total} log rows` });
+      return NextResponse.json({ ok: true, deleted: total, message: `Deleted ${total} of ${whose}log rows` });
     }
     case "cleanup-usage": {
       const before = cutoff(35);
@@ -137,11 +160,14 @@ async function runAction(req: NextRequest) {
     }
     case "wipe-jobs": {
       if (body.confirm !== WIPE_JOBS_PHRASE) return badRequest(`Type "${WIPE_JOBS_PHRASE}" to confirm`);
-      const [analysis, jobs] = await prisma.$transaction([prisma.analysisLog.deleteMany(), prisma.scrapedJob.deleteMany()]);
+      const [analysis, jobs] = await prisma.$transaction([
+        prisma.analysisLog.deleteMany({ where: userId != null ? { scrapedJob: { userId } } : {} }),
+        prisma.scrapedJob.deleteMany({ where: mine }),
+      ]);
       return NextResponse.json({
         ok: true,
         deleted: jobs.count,
-        message: `Deleted ${jobs.count} jobs and ${analysis.count} analysis logs`,
+        message: `Deleted ${whose}${jobs.count} jobs and ${analysis.count} analysis logs`,
       });
     }
     default:

@@ -8,6 +8,8 @@ export type SkipRuleType = (typeof SKIP_RULE_TYPES)[number];
 /** A row of GET /api/admin/skip-rules (the Prisma SkipRule as JSON). */
 export type SkipRule = {
   id: number;
+  /** The user the rule belongs to; null = a rule for everyone. */
+  userId: number | null;
   type: SkipRuleType;
   pattern: string;
   active: boolean;

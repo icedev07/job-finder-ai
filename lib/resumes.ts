@@ -25,8 +25,10 @@ export type ResumeListItem = {
   updatedAt: Date;
 };
 
-export async function listResumes(): Promise<ResumeListItem[]> {
+// Each user has their own resume variants.
+export async function listResumes(userId: number): Promise<ResumeListItem[]> {
   const rows = await prisma.resume.findMany({
+    where: { userId },
     orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
     select: {
       id: true,
@@ -44,18 +46,18 @@ export async function listResumes(): Promise<ResumeListItem[]> {
   return rows.map((r) => ({ ...r, parsed: !!r.parsed }));
 }
 
-// Exactly one default resume: setting one clears the others.
-export async function setDefaultResume(id: number): Promise<void> {
+// Exactly one default resume per user: setting one clears the user's others.
+export async function setDefaultResume(userId: number, id: number): Promise<void> {
   await prisma.$transaction([
-    prisma.resume.updateMany({ where: { isDefault: true, NOT: { id } }, data: { isDefault: false } }),
-    prisma.resume.update({ where: { id }, data: { isDefault: true } }),
+    prisma.resume.updateMany({ where: { userId, isDefault: true, NOT: { id } }, data: { isDefault: false } }),
+    prisma.resume.updateMany({ where: { userId, id }, data: { isDefault: true } }),
   ]);
 }
 
 // Pick the resume variant for a job: the one whose tags overlap most with the
 // job text, else the default, else the newest.
-export async function pickResumeForJob(jobText: string): Promise<ResumeListItem | null> {
-  const list = await listResumes();
+export async function pickResumeForJob(userId: number, jobText: string): Promise<ResumeListItem | null> {
+  const list = await listResumes(userId);
   if (list.length === 0) return null;
   const text = jobText.toLowerCase();
   let best: { r: ResumeListItem; hits: number } | null = null;
@@ -195,7 +197,7 @@ export async function parseResume(id: number, signal?: AbortSignal): Promise<Par
   }
 
   // Reading a document needs Claude (claudeOnly skips any free provider on the route).
-  const result = await generateForTask("resume", request, signal, { callTimeoutMs: 55_000 });
+  const result = await generateForTask("resume", request, signal, { callTimeoutMs: 55_000, userId: resume.userId });
   let parsed: { profile?: unknown; text?: unknown };
   try {
     parsed = JSON.parse(result.text);

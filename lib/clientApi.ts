@@ -16,11 +16,29 @@ export class ApiError extends Error {
 
 type ApiInit = Omit<RequestInit, 'body'> & { json?: unknown; body?: BodyInit | null };
 
+// Whose data this tab shows ("all" or a user id), sent with every request so a
+// tab keeps working on the user it shows even after another tab switched. Set
+// by the ViewingProvider (components/shell/viewing.tsx).
+let viewing: string | null = null;
+
+export function setApiViewing(value: number | 'all' | null): void {
+  viewing = value == null ? null : String(value);
+}
+
+/** Query-string value for download links, which cannot send headers: `?user=…`. */
+export function viewingParam(): string {
+  return viewing ? `user=${encodeURIComponent(viewing)}` : '';
+}
+
 export async function api<T = unknown>(url: string, init: ApiInit = {}): Promise<T> {
   const { json, headers, ...rest } = init;
   const res = await fetch(url, {
     ...rest,
-    headers: { ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}), ...headers },
+    headers: {
+      ...(json !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(viewing ? { 'X-JF-View': viewing } : {}),
+      ...headers,
+    },
     body: json !== undefined ? JSON.stringify(json) : rest.body,
   });
   const text = await res.text();

@@ -5,7 +5,7 @@ import { analyzeJob } from "@/lib/jobAnalyzer";
 import { LLMRateLimitedError } from "@/lib/llmClient";
 import { syncJobToLinkedInTab } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
-import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
+import { extensionCorsHeaders, requireExtensionUser } from "@/lib/extensionAuth";
 
 const CORS = extensionCorsHeaders("POST, OPTIONS");
 const MAX_DESC_CHARS = 120_000;
@@ -40,8 +40,9 @@ function json(body: Record<string, unknown>, status = 200) {
 }
 
 export async function POST(req: NextRequest) {
-  const denied = await requireExtensionKey(req, CORS);
-  if (denied) return denied;
+  const auth = await requireExtensionUser(req, CORS);
+  if (auth instanceof NextResponse) return auth;
+  const userId = auth.user.id;
 
   let body: Record<string, any>;
   try {
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
     );
 
     const saved = await upsertScrapedJob({
+      userId,
       platform: "linkedin",
       title,
       company,

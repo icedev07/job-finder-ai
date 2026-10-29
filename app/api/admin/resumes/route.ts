@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { listResumes, MAX_RESUME_BYTES, RESUME_TYPES, setDefaultResume } from "@/lib/resumes";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, requireOneUser } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
+// The resumes of the user being viewed.
 export async function GET(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const userId = requireOneUser(scope);
+  if (userId instanceof NextResponse) return userId;
   try {
-    return NextResponse.json({ resumes: await listResumes() });
+    return NextResponse.json({ resumes: await listResumes(userId) });
   } catch (e) {
     return NextResponse.json(
       { resumes: [], error: `Resumes unavailable — run /api/setup once. (${(e as Error).message})` },
@@ -18,10 +21,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST multipart/form-data: file, name?, tags?, makeDefault?
+// POST multipart/form-data: file, name?, tags?, makeDefault? — for the user being viewed.
 export async function POST(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const userId = requireOneUser(scope);
+  if (userId instanceof NextResponse) return userId;
   let form: FormData;
   try {
     form = await req.formData();
@@ -42,9 +47,10 @@ export async function POST(req: NextRequest) {
   const tags = String(form.get("tags") || "").trim().slice(0, 500) || null;
   const data = Buffer.from(await file.arrayBuffer());
 
-  const count = await prisma.resume.count();
+  const count = await prisma.resume.count({ where: { userId } });
   const created = await prisma.resume.create({
     data: {
+      userId,
       name,
       fileName: file.name.slice(0, 255),
       mimeType,
@@ -55,6 +61,6 @@ export async function POST(req: NextRequest) {
     },
     select: { id: true },
   });
-  if (form.get("makeDefault") === "true" && count > 0) await setDefaultResume(created.id);
+  if (form.get("makeDefault") === "true" && count > 0) await setDefaultResume(userId, created.id);
   return NextResponse.json({ ok: true, id: created.id });
 }

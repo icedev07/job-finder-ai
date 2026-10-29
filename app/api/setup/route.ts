@@ -2,23 +2,21 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { describeDbError } from "@/lib/dbErrors";
-import { DEFAULT_ANALYSIS_PROMPT } from "@/lib/defaultPrompt";
 import { LEGACY_ADMIN_PASSWORD_KEY } from "@/lib/config";
+import { LEGACY_DEFAULT_RULES } from "@/lib/jobSkipRules";
 import { invalidateUserCache } from "@/lib/users";
+import { USER_KEY_LIST, invalidateUserSettings } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_SHEET_COLUMNS = JSON.stringify([
-  { key: "title", label: "Title" },
-  { key: "company", label: "Company" },
-  { key: "location", label: "Location" },
-  { key: "url", label: "URL" },
-  { key: "platform", label: "Source" },
-  { key: "aiScore", label: "AI Score" },
-  { key: "techStack", label: "Tech Stack" },
-  { key: "salary", label: "Salary" },
-  { key: "createdAt", label: "Date Found" },
-]);
+// "userId → User.id, deleted with the user", added only when missing.
+function addForeignKey(table: string, name: string): string {
+  return `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = '${name}') THEN
+      ALTER TABLE "${table}" ADD CONSTRAINT "${name}" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $$;`;
+}
 
 // Idempotent schema evolution for databases created by an older version of
 // this route (or migrated before a new table/column existed). Every statement
@@ -107,11 +105,49 @@ const EVOLUTION_STATEMENTS = [
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
   );`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_username_key" ON "User"("username");`,
+  // Each user's own settings and data.
+  `CREATE TABLE IF NOT EXISTS "UserConfig" (
+    "userId" INTEGER NOT NULL,
+    "key" VARCHAR(255) NOT NULL,
+    "value" TEXT NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "UserConfig_pkey" PRIMARY KEY ("userId","key")
+  );`,
+  addForeignKey("UserConfig", "UserConfig_userId_fkey"),
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "Resume" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "SavedAnswer" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "SkipRule" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "ScanLog" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "AiUsage" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  `ALTER TABLE "ExtensionLog" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
 ];
 
-async function applyEvolution(): Promise<string[]> {
+// After migrateUserData() gave every existing row an owner: the constraints
+// that need one, and duplicates checked per user instead of app-wide.
+const USER_CONSTRAINT_STATEMENTS = [
+  `ALTER TABLE "ScrapedJob" ALTER COLUMN "userId" SET NOT NULL;`,
+  `ALTER TABLE "Resume" ALTER COLUMN "userId" SET NOT NULL;`,
+  `ALTER TABLE "SavedAnswer" ALTER COLUMN "userId" SET NOT NULL;`,
+  `DROP INDEX IF EXISTS "ScrapedJob_platform_url_key";`,
+  `DROP INDEX IF EXISTS "ScrapedJob_platform_title_company_key";`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ScrapedJob_userId_platform_url_key" ON "ScrapedJob"("userId", "platform", "url");`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ScrapedJob_userId_platform_title_company_key" ON "ScrapedJob"("userId", "platform", "title", "company");`,
+  `CREATE INDEX IF NOT EXISTS "ScrapedJob_userId_status_createdAt_idx" ON "ScrapedJob"("userId", "status", "createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "ScrapedJob_userId_stage_idx" ON "ScrapedJob"("userId", "stage");`,
+  `CREATE INDEX IF NOT EXISTS "Resume_userId_idx" ON "Resume"("userId");`,
+  `CREATE INDEX IF NOT EXISTS "SavedAnswer_userId_idx" ON "SavedAnswer"("userId");`,
+  `CREATE INDEX IF NOT EXISTS "SkipRule_userId_idx" ON "SkipRule"("userId");`,
+  `CREATE INDEX IF NOT EXISTS "AiUsage_userId_createdAt_idx" ON "AiUsage"("userId", "createdAt");`,
+  addForeignKey("ScrapedJob", "ScrapedJob_userId_fkey"),
+  addForeignKey("Resume", "Resume_userId_fkey"),
+  addForeignKey("SavedAnswer", "SavedAnswer_userId_fkey"),
+  addForeignKey("SkipRule", "SkipRule_userId_fkey"),
+];
+
+async function applyStatements(statements: string[]): Promise<string[]> {
   const applied: string[] = [];
-  for (const sql of EVOLUTION_STATEMENTS) {
+  for (const sql of statements) {
     try {
       await prisma.$executeRawUnsafe(sql);
       applied.push(sql.split("\n")[0].trim());
@@ -137,6 +173,68 @@ async function bootstrapAdmin(): Promise<string | null> {
     : 'Created the first admin: user ID "admin", password "admin". Change it in Settings.';
 }
 
+// Marks the one-time move below as done (also set by the user_data migration).
+const USER_DATA_MIGRATED_KEY = "user_data_migrated";
+
+// Before each user had their own data, everything was the admin's. The first
+// run after the upgrade gives the first admin the old search options, Google
+// Sheet and profile, plus every existing job, resume, answer, skip rule and
+// log. It runs once: later, a rule without a user means "everyone" and a log
+// without one is app-wide. Jobs, resumes and answers always need an owner, so
+// any left without one go to the first admin on every run.
+async function migrateUserData(upgrading: boolean): Promise<string[]> {
+  const notes: string[] = [];
+  const owner = await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { id: "asc" }, select: { id: true } });
+  if (!owner) return notes;
+
+  const done = await prisma.appConfig.findUnique({ where: { key: USER_DATA_MIGRATED_KEY } });
+  if (!done) {
+    const old = await prisma.appConfig.findMany({ where: { key: { in: USER_KEY_LIST } } });
+    const values = new Map(old.map((r) => [r.key, r.value]));
+    const hasJobs = (await prisma.$queryRawUnsafe<{ n: number }[]>(`SELECT COUNT(*)::int AS n FROM "ScrapedJob"`))[0]?.n > 0;
+    if (upgrading && hasJobs) {
+      // Installs that never saved these used the old built-in defaults.
+      if (!values.has("target_market")) values.set("target_market", "Europe, Eastern Europe, Remote worldwide");
+      if (!values.has("current_location")) values.set("current_location", "Armenia");
+    }
+    if (values.size) {
+      await prisma.userConfig.createMany({
+        data: [...values].map(([key, value]) => ({ userId: owner.id, key, value })),
+        skipDuplicates: true,
+      });
+      invalidateUserSettings(owner.id);
+      notes.push("Moved the search options, Google Sheet and profile to the first admin's own settings.");
+    }
+    for (const table of ["SkipRule", "ScanLog", "AiUsage", "ExtensionLog"]) {
+      await prisma.$executeRawUnsafe(`UPDATE "${table}" SET "userId" = $1 WHERE "userId" IS NULL`, owner.id);
+    }
+    // The single-user version fell back to a built-in list while no rules were saved.
+    if (upgrading && hasJobs && (await prisma.skipRule.count()) === 0) {
+      await prisma.skipRule.createMany({ data: LEGACY_DEFAULT_RULES.map((r) => ({ ...r, userId: owner.id })) });
+      notes.push(`Saved the ${LEGACY_DEFAULT_RULES.length} built-in skip rules as the first admin's own rules.`);
+    }
+    await prisma.appConfig.create({ data: { key: USER_DATA_MIGRATED_KEY, value: "1" } });
+  }
+
+  for (const table of ["ScrapedJob", "Resume", "SavedAnswer"]) {
+    const n = await prisma.$executeRawUnsafe(`UPDATE "${table}" SET "userId" = $1 WHERE "userId" IS NULL`, owner.id);
+    if (n > 0) notes.push(`${table}: gave ${n} row${n === 1 ? "" : "s"} to the first admin.`);
+  }
+  return notes;
+}
+
+// The steps every run takes once the base tables exist.
+async function evolve(upgrading: boolean): Promise<{ appliedAlters: string[]; users: string | null; notes: string[] }> {
+  const appliedAlters = await applyStatements(EVOLUTION_STATEMENTS);
+  const users = await bootstrapAdmin();
+  const notes = await migrateUserData(upgrading);
+  appliedAlters.push(...(await applyStatements(USER_CONSTRAINT_STATEMENTS)));
+  await seedDefaults();
+  return { appliedAlters, users, notes };
+}
+
+// App-wide defaults. Each user's own settings (location, target market, sheet,
+// prompt) start empty: the Add user dialog and Settings ask for them.
 async function seedDefaults() {
   const defaults: Record<string, string> = {
     // Default to rotating across the four free providers; keys can be filled in
@@ -148,11 +246,6 @@ async function seedDefaults() {
     openrouter_tier: "auto",
     openrouter_paid_model: "meta-llama/llama-3.1-8b-instruct",
     cloudflare_model: "@cf/meta/llama-3.1-8b-instruct",
-    target_market: "Europe, Eastern Europe, Remote worldwide",
-    current_location: "Armenia",
-    job_analysis_prompt: DEFAULT_ANALYSIS_PROMPT,
-    sheet_columns: DEFAULT_SHEET_COLUMNS,
-    linkedin_sheet_tab: "LinkedIn",
     // The extension must authenticate; a fresh install gets a random key the
     // admin reveals in Settings and pastes into the popup.
     extension_api_key: `jf_${randomBytes(24).toString("hex")}`,
@@ -176,14 +269,13 @@ export async function GET() {
     `;
 
     if (hasTable[0]?.exists) {
-      const appliedAlters = await applyEvolution();
-      const users = await bootstrapAdmin();
-      await seedDefaults();
+      const { appliedAlters, users, notes } = await evolve(true);
       return NextResponse.json({
         status: "already_initialized",
         message: "Database tables already exist. Default config values seeded.",
         appliedAlters,
         ...(users ? { users } : {}),
+        ...(notes.length ? { notes } : {}),
       });
     }
 
@@ -217,8 +309,7 @@ export async function GET() {
       );
     `);
 
-    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX "ScrapedJob_platform_url_key" ON "ScrapedJob"("platform", "url");`);
-    await prisma.$executeRawUnsafe(`CREATE UNIQUE INDEX "ScrapedJob_platform_title_company_key" ON "ScrapedJob"("platform", "title", "company");`);
+    // Its unique indexes (per user) come with the user statements.
 
     await prisma.$executeRawUnsafe(`
       CREATE TABLE "AppConfig" (
@@ -273,9 +364,7 @@ export async function GET() {
       FOREIGN KEY ("scrapedJobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     `);
 
-    await applyEvolution();
-    const users = await bootstrapAdmin();
-    await seedDefaults();
+    const { users } = await evolve(false);
 
     return NextResponse.json({ status: "success", message: "All tables created and defaults seeded.", users });
   } catch (error) {

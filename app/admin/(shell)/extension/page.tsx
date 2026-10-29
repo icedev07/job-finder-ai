@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { pageAdmin } from "@/lib/scope";
+import { pageScope, userWhere } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Extension" };
@@ -26,11 +26,11 @@ const ATS = [
   ["Any other form", "generic label matching — check the result more carefully"],
 ];
 
-async function easyApplyStats() {
+async function easyApplyStats(where: { userId?: number }) {
   try {
     const rows = await prisma.scrapedJob.groupBy({
       by: ["applyMethod", "status"],
-      where: { platform: "linkedin" },
+      where: { ...where, platform: "linkedin" },
       _count: { _all: true },
     });
     const get = (m: string | null, s: string) =>
@@ -47,8 +47,8 @@ async function easyApplyStats() {
 }
 
 export default async function ExtensionPage() {
-  const admin = await pageAdmin();
-  const [status, stats] = await Promise.all([getStatusSnapshot(admin.id).catch(() => null), easyApplyStats()]);
+  const scope = await pageScope();
+  const [status, stats] = await Promise.all([getStatusSnapshot(scope).catch(() => null), easyApplyStats(userWhere(scope))]);
   return (
     <div className="space-y-4">
       <PageHeader

@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
+// Pending jobs of the user being viewed (or of every user).
 export async function POST(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const userId = viewingUserId(scope) ?? undefined;
   let body: { limit?: number; timeBudgetMs?: number } = {};
   try {
     body = await req.json();
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest) {
     const result = await analyzeAllPending({
       limit: body.limit,
       timeBudgetMs: body.timeBudgetMs,
+      userId,
     });
 
     // Google Sheets sync is the slow tail of this request. The admin UI calls
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
       result.remaining === 0 || !!result.rateLimited || !!result.batchError;
     if (terminal) {
       try {
-        syncResult = await syncApprovedJobsToSheet();
+        syncResult = await syncApprovedJobsToSheet(userId);
       } catch {
         // sheets sync is optional — never block the analyze cycle on it
       }

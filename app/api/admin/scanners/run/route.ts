@@ -5,7 +5,7 @@ import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
 import { getAllConfig } from "@/lib/config";
 import { safeEqual } from "@/lib/adminAuth";
-import { adminOnly } from "@/lib/scope";
+import { adminScope, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +48,16 @@ function blankOutcome(board: string, durationMs: number): RunOutcome {
   };
 }
 
+// userIds: judge for these users only; every active user who wants the board when omitted.
 async function runOne(
   board: string,
   preloadedConfig?: Record<string, string>,
   timeBudgetMs?: number,
+  userIds?: number[],
 ): Promise<RunOutcome> {
   const startedAt = Date.now();
   let outcome: RunOutcome = blankOutcome(board, 0);
+  let perUser: { userId: number | null; saved: number; warning?: string }[] = [];
   try {
     if (!getFeed(board)) {
       throw new Error(
@@ -62,7 +65,8 @@ async function runOne(
           `Available: ${FEED_KEYS.join(", ")}.`,
       );
     }
-    const result = await runFeedScan(board, preloadedConfig, { timeBudgetMs });
+    const result = await runFeedScan(board, preloadedConfig, { timeBudgetMs, userIds });
+    perUser = result.users.map((u) => ({ userId: u.userId, saved: u.saved + u.rescanned, warning: u.warning }));
     outcome = {
       board,
       jobsFound: result.found,
@@ -82,16 +86,20 @@ async function runOne(
     };
   }
 
-  await prisma.scanLog.create({
-    data: {
+  // One log row per user the board was judged for (one without a user when
+  // the scan failed or nobody wants this board). saved + rescanned in
+  // jobsSaved so dashboards keep their meaning — both are jobs that received a
+  // fresh AI verdict this run.
+  const rows = perUser.length ? perUser : [{ userId: null, saved: outcome.jobsSaved + outcome.jobsRescanned }];
+  await prisma.scanLog.createMany({
+    data: rows.map((r) => ({
+      userId: r.userId,
       board: outcome.board,
       jobsFound: outcome.jobsFound,
-      // saved + rescanned in jobsSaved so dashboards keep their meaning — both
-      // are jobs that received a fresh AI verdict this run.
-      jobsSaved: outcome.jobsSaved + outcome.jobsRescanned,
-      errors: outcome.error || outcome.warning || null,
+      jobsSaved: r.saved,
+      errors: outcome.error || ("warning" in r ? r.warning : outcome.warning) || null,
       durationMs: outcome.durationMs,
-    },
+    })),
   });
 
   return outcome;
@@ -104,6 +112,7 @@ async function runOne(
 async function runAllSequential(
   sharedConfig: Record<string, string>,
   functionStartedAt: number,
+  userIds?: number[],
 ): Promise<RunOutcome[]> {
   const outcomes: RunOutcome[] = [];
   for (const key of FEED_KEYS) {
@@ -112,7 +121,7 @@ async function runAllSequential(
     // Cap each board so several boards get touched per run instead of one board
     // eating the whole budget.
     const budget = Math.min(30_000, remaining - 4_000);
-    outcomes.push(await runOne(key, sharedConfig, budget));
+    outcomes.push(await runOne(key, sharedConfig, budget, userIds));
   }
   return outcomes;
 }
@@ -120,10 +129,10 @@ async function runAllSequential(
 // Push freshly-approved jobs to Google Sheets — but only when there is enough
 // of the 60s function budget left to finish safely. When skipped, the next
 // scan run (or the analyze route) picks the rows up.
-async function maybeSheetSync(functionStartedAt: number): Promise<number> {
+async function maybeSheetSync(functionStartedAt: number, userId?: number): Promise<number> {
   if (Date.now() - functionStartedAt > SYNC_CUTOFF_MS) return 0;
   try {
-    const r = await syncApprovedJobsToSheet();
+    const r = await syncApprovedJobsToSheet(userId);
     return r.synced;
   } catch {
     // Sheets sync is optional — never block a scan on it.
@@ -157,9 +166,12 @@ function outcomeBody(o: RunOutcome) {
   };
 }
 
+// POST { board } — for the user being viewed, or every user who wants the board.
 export async function POST(req: NextRequest) {
-  const denied = await adminOnly(req);
-  if (denied) return denied;
+  const scope = await adminScope(req);
+  if (scope instanceof NextResponse) return scope;
+  const one = viewingUserId(scope);
+  const userIds = one != null ? [one] : undefined;
   const functionStartedAt = Date.now();
   let body: { board?: string } = {};
   try {
@@ -175,8 +187,8 @@ export async function POST(req: NextRequest) {
 
   if (board === "all") {
     const sharedConfig = await getAllConfig();
-    const outcomes = await runAllSequential(sharedConfig, functionStartedAt);
-    const sheetsSynced = await maybeSheetSync(functionStartedAt);
+    const outcomes = await runAllSequential(sharedConfig, functionStartedAt, userIds);
+    const sheetsSynced = await maybeSheetSync(functionStartedAt, one ?? undefined);
     const errors = outcomes.filter((o) => o.error).map((o) => `${o.board}: ${o.error}`);
     return NextResponse.json({
       success: errors.length === 0,
@@ -187,8 +199,8 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const outcome = await runOne(board, undefined, SINGLE_BOARD_BUDGET_MS);
-  const sheetsSynced = await maybeSheetSync(functionStartedAt);
+  const outcome = await runOne(board, undefined, SINGLE_BOARD_BUDGET_MS, userIds);
+  const sheetsSynced = await maybeSheetSync(functionStartedAt, one ?? undefined);
   if (outcome.error) {
     return NextResponse.json(
       { success: false, error: outcome.error, ...outcomeBody(outcome), sheetsSynced },

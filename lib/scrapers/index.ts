@@ -30,6 +30,8 @@ import {
 import { shouldSkipJob } from "../jobSkipRules";
 import { analyzeScrapedJobs, type InlineVerdict } from "../jobAnalyzer";
 import { getAllConfig } from "../config";
+import { activeUsers } from "../users";
+import { getUserSettings, wantsBoard } from "../userSettings";
 
 const FEEDS: Feed[] = [
   // single-endpoint json feeds
@@ -88,6 +90,19 @@ export type ScanOutcome = {
 export type RunFeedScanOptions = {
   /** Hard wall-clock budget for the whole scan: scrape + inline AI analysis. */
   timeBudgetMs?: number;
+  /**
+   * Judge the jobs for these users only. Default: every active user who gets
+   * this board's results (their Settings → Job boards).
+   */
+  userIds?: number[];
+};
+
+/** One user's share of a board scan. */
+export type UserScanOutcome = ScanOutcome & { userId: number };
+
+export type FeedScanResult = ScanOutcome & {
+  /** Per user, in the order they were judged. */
+  users: UserScanOutcome[];
 };
 
 function verdictFrom(v: InlineVerdict): JobVerdict {
@@ -114,23 +129,66 @@ const emptyOutcome = (): ScanOutcome => ({
   unanalyzed: 0,
 });
 
+/** The active users who get this board's results, limited to `only` when given. */
+async function usersForBoard(key: string, only?: number[]): Promise<number[]> {
+  const ids: number[] = [];
+  for (const user of await activeUsers()) {
+    if (only && !only.includes(user.id)) continue;
+    if (wantsBoard(await getUserSettings(user.id), key)) ids.push(user.id);
+  }
+  return ids;
+}
+
+// Why a scan stopped early. A rate limit or an AI error stops the whole board
+// (the next user would hit the same wall); the time budget is checked per wave.
+type StopFlags = { rateLimited: boolean; timedOut: boolean; analyzeError?: string };
+
+type JudgeContext = {
+  batchSize: number;
+  rescanAfterDays: number;
+  /** Latest moment we may still begin analyzing a wave. */
+  analyzeDeadline?: number;
+  flags: StopFlags;
+};
+
+type Counts = Omit<ScanOutcome, "found" | "warning">;
+
+function summarize(feedWarning: string | undefined, o: Counts, flags: StopFlags): string | undefined {
+  const parts: string[] = [];
+  if (feedWarning) parts.push(feedWarning);
+  const checked = o.approved + o.rejected;
+  if (checked > 0) {
+    parts.push(`checked ${checked}: ${o.approved} suitable, ${o.rejected} not suitable`);
+  }
+  if (o.unanalyzed > 0) {
+    const why = flags.rateLimited
+      ? "AI rate-limited"
+      : flags.analyzeError
+        ? flags.analyzeError
+        : flags.timedOut
+          ? "time budget reached"
+          : "not reached";
+    parts.push(`${o.unanalyzed} left for next run (${why})`);
+  }
+  return parts.length ? parts.join("; ") : undefined;
+}
+
 /**
- * Scrape one feed, analyze every genuinely-new job inline, and store ONLY the
- * checked result. A feed scan never persists a job in PENDING state — the
- * database holds analyzed jobs (suitable / not suitable) only.
+ * Scrape one feed ONCE, then judge it for every user who wants this board:
+ * each user's genuinely-new jobs are analyzed inline with that user's search
+ * options and stored as their own rows, and ONLY the checked result is stored.
+ * A feed scan never persists a job in PENDING state — the database holds
+ * analyzed jobs (suitable / not suitable) only.
  *
- * Scraped jobs are processed in waves: a wave's jobs are deduped, the new ones
- * analyzed in a single batched LLM call, and the verdicts stored, before the
- * next wave starts. Working in waves keeps the per-job dedup cost proportional
- * to how many jobs we can actually analyze inside the time budget, instead of
- * paying it for the whole list up front. Jobs not reached before the budget is
- * spent are simply not stored; the next scan re-fetches and retries them.
+ * Users are judged one after another inside the same time budget. Jobs a user
+ * already has cost no AI, so a user not reached in this run gets the budget on
+ * the next one, and re-running is always safe.
  */
 export async function runFeedScan(
   key: string,
   preloadedConfig?: Record<string, string>,
   options: RunFeedScanOptions = {},
-): Promise<ScanOutcome> {
+): Promise<FeedScanResult> {
   const feed = getFeed(key);
   if (!feed) throw new Error(`Unknown scanner: ${key}`);
 
@@ -138,7 +196,11 @@ export async function runFeedScan(
   const config = preloadedConfig ?? (await getAllConfig());
 
   if (config[`${key}_enabled`] === "false") {
-    return { ...emptyOutcome(), warning: "scanner disabled" };
+    return { ...emptyOutcome(), warning: "scanner disabled", users: [] };
+  }
+  const userIds = await usersForBoard(key, options.userIds);
+  if (userIds.length === 0) {
+    return { ...emptyOutcome(), warning: "no active user gets this board's results", users: [] };
   }
 
   const maxJobs = Math.min(200, Math.max(1, Number(config[`${key}_max_jobs`]) || 25));
@@ -150,10 +212,9 @@ export async function runFeedScan(
   // Scraping is usually the fast part — reserve the bulk of the budget for the
   // AI analysis that now runs inside every scan.
   const scrapeBudget = totalBudget ? Math.max(8_000, Math.round(totalBudget * 0.4)) : undefined;
-  // Latest moment we may still begin analyzing a wave.
   const analyzeDeadline = totalBudget ? startedAt + totalBudget - 3_000 : undefined;
 
-  // --- Scrape -------------------------------------------------------------
+  // --- Scrape (once, for everyone) ----------------------------------------
   const controller = new AbortController();
   const timer = scrapeBudget ? setTimeout(() => controller.abort(), scrapeBudget) : null;
   let result: FeedFetchResult;
@@ -168,20 +229,58 @@ export async function runFeedScan(
     if (timer) clearTimeout(timer);
   }
 
-  // --- Process the scraped jobs in waves ----------------------------------
-  let saved = 0;
-  let approved = 0;
-  let rejected = 0;
-  let refreshed = 0;
-  let rescanned = 0;
-  let skipped = 0;
-  let unanalyzed = 0;
-  let rateLimited = false;
-  let timedOut = false;
-  let analyzeError: string | undefined;
-  let stopped = false;
-
+  // Collapse exact duplicates within a single fetch so we never spend two AI
+  // slots — or hit a unique-constraint race — on the same posting.
   const seenInFetch = new Set<string>();
+  const jobs = result.jobs.filter((job) => {
+    const dedupKey = `${job.url}\n${job.title.toLowerCase()}\n${job.company.toLowerCase()}`;
+    if (seenInFetch.has(dedupKey)) return false;
+    seenInFetch.add(dedupKey);
+    return true;
+  });
+
+  // --- Judge for each user ------------------------------------------------
+  const flags: StopFlags = { rateLimited: false, timedOut: false };
+  const ctx: JudgeContext = { batchSize, rescanAfterDays, analyzeDeadline, flags };
+  const users: UserScanOutcome[] = [];
+  for (const userId of userIds) {
+    let counts: Counts;
+    if (flags.rateLimited || flags.analyzeError || (analyzeDeadline && Date.now() >= analyzeDeadline)) {
+      if (!flags.rateLimited && !flags.analyzeError) flags.timedOut = true;
+      // Not reached in this run: nothing stored for them, the next scan retries.
+      counts = { ...emptyOutcome(), unanalyzed: jobs.length };
+    } else {
+      counts = await judgeForUser(userId, jobs, ctx);
+    }
+    users.push({ ...counts, userId, found: result.jobs.length, warning: summarize(result.warning, counts, flags) });
+  }
+
+  const total: Counts = { ...emptyOutcome() };
+  for (const u of users) {
+    total.saved += u.saved;
+    total.approved += u.approved;
+    total.rejected += u.rejected;
+    total.refreshed += u.refreshed;
+    total.rescanned += u.rescanned;
+    total.skipped += u.skipped;
+    total.unanalyzed += u.unanalyzed;
+  }
+  return { ...total, found: result.jobs.length, warning: summarize(result.warning, total, flags), users };
+}
+
+/**
+ * One user's pass over the scraped jobs, in waves: a wave's jobs are deduped
+ * against the user's own jobs, the new ones analyzed in a single batched LLM
+ * call with the user's search options, and the verdicts stored, before the next
+ * wave starts. Working in waves keeps the per-job dedup cost proportional to
+ * how many jobs we can actually analyze inside the time budget. Jobs not
+ * reached before the budget is spent are simply not stored; the next scan
+ * re-fetches and retries them.
+ */
+async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeContext): Promise<Counts> {
+  const counts: Counts = { ...emptyOutcome() };
+  const { flags } = ctx;
+  let stopped = false;
   let pendingFresh: NormalizedJob[] = [];
   let pendingRescan: { job: NormalizedJob; rowId: number }[] = [];
 
@@ -204,21 +303,23 @@ export async function runFeedScan(
         description: j.description ?? null,
       })),
       {
-        batchSize,
-        timeBudgetMs: analyzeDeadline ? Math.max(0, analyzeDeadline - Date.now()) : undefined,
+        userId,
+        batchSize: ctx.batchSize,
+        timeBudgetMs: ctx.analyzeDeadline ? Math.max(0, ctx.analyzeDeadline - Date.now()) : undefined,
       },
     );
 
     for (let i = 0; i < batch.length; i++) {
       const verdict = analysis.verdicts.get(i);
       if (!verdict) {
-        unanalyzed++; // not checked — deliberately NOT stored
+        counts.unanalyzed++; // not checked — deliberately NOT stored
         continue;
       }
       const job = batch[i];
       const jv = verdictFrom(verdict);
       if (i < freshCount) {
         const created = await createAnalyzedScrapedJob({
+          userId,
           platform: job.platform,
           title: job.title,
           company: job.company,
@@ -230,53 +331,48 @@ export async function runFeedScan(
           verdict: jv,
         });
         if (created) {
-          saved++;
-          if (jv.status === "APPROVED") approved++;
-          else rejected++;
+          counts.saved++;
+          if (jv.status === "APPROVED") counts.approved++;
+          else counts.rejected++;
         }
       } else {
         await applyVerdictToJob(rescanRows[i - freshCount].rowId, jv);
-        rescanned++;
-        if (jv.status === "APPROVED") approved++;
-        else rejected++;
+        counts.rescanned++;
+        if (jv.status === "APPROVED") counts.approved++;
+        else counts.rejected++;
       }
     }
 
     if (analysis.rateLimited) {
-      rateLimited = true;
+      flags.rateLimited = true;
       stopped = true;
     }
     if (analysis.timedOut) {
-      timedOut = true;
+      flags.timedOut = true;
       stopped = true;
     }
     if (analysis.error) {
-      analyzeError = analysis.error;
+      flags.analyzeError = analysis.error;
       stopped = true;
     }
   };
 
   let idx = 0;
-  for (; idx < result.jobs.length; idx++) {
+  for (; idx < jobs.length; idx++) {
     if (stopped) break;
-    if (analyzeDeadline && Date.now() >= analyzeDeadline) {
-      timedOut = true;
+    if (ctx.analyzeDeadline && Date.now() >= ctx.analyzeDeadline) {
+      flags.timedOut = true;
       break;
     }
-    const job = result.jobs[idx];
+    const job = jobs[idx];
 
-    // Collapse exact duplicates within a single fetch so we never spend two AI
-    // slots — or hit a unique-constraint race — on the same posting.
-    const dedupKey = `${job.url}\n${job.title.toLowerCase()}\n${job.company.toLowerCase()}`;
-    if (seenInFetch.has(dedupKey)) continue;
-    seenInFetch.add(dedupKey);
-
-    if (await shouldSkipJob({ title: job.title, company: job.company, externalUrl: job.url })) {
-      skipped++;
+    if (await shouldSkipJob({ userId, title: job.title, company: job.company, externalUrl: job.url })) {
+      counts.skipped++;
       continue;
     }
 
     const existing = await findExistingJob({
+      userId,
       platform: job.platform,
       url: job.url,
       title: job.title,
@@ -292,16 +388,16 @@ export async function runFeedScan(
         manualApplyUrl: job.applyUrl,
       });
       const ageDays = (Date.now() - new Date(existing.createdAt).getTime()) / 86_400_000;
-      if (rescanAfterDays > 0 && ageDays >= rescanAfterDays) {
+      if (ctx.rescanAfterDays > 0 && ageDays >= ctx.rescanAfterDays) {
         pendingRescan.push({ job, rowId: existing.id });
       } else if (didRefresh) {
-        refreshed++;
+        counts.refreshed++;
       } else {
-        skipped++;
+        counts.skipped++;
       }
     }
 
-    if (pendingFresh.length + pendingRescan.length >= batchSize) {
+    if (pendingFresh.length + pendingRescan.length >= ctx.batchSize) {
       await storeWave();
     }
   }
@@ -310,36 +406,7 @@ export async function runFeedScan(
 
   // Jobs still queued (a stop hit mid-wave) plus jobs never reached before the
   // budget ran out — none of these were stored; the next scan retries them.
-  unanalyzed += pendingFresh.length + pendingRescan.length;
-  if (idx < result.jobs.length) unanalyzed += result.jobs.length - idx;
-
-  // --- Human-readable summary --------------------------------------------
-  const parts: string[] = [];
-  if (result.warning) parts.push(result.warning);
-  const checked = approved + rejected;
-  if (checked > 0) {
-    parts.push(`checked ${checked}: ${approved} suitable, ${rejected} not suitable`);
-  }
-  if (unanalyzed > 0) {
-    const why = rateLimited
-      ? "AI rate-limited"
-      : analyzeError
-        ? analyzeError
-        : timedOut
-          ? "time budget reached"
-          : "not reached";
-    parts.push(`${unanalyzed} left for next run (${why})`);
-  }
-
-  return {
-    found: result.jobs.length,
-    saved,
-    approved,
-    rejected,
-    refreshed,
-    rescanned,
-    skipped,
-    unanalyzed,
-    warning: parts.length ? parts.join("; ") : undefined,
-  };
+  counts.unanalyzed += pendingFresh.length + pendingRescan.length;
+  if (idx < jobs.length) counts.unanalyzed += jobs.length - idx;
+  return counts;
 }

@@ -13,8 +13,9 @@ import { requireAdmin } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
-// Keys the settings page may write. Scanner settings have their own route
-// (/api/admin/scanners); anything else is ignored rather than stored.
+// App-wide keys the admin may write. Scanner settings have their own route
+// (/api/admin/scanners) and each user's own settings theirs
+// (/api/admin/user-settings); anything else is ignored rather than stored.
 const WRITABLE_KEYS = new Set<string>(
   Object.values(CONFIG_KEYS).filter((k) => k !== CONFIG_KEYS.AI_PROVIDER),
 );
@@ -45,16 +46,6 @@ export async function GET(req: NextRequest) {
     cerebras_model: all.cerebras_model || "llama-3.3-70b",
     cloudflare_account_id: all.cloudflare_account_id || "",
     cloudflare_model: all.cloudflare_model || "@cf/meta/llama-3.1-8b-instruct",
-    google_sheet_id: all.google_sheet_id || "",
-    target_market: all.target_market || "",
-    current_location: all.current_location || "",
-    job_analysis_prompt: all.job_analysis_prompt || "",
-    sheet_columns: all.sheet_columns || "",
-    linkedin_sheet_tab: all.linkedin_sheet_tab || "LinkedIn",
-    profile_in_matching: all.profile_in_matching === "false" ? "false" : "true",
-    review_band_min: String(config.reviewBandMin),
-    review_band_max: String(config.reviewBandMax),
-    followup_days: String(config.followUpDays),
     secrets,
   });
 }

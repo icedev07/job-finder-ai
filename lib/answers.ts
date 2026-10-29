@@ -83,9 +83,15 @@ Rules:
 - Tailor motivation answers to the company and role in the job context, staying factual.
 - Plain text only: no markdown, no placeholders like [Company].`;
 
-export async function draftAnswers(questions: QuestionIn[], job: JobContext, signal?: AbortSignal): Promise<AnswerOut[]> {
+// Answers come from the user's own answer bank and profile.
+export async function draftAnswers(
+  userId: number,
+  questions: QuestionIn[],
+  job: JobContext,
+  signal?: AbortSignal,
+): Promise<AnswerOut[]> {
   const list = questions.slice(0, 40);
-  const bank = await prisma.savedAnswer.findMany({ orderBy: { uses: "desc" }, take: 300 }).catch(() => []);
+  const bank = await prisma.savedAnswer.findMany({ where: { userId }, orderBy: { uses: "desc" }, take: 300 }).catch(() => []);
   const results = new Map<string, AnswerOut>();
   const forAi: QuestionIn[] = [];
   const reused: number[] = [];
@@ -102,11 +108,13 @@ export async function draftAnswers(questions: QuestionIn[], job: JobContext, sig
     }
   }
   if (reused.length) {
-    await prisma.savedAnswer.updateMany({ where: { id: { in: reused } }, data: { uses: { increment: 1 } } }).catch(() => {});
+    await prisma.savedAnswer
+      .updateMany({ where: { userId, id: { in: reused } }, data: { uses: { increment: 1 } } })
+      .catch(() => {});
   }
 
   if (forAi.length) {
-    const profile = await getProfile();
+    const profile = await getProfile(userId);
     const examples = bank
       .slice(0, 8)
       .map((b) => `Q: ${b.question}\nA: ${b.answer.slice(0, 600)}`)
@@ -141,7 +149,7 @@ Return one answer per question id.`;
         claude: { system, user, jsonSchema: ANSWER_SCHEMA, maxTokens: 8000 },
       },
       signal,
-      { callTimeoutMs: 50_000 },
+      { callTimeoutMs: 50_000, userId },
     );
     const text = result.text;
     let parsed: { answers?: { id?: unknown; answer?: unknown; needsUser?: unknown }[] } = {};
@@ -174,20 +182,20 @@ Return one answer per question id.`;
 
 // Keep the answers the user actually submitted: update a close match in the
 // bank, else add a new entry.
-export async function rememberAnswers(pairs: { question: string; answer: string }[]): Promise<number> {
+export async function rememberAnswers(userId: number, pairs: { question: string; answer: string }[]): Promise<number> {
   const clean = pairs
     .map((p) => ({ question: p.question.trim().slice(0, 1000), answer: p.answer.trim().slice(0, 8000) }))
     .filter((p) => p.question && p.answer)
     .slice(0, 40);
   if (!clean.length) return 0;
-  const bank = await prisma.savedAnswer.findMany({ select: { id: true, question: true } });
+  const bank = await prisma.savedAnswer.findMany({ where: { userId }, select: { id: true, question: true } });
   let saved = 0;
   for (const p of clean) {
     const best = bank.map((b) => ({ b, s: questionSimilarity(p.question, b.question) })).sort((x, y) => y.s - x.s)[0];
     if (best && best.s >= 0.8) {
       await prisma.savedAnswer.update({ where: { id: best.b.id }, data: { answer: p.answer, uses: { increment: 1 } } });
     } else {
-      const created = await prisma.savedAnswer.create({ data: { question: p.question, answer: p.answer, uses: 1 } });
+      const created = await prisma.savedAnswer.create({ data: { userId, question: p.question, answer: p.answer, uses: 1 } });
       bank.push({ id: created.id, question: created.question });
     }
     saved++;

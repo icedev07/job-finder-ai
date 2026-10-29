@@ -27,7 +27,7 @@ export type CandidateProfile = {
   headline: string;
   summary: string;
   yearsExperience: number | null;
-  /** e.g. "Armenian citizen. No EU/US work permit — work as a contractor (B2B) or via an EOR." */
+  /** e.g. "EU citizen. No US work permit — open to contractor (B2B) or EOR roles." */
   workAuthorization: string;
   needsSponsorship: boolean | null;
   contractorOk: boolean | null;

@@ -1,8 +1,19 @@
 # Job Finder
 
-Automated job finder for Armenian developers targeting European and remote positions.
+Automated job finder for software developers: it finds remote and on-site jobs, has AI judge each one against where the candidate is based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, profile, results and Google Sheet, and admins manage all of them from one dashboard.
 
-It pulls jobs from 19 job sources, has AI judge every job against your target market (and, optionally, your profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, your profile and resumes, and an extension side panel that fills company application forms for you. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page.
+It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings.
+
+## Upgrading from 4.1
+
+Version 4.2 gives each user their own data: jobs and verdicts, Review, Applications, search options, job boards, Google Sheet, profile, resumes, saved answers and skip rules. After you deploy it:
+
+1. **Update the database**: open `https://your-app.vercel.app/api/setup` once. Everything you have today becomes the first admin's (`admin`): every job, resume, saved answer, skip rule and log, plus the target market, location, analysis prompt, Google Sheet and profile from Settings. Nothing is deleted. (Or run `npx prisma migrate deploy`.)
+2. **Pick whose data to see** in the **Viewing** menu at the top right: one user, or **All users** (the Dashboard then lists every user, and Jobs, Review and Applications show whose each job is).
+3. **Set up each other user**: with them selected in Viewing, open **Settings** and fill in where they are based, their target market, their job boards and (optionally) their Google Sheet; add their profile and resumes under **Profile & resumes**. Or add new people with **Copy the set-up of** on the Users page.
+4. The extension keeps working with the shared API key; the LinkedIn jobs it scans are saved as the first admin's. Signing in to the extension per user comes with the next extension update.
+
+Board scans now judge each new job once for every user who gets that board, with that user's location, target market and profile, so AI use grows with the number of users.
 
 ## Upgrading from 4.0
 
@@ -39,7 +50,7 @@ Other changes to know about:
 ## How it works
 
 1. **Find**: server-side scanners pull jobs from public job-board APIs, RSS feeds and page payloads, plus your MyGreenhouse session (see [Job sources](#job-sources)). They run daily on Vercel Cron or on demand from **Sources**. The Chrome extension scans LinkedIn searches while you watch.
-2. **Judge**: AI checks every job during the scan itself. Is it a software role? Can someone in your location be hired? Does it fit your target market (and your profile, if you turn that on)? Each AI task has its own *route*, an ordered list of providers that fails over automatically when one is rate-limited (see [AI](#ai-providers-routes-and-cost)). A scan stores a job only once it has a verdict (`APPROVED` or `REJECTED`). Jobs it could not check are retried on the next scan.
+2. **Judge**: AI checks every job during the scan itself, once for each user who gets that board. Is it a software role? Can someone based where that user is be hired? Does it fit their target market (and their profile, if it is turned on)? Each AI task has its own *route*, an ordered list of providers that fails over automatically when one is rate-limited (see [AI](#ai-providers-routes-and-cost)). A scan stores a job only once it has a verdict (`APPROVED` or `REJECTED`). Jobs it could not check are retried on the next scan.
 3. **Review**: close calls (score 45–70 by default) wait in **Review** for a quick 👍 / 👎. Your ratings also measure how often each model agrees with you (**AI → Evaluations**).
 4. **Apply**: open a job's application form, click **Autofill this page** in the extension side panel, check the colour-coded fields, submit the form yourself, then click **Mark as applied**.
 5. **Track**: applied jobs move through **Applications** (Saved → Applied → Interview → Offer / Rejected) with follow-up reminders. Approved jobs are also pushed to Google Sheets (optional).
@@ -48,22 +59,24 @@ Other changes to know about:
 
 Sign in at `/admin/login` with your user ID and password. The first admin is `admin`, with the password `admin` on a new install; change it right away. Every admin page and admin API needs a session (see [Security](#security)).
 
+With more than one user, the **Viewing** menu at the top right picks whose data every page shows: one user, or **All users**. Pages that change one user's data (Settings, Profile & resumes, a Google Sheet test) ask you to pick a user first, and a banner reminds you while you look at someone else's data. Each browser tab keeps its own choice.
+
 | Page | URL | What it is for |
 |---|---|---|
-| Dashboard | `/admin` | KPIs (found, approved, to review, applications, AI calls, Claude spend), 30-day activity, funnel, source yield, setup reminders, quick actions (run a scan pass, analyze pending, sync Sheets) |
+| Dashboard | `/admin` | KPIs (found, approved, to review, applications, AI calls, Claude spend), 30-day activity, funnel, source yield, setup reminders, quick actions (run a scan pass, analyze pending, sync Sheets). With **All users**, a table of every user's last 7 days, applications, LinkedIn activity and AI cost |
 | Jobs | `/admin/jobs` | Every stored job. Search with `"exact phrase"` and `-exclude`; filter by status, source, stage, Easy Apply, score, rating, eligibility and age; use saved views; bulk stage / approve / reject / rate / re-analyze / delete; export CSV. The detail drawer holds notes, follow-up date, signals and what you sent |
 | Review | `/admin/review` | Close calls one card at a time: `y` or `→` good match, `n` or `←` not a match, `s` skip, `u` undo, `o` open the posting |
 | Applications | `/admin/applications` | Kanban pipeline Saved → Applied → Interview → Offer / Rejected (+ Archived). Drag cards, or focus one and press `1`–`6` or `←` / `→`. Follow-up badges turn amber when due and red when overdue |
 | Sources | `/admin/sources` | Enable and configure each job source, run one or **Scrape all sources**, set the analyzer batch size and the MyGreenhouse cookie |
-| Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern. Rules run before the AI, so they also save quota |
+| Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern, for one user or for everyone. Rules run before the AI, so they also save quota |
 | AI | `/admin/ai` | Providers & keys, per-task routes, usage & cost, playground, evaluations |
-| Profile & resumes | `/admin/profile` | Your candidate profile, resume files and the answer bank used by autofill |
+| Profile & resumes | `/admin/profile` | Each user's candidate profile, resume files and the answer bank used by autofill |
 | Extension | `/admin/extension` | Server URL and API key for the popup, install steps, Easy Apply stats, supported form sites |
-| Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role), rename, change the role, set a new password, disable or enable, sign out everywhere, delete |
+| Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role, where they are based, target market, optionally a copy of another user's search options, skip rules or profile), rename, change the role, set a new password, disable or enable, sign out everywhere, delete (with all their data) |
 | Logs | `/admin/logs` | All jobs, AI analysis log, scan logs, extension logs |
 | Data | `/admin/data` | Storage use against the Supabase free 500 MB, safe clean-ups, exports, SQL console (read-only by default) |
-| Settings | `/admin/settings` | Target market and location, profile in matching, review band, follow-up days, analysis prompt, Google Sheets, your password |
-| Setup | `/admin/setup` | 12-step checklist from database to first scan |
+| Settings | `/admin/settings` | Each user's target market and location, profile in matching, review band, follow-up days, analysis prompt, job boards and Google Sheet; the app-wide Google service account; your password |
+| Setup | `/admin/setup` | 14-step checklist from database to first scan; per-user steps name who is missing what |
 
 The top bar shows the last scan, AI calls in the last 24 hours, Claude spend against the budget, database size, and when the extension last reported in.
 
@@ -397,9 +410,11 @@ The session pooler allows about 15 connections for the whole project (free plan)
 
 ## Google Sheet output
 
+Each user's approved jobs go to their own spreadsheet (**Settings → Google Sheet**, with that user selected). One Google service account writes every sheet (**Settings → Google service account**); share each spreadsheet with its `client_email` as Editor. Several users can share one spreadsheet by giving each their own tab names; a missing tab is created on the first export.
+
 ### "Jobs" tab (from scanners)
 
-Default columns (configurable under **Settings → Google Sheets**):
+Default columns (configurable under **Settings → Google Sheet**):
 
 | Title | Company | Location | URL | Source | AI Score | Tech Stack | Salary | Date Found |
 |-------|---------|----------|-----|--------|----------|------------|--------|------------|
@@ -442,14 +457,14 @@ Default column config JSON:
 | Cloudflare model | `@cf/meta/llama-3.1-8b-instruct` | AI → Providers & keys |
 | Claude model / effort | Opus 5.5; effort `low` for scans and the extension, `medium` for resumes and answers | AI → Routes |
 | Claude monthly budget | `$10` (`0` = no cap) | AI → Usage & cost |
-| Target market | `Europe, Eastern Europe, Remote worldwide` | Settings → Target & matching |
-| Current location | `Armenia` | Settings → Target & matching |
-| Use my profile when judging jobs | on (applies once your profile has content) | Settings → Target & matching |
+| Target market, where a user is based | none: asked when you add a user (Setup flags users without them) | Settings → Target & matching |
+| Use the profile when judging jobs | on (applies once the profile has content) | Settings → Target & matching |
+| Job boards per user | every board | Settings → Job boards |
 | Review band | scores `45`–`70` | Settings → Target & matching |
 | Follow-up after applying | `7` days | Settings → Target & matching |
 | Analyzer batch size | `5` jobs per AI call (max 12) | Sources |
-| LinkedIn sheet tab | `LinkedIn` | Settings → Google Sheets |
-| Sheet columns | see JSON above | Settings → Google Sheets |
+| Jobs / LinkedIn sheet tabs | `Jobs` / `LinkedIn` | Settings → Google Sheet |
+| Sheet columns | see JSON above | Settings → Google Sheet |
 | Extension API key | random `jf_…` key | Extension |
 | Job analysis prompt | built-in (`lib/defaultPrompt.ts`) | Settings → Job analysis prompt |
 
@@ -463,15 +478,17 @@ The prompt asks for one JSON object: `approved`, `score` (0–100), `reason` and
 
 ## Database schema
 
-- **ScrapedJob**: every stored job (approved/rejected) with its verdict, eligibility, apply method (Easy Apply or company site) and LinkedIn signals, plus your pipeline data: stage, applied and follow-up dates, notes, 👍 / 👎 feedback, the resume used and the application answers.
-- **AppConfig**: key/value settings store (secrets included, never returned to the browser).
-- **SkipRule**: company/title/url block rules.
+- **User**: everyone who signs in (user ID, name, scrypt password hash, Admin or User role, active, session version).
+- **UserConfig**: each user's own settings, one row per key: target market, location, analysis prompt, review band, follow-up days, job boards, Google Sheet and the candidate profile.
+- **ScrapedJob**: every stored job (approved/rejected) of one user with its verdict, eligibility, apply method (Easy Apply or company site) and LinkedIn signals, plus the pipeline data: stage, applied and follow-up dates, notes, 👍 / 👎 feedback, the resume used and the application answers. The same posting found for two users is two rows, each with its own verdict.
+- **AppConfig**: app-wide key/value settings (AI providers and keys, routes, budget, the Google service account, board set-up; secrets never returned to the browser).
+- **SkipRule**: company/title/url block rules, for one user or for everyone.
 - **ScanLog**: scan history.
 - **AnalysisLog**: AI analysis results per job.
 - **ExtensionLog**: logs sent by the extension.
-- **AiUsage**: one row per AI call (task, provider, model, tokens, cost, latency, outcome). It drives Usage & cost, provider health and the Claude budget.
-- **Resume**: your resume files (stored in the database) with tags and the parsed profile.
-- **SavedAnswer**: the answer bank used by autofill.
+- **AiUsage**: one row per AI call (user, task, provider, model, tokens, cost, latency, outcome). It drives Usage & cost, provider health and the Claude budget.
+- **Resume**: each user's resume files (stored in the database) with tags and the parsed profile.
+- **SavedAnswer**: each user's answer bank used by autofill.
 
 Migrations live in `prisma/migrations`. `/api/setup` applies the same changes idempotently, for deployments that cannot run `prisma migrate deploy`.
 
