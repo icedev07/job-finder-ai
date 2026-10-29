@@ -81,12 +81,36 @@ jobs:
 
       - name: Build the zip
         if: steps.check.outputs.publish == 'true'
+        # Python's zipfile instead of the zip command from the runner image:
+        # once ubuntu-latest began moving to Ubuntu 26.04, zip aborted here
+        # with exit code 9.
         run: |
-          mkdir -p dist
+          python3 - extension "dist/$ZIP" <<'PY'
+          import os, sys, zipfile
+
+          src, out = sys.argv[1], sys.argv[2]
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+
           # Files sit at the top of the zip, ready for "Load unpacked" once
           # extracted. Dotfiles (.DS_Store and the like) stay out.
-          (cd extension && zip -r -X -q "../dist/$ZIP" . -x '.*' '*/.*')
-          unzip -l "dist/$ZIP"
+          files = []
+          for root, dirs, names in os.walk(src):
+              dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+              files += [os.path.join(root, n) for n in sorted(names) if not n.startswith(".")]
+          with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+              for path in files:
+                  z.write(path, os.path.relpath(path, src))
+
+          # Read it back, so a damaged zip stops the release here.
+          with zipfile.ZipFile(out) as z:
+              bad = z.testzip()
+              if bad:
+                  print(f"::error::{bad} is damaged in {out}")
+                  sys.exit(1)
+              for info in z.infolist():
+                  print(f"{info.file_size:>9}  {info.filename}")
+          print(f"{len(files)} files in {out} ({os.path.getsize(out)} bytes)")
+          PY
 
       - name: Write the release notes
         if: steps.check.outputs.publish == 'true'
