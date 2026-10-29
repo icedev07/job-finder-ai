@@ -130,6 +130,7 @@ exports.Prisma.ScrapedJobScalarFieldEnum = {
   location: 'location',
   url: 'url',
   manualApplyUrl: 'manualApplyUrl',
+  applyMethod: 'applyMethod',
   description: 'description',
   salary: 'salary',
   techStack: 'techStack',
@@ -137,7 +138,18 @@ exports.Prisma.ScrapedJobScalarFieldEnum = {
   aiScore: 'aiScore',
   aiReason: 'aiReason',
   sheetSynced: 'sheetSynced',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  stage: 'stage',
+  stageUpdatedAt: 'stageUpdatedAt',
+  appliedAt: 'appliedAt',
+  followUpAt: 'followUpAt',
+  notes: 'notes',
+  resumeId: 'resumeId',
+  applicationData: 'applicationData',
+  feedback: 'feedback',
+  feedbackAt: 'feedbackAt',
+  eligibility: 'eligibility',
+  signals: 'signals'
 };
 
 exports.Prisma.AppConfigScalarFieldEnum = {
@@ -173,6 +185,47 @@ exports.Prisma.AnalysisLogScalarFieldEnum = {
   reason: 'reason',
   tokensUsed: 'tokensUsed',
   durationMs: 'durationMs',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.ResumeScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  fileName: 'fileName',
+  mimeType: 'mimeType',
+  sizeBytes: 'sizeBytes',
+  data: 'data',
+  textContent: 'textContent',
+  parsed: 'parsed',
+  tags: 'tags',
+  isDefault: 'isDefault',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SavedAnswerScalarFieldEnum = {
+  id: 'id',
+  question: 'question',
+  answer: 'answer',
+  tags: 'tags',
+  uses: 'uses',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AiUsageScalarFieldEnum = {
+  id: 'id',
+  task: 'task',
+  provider: 'provider',
+  model: 'model',
+  ok: 'ok',
+  inputTokens: 'inputTokens',
+  outputTokens: 'outputTokens',
+  cacheReadTokens: 'cacheReadTokens',
+  cacheWriteTokens: 'cacheWriteTokens',
+  costUsd: 'costUsd',
+  durationMs: 'durationMs',
+  error: 'error',
   createdAt: 'createdAt'
 };
 
@@ -216,6 +269,9 @@ exports.Prisma.ModelName = {
   SkipRule: 'SkipRule',
   ScanLog: 'ScanLog',
   AnalysisLog: 'AnalysisLog',
+  Resume: 'Resume',
+  SavedAnswer: 'SavedAnswer',
+  AiUsage: 'AiUsage',
   ExtensionLog: 'ExtensionLog'
 };
 

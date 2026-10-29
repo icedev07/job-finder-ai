@@ -1,10 +1,22 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getConfig } from "./config";
+import { LLMRateLimitedError } from "./llmErrors";
+import { callClaude, ClaudeRefusalError, type ClaudeDocument } from "./claudeClient";
+import { AI_TASK_INFO, parseAiRoutes, type AiRoute, type AiTask, type ProviderId } from "./aiRoutes";
+import { claudeSpendThisMonth, recordAiUsage, startOfNextUtcMonth } from "./aiUsage";
+
+export { LLMRateLimitedError };
 
 export type LLMResult = {
   text: string;
   model: string;
   tokensUsed: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+  /** USD; only Claude reports a cost (the free providers bill nothing). */
+  costUsd?: number | null;
 };
 
 const GEMINI_FALLBACK_MODELS = [
@@ -39,13 +51,13 @@ export async function generateWithGemini(
     try {
       const genAI = new GoogleGenerativeAI(apiKey);
       const genModel = genAI.getGenerativeModel({ model: m });
-      const result = await genModel.generateContent(prompt);
+      const result = await genModel.generateContent(prompt, signal ? { signal } : undefined);
       const response = result.response;
       const text = response.text();
       const usage = response.usageMetadata;
-      const tokensUsed =
-        (usage?.promptTokenCount || 0) + (usage?.candidatesTokenCount || 0);
-      return { text, model: m, tokensUsed };
+      const inputTokens = usage?.promptTokenCount || 0;
+      const outputTokens = usage?.candidatesTokenCount || 0;
+      return { text, model: m, tokensUsed: inputTokens + outputTokens, inputTokens, outputTokens };
     } catch (e: any) {
       const msg = String(e?.message || e);
       attempts.push(`${m}: ${msg}`);
@@ -208,20 +220,6 @@ async function callOpenRouter(
     signal,
   });
   return res;
-}
-
-// Thrown when the provider tells us to back off. The analyzer treats this as
-// a clean batch stop (leaves the row PENDING) rather than a per-job failure
-// that would otherwise mark every queued job REJECTED.
-export class LLMRateLimitedError extends Error {
-  retryAfterMs: number;
-  daily: boolean;
-  constructor(message: string, retryAfterMs: number, daily = false) {
-    super(message);
-    this.name = "LLMRateLimitedError";
-    this.retryAfterMs = retryAfterMs;
-    this.daily = daily;
-  }
 }
 
 // Free-tier safety: cap how many models we try per single LLM call. A genuine
@@ -704,9 +702,9 @@ async function generateWithOpenAICompatible(
       attempts.push(`${m}: empty response`);
       continue;
     }
-    const tokensUsed =
-      (data?.usage?.prompt_tokens || 0) + (data?.usage?.completion_tokens || 0);
-    return { text, model: m, tokensUsed };
+    const inputTokens = data?.usage?.prompt_tokens || 0;
+    const outputTokens = data?.usage?.completion_tokens || 0;
+    return { text, model: m, tokensUsed: inputTokens + outputTokens, inputTokens, outputTokens };
   }
 
   throw new Error(
@@ -768,7 +766,7 @@ export async function generateWithCloudflare(
 ): Promise<LLMResult> {
   const id = (accountId || "").trim();
   if (!id) {
-    throw new Error("Cloudflare account id is not set — add it in /admin/settings.");
+    throw new Error("Cloudflare account id is not set — add it in /admin/ai (Providers & keys).");
   }
   const baseUrl = `https://api.cloudflare.com/client/v4/accounts/${id}/ai/v1`;
   return generateWithOpenAICompatible(
@@ -782,71 +780,121 @@ export async function generateWithCloudflare(
 }
 
 // ============================================================================
-// Smart Rotation
+// Per-task routes
 // ----------------------------------------------------------------------------
-// Pools every provider that has an API key and tries them in priority order.
-// When a provider is rate-limited it is parked on a cooldown (until its
-// retry-after / daily reset) and the next provider is used. Two priority
-// orders stop the scanner and the extension from fighting over one provider:
-//   - "batch"  → big-context providers first   (Gemini, OpenRouter)
-//   - "single" → fast high-volume providers first (Cerebras, Groq)
-// Cooldowns live in module memory; on Vercel that survives for the life of a
-// warm function — exactly the span of one analyze-all-pending run.
+// Every task (board scans, the LinkedIn extension, resume reading, form
+// answers) has its own ordered provider chain — see lib/aiRoutes.ts. The first
+// provider with a key that is not cooling down answers; on a rate limit or an
+// error it is parked and the next provider is tried. Cooldowns live in module
+// memory: on Vercel that survives for the life of a warm function, exactly the
+// span of one scan run. Every attempt is written to AiUsage (tokens, cost,
+// latency, error) for the usage page, the Claude budget cap and health stats.
 // ============================================================================
 
-export type LLMPurpose = "single" | "batch";
+export type LLMRequest = {
+  /** Full prompt for providers without a system/user split (the free ones). */
+  prompt: string;
+  /** Only Claude can serve this request (e.g. it carries a PDF). */
+  claudeOnly?: boolean;
+  /** Claude shape: cacheable system prompt + per-call content + strict JSON schema. */
+  claude?: {
+    system: string;
+    user: string;
+    jsonSchema?: Record<string, unknown>;
+    maxTokens?: number;
+    documents?: ClaudeDocument[];
+  };
+};
+
+export type TaskResult = LLMResult & { provider: ProviderId };
 
 type RotationConfig = Awaited<ReturnType<typeof getConfig>>;
-type RotationProviderId = "gemini" | "groq" | "cerebras" | "openrouter" | "cloudflare";
 
 type RotationProvider = {
-  id: RotationProviderId;
+  id: ProviderId;
   label: string;
   // Rough upper bound (chars) on a prompt this provider's free-tier context
   // can hold. A batched prompt that exceeds it is routed to a bigger-context
   // provider instead of being sent on a guaranteed failure.
   maxPromptChars: number;
   keyOf: (c: RotationConfig) => string;
-  run: (prompt: string, c: RotationConfig, signal?: AbortSignal) => Promise<LLMResult>;
+  /** Model id recorded for a failed attempt (a success reports the real one). */
+  modelOf: (c: RotationConfig, route: AiRoute) => string;
+  run: (
+    req: LLMRequest,
+    c: RotationConfig,
+    route: AiRoute,
+    signal: AbortSignal,
+    timeoutMs: number,
+  ) => Promise<LLMResult>;
 };
 
-const ROTATION_PROVIDERS: Record<RotationProviderId, RotationProvider> = {
+const ROTATION_PROVIDERS: Record<ProviderId, RotationProvider> = {
+  claude: {
+    id: "claude",
+    label: "Claude",
+    maxPromptChars: 2_000_000,
+    keyOf: (c) => c.anthropicApiKey,
+    modelOf: (_c, route) => route.claudeModel,
+    run: async (req, c, route, signal, timeoutMs) => {
+      const r = await callClaude({
+        apiKey: c.anthropicApiKey,
+        model: route.claudeModel,
+        effort: route.claudeEffort,
+        system: req.claude?.system,
+        user: req.claude?.user ?? req.prompt,
+        jsonSchema: req.claude?.jsonSchema,
+        documents: req.claude?.documents,
+        maxTokens: req.claude?.maxTokens,
+        timeoutMs,
+        signal,
+      });
+      const u = r.usage;
+      return {
+        text: r.text,
+        model: r.model,
+        tokensUsed: u.inputTokens + u.outputTokens + u.cacheReadTokens + u.cacheWriteTokens,
+        ...u,
+        costUsd: r.costUsd,
+      };
+    },
+  },
   gemini: {
     id: "gemini",
     label: "Gemini",
     maxPromptChars: 900_000,
     keyOf: (c) => c.geminiApiKey,
-    run: (prompt, c, signal) =>
-      generateWithGemini(prompt, c.geminiApiKey, c.geminiModel || "gemini-2.5-flash", signal),
+    modelOf: (c) => c.geminiModel || "gemini-2.5-flash",
+    run: (req, c, _route, signal) =>
+      generateWithGemini(req.prompt, c.geminiApiKey, c.geminiModel || "gemini-2.5-flash", signal),
   },
   openrouter: {
     id: "openrouter",
     label: "OpenRouter",
     maxPromptChars: 200_000,
     keyOf: (c) => c.openrouterApiKey,
-    run: (prompt, c, signal) =>
-      generateWithOpenRouter(
-        prompt,
-        c.openrouterApiKey,
-        c.openrouterModel || OPENROUTER_AUTO,
-        signal,
-        { tier: c.openrouterTier, paidModel: c.openrouterPaidModel },
-      ),
+    modelOf: (c) => c.openrouterModel || OPENROUTER_AUTO,
+    run: (req, c, _route, signal) =>
+      generateWithOpenRouter(req.prompt, c.openrouterApiKey, c.openrouterModel || OPENROUTER_AUTO, signal, {
+        tier: c.openrouterTier,
+        paidModel: c.openrouterPaidModel,
+      }),
   },
   cerebras: {
     id: "cerebras",
     label: "Cerebras",
     maxPromptChars: 16_000,
     keyOf: (c) => c.cerebrasApiKey,
-    run: (prompt, c, signal) =>
-      generateWithCerebras(prompt, c.cerebrasApiKey, c.cerebrasModel, signal),
+    modelOf: (c) => c.cerebrasModel,
+    run: (req, c, _route, signal) => generateWithCerebras(req.prompt, c.cerebrasApiKey, c.cerebrasModel, signal),
   },
   groq: {
     id: "groq",
     label: "Groq",
     maxPromptChars: 14_000,
     keyOf: (c) => c.groqApiKey,
-    run: (prompt, c, signal) => generateWithGroq(prompt, c.groqApiKey, c.groqModel, signal),
+    modelOf: (c) => c.groqModel,
+    run: (req, c, _route, signal) => generateWithGroq(req.prompt, c.groqApiKey, c.groqModel, signal),
   },
   cloudflare: {
     id: "cloudflare",
@@ -855,11 +903,11 @@ const ROTATION_PROVIDERS: Record<RotationProviderId, RotationProvider> = {
     maxPromptChars: 12_000,
     // Cloudflare needs both the account id (in the URL) and a token; treat the
     // provider as unconfigured unless both are present.
-    keyOf: (c) =>
-      c.cloudflareAccountId.trim() && c.cloudflareApiKey.trim() ? c.cloudflareApiKey : "",
-    run: (prompt, c, signal) =>
+    keyOf: (c) => (c.cloudflareAccountId.trim() && c.cloudflareApiKey.trim() ? c.cloudflareApiKey : ""),
+    modelOf: (c) => c.cloudflareModel || "@cf/meta/llama-3.1-8b-instruct",
+    run: (req, c, _route, signal) =>
       generateWithCloudflare(
-        prompt,
+        req.prompt,
         c.cloudflareAccountId,
         c.cloudflareApiKey,
         c.cloudflareModel || "@cf/meta/llama-3.1-8b-instruct",
@@ -868,58 +916,74 @@ const ROTATION_PROVIDERS: Record<RotationProviderId, RotationProvider> = {
   },
 };
 
-// Per-purpose ranking of every known provider. The live pool is this list
-// intersected with the user's ticked providers, so unticked ones never run.
-const ROTATION_ORDER: Record<LLMPurpose, RotationProviderId[]> = {
-  // One job at a time (extension): fast, high daily-volume providers first.
-  single: ["cerebras", "groq", "cloudflare", "gemini", "openrouter"],
-  // Batched many-job prompts (scanner): big-context providers first.
-  batch: ["gemini", "openrouter", "cerebras", "groq", "cloudflare"],
-};
-
 // A transient (non-rate-limit) failure parks the provider briefly so the next
 // call in the same run reaches a healthy provider first.
 const TRANSIENT_COOLDOWN_MS = 45_000;
+// Upper bound on one provider attempt, so a hung provider cannot eat the whole
+// serverless budget before the next provider in the route gets a turn.
+const DEFAULT_CALL_TIMEOUT_MS = 40_000;
 
-const providerCooldownUntil = new Map<RotationProviderId, number>();
+const providerCooldownUntil = new Map<ProviderId, { until: number; reason: string }>();
 
-function cooldownRemainingMs(id: RotationProviderId): number {
-  return Math.max(0, (providerCooldownUntil.get(id) || 0) - Date.now());
+function cooldownRemaining(id: ProviderId): { ms: number; reason: string } | null {
+  const entry = providerCooldownUntil.get(id);
+  if (!entry) return null;
+  const ms = entry.until - Date.now();
+  return ms > 0 ? { ms, reason: entry.reason } : null;
 }
 
-async function generateWithRotation(
-  prompt: string,
-  config: RotationConfig,
-  selected: string[],
-  purpose: LLMPurpose,
+function attemptSignal(parent: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+  const timeout = AbortSignal.timeout(timeoutMs);
+  return parent ? AbortSignal.any([parent, timeout]) : timeout;
+}
+
+export function resolveRoute(config: RotationConfig, task: AiTask): AiRoute {
+  return parseAiRoutes(config.aiRoutesRaw, config.aiProviders)[task];
+}
+
+export type GenerateOptions = {
+  /** Max time for one provider attempt (default 40s). */
+  callTimeoutMs?: number;
+  /** Use this route instead of the saved one (the Playground). */
+  routeOverride?: AiRoute;
+  /** Task name written to AiUsage (default: the task) — e.g. "playground". */
+  usageTask?: string;
+};
+
+// Run a request through the task's provider chain.
+export async function generateForTask(
+  task: AiTask,
+  request: LLMRequest,
   signal?: AbortSignal,
-): Promise<LLMResult> {
-  // Pool = the user's ticked providers, ranked for this purpose. A single
-  // ticked provider just runs alone; several rotate with failover.
-  const ranked = ROTATION_ORDER[purpose]
-    .filter((id) => selected.includes(id))
-    .map((id) => ROTATION_PROVIDERS[id]);
+  options: GenerateOptions = {},
+): Promise<TaskResult> {
+  const config = await getConfig();
+  const route = options.routeOverride ?? resolveRoute(config, task);
+  const label = AI_TASK_INFO[task].label;
+  const usageTask = options.usageTask || task;
+  const chain = route.providers.map((id) => ROTATION_PROVIDERS[id]);
 
-  if (ranked.length === 0) {
-    throw new Error(
-      "No AI provider is selected. Go to /admin/settings and tick at least one provider.",
-    );
+  if (chain.length === 0) {
+    throw new Error(`No AI provider is set for "${label}". Add one in Admin → AI → Routes.`);
   }
-
-  const withKey = ranked.filter((p) => p.keyOf(config).trim().length > 0);
+  const withKey = chain.filter((p) => p.keyOf(config).trim().length > 0);
   if (withKey.length === 0) {
     throw new Error(
-      `No API key is set for the selected provider(s): ${ranked
+      `No API key is set for the provider(s) on the "${label}" route: ${chain
         .map((p) => p.label)
-        .join(", ")}. Add a key in /admin/settings.`,
+        .join(", ")}. Add a key in Admin → AI.`,
     );
   }
-
+  if (request.claudeOnly && !withKey.some((p) => p.id === "claude")) {
+    throw new Error(`This needs Claude: add Claude (with a key) to the "${label}" route in Admin → AI → Routes.`);
+  }
   // Drop providers whose free-tier context cannot hold this prompt.
-  const pool = withKey.filter((p) => prompt.length <= p.maxPromptChars);
+  const pool = withKey.filter(
+    (p) => (!request.claudeOnly || p.id === "claude") && request.prompt.length <= p.maxPromptChars,
+  );
   if (pool.length === 0) {
     throw new Error(
-      `Prompt is ${prompt.length} chars — larger than any configured rotation provider can accept. Lower the analyzer batch size in /admin/scanners.`,
+      `Prompt is ${request.prompt.length} chars — larger than any provider on the "${label}" route can accept. Lower the analyzer batch size in /admin/sources.`,
     );
   }
 
@@ -927,51 +991,85 @@ async function generateWithRotation(
   let soonestRetryMs = Infinity;
 
   for (const p of pool) {
-    const cd = cooldownRemainingMs(p.id);
-    if (cd > 0) {
-      soonestRetryMs = Math.min(soonestRetryMs, cd);
-      attempts.push(`${p.label}: cooling down ${Math.ceil(cd / 1000)}s`);
+    const cd = cooldownRemaining(p.id);
+    if (cd) {
+      soonestRetryMs = Math.min(soonestRetryMs, cd.ms);
+      attempts.push(`${p.label}: cooling down ${Math.ceil(cd.ms / 1000)}s (${cd.reason})`);
       continue;
+    }
+    if (p.id === "claude" && config.claudeMonthlyBudgetUsd > 0) {
+      const spent = await claudeSpendThisMonth();
+      if (spent >= config.claudeMonthlyBudgetUsd) {
+        soonestRetryMs = Math.min(soonestRetryMs, startOfNextUtcMonth().getTime() - Date.now());
+        attempts.push(
+          `Claude: monthly budget reached ($${spent.toFixed(2)} of $${config.claudeMonthlyBudgetUsd.toFixed(2)})`,
+        );
+        continue;
+      }
     }
     if (signal?.aborted) throw new Error("LLM call aborted");
 
+    const timeoutMs = options.callTimeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
+    const startedAt = Date.now();
     try {
-      const result = await p.run(prompt, config, signal);
-      // Tag the model with its provider so AnalysisLog shows the rotation path.
-      return { ...result, model: `${p.id}:${result.model}` };
+      const result = await p.run(request, config, route, attemptSignal(signal, timeoutMs), timeoutMs);
+      await recordAiUsage({
+        task: usageTask,
+        provider: p.id,
+        model: result.model,
+        ok: true,
+        inputTokens: result.inputTokens ?? result.tokensUsed,
+        outputTokens: result.outputTokens,
+        cacheReadTokens: result.cacheReadTokens,
+        cacheWriteTokens: result.cacheWriteTokens,
+        costUsd: result.costUsd,
+        durationMs: Date.now() - startedAt,
+      });
+      // Tag the model with its provider so AnalysisLog shows the route path.
+      return { ...result, model: `${p.id}:${result.model}`, provider: p.id };
     } catch (e: any) {
-      if (e?.message === "LLM call aborted") throw e;
+      // The caller's own deadline — stop the whole chain.
+      if (signal?.aborted) throw new Error("LLM call aborted");
+      const message = String(e?.message || e);
+      // A Claude refusal / truncated answer was still billed — record its cost.
+      await recordAiUsage({
+        task: usageTask,
+        provider: p.id,
+        model: e?.model || p.modelOf(config, route),
+        ok: false,
+        ...(e?.usage ?? {}),
+        costUsd: e?.costUsd,
+        durationMs: Date.now() - startedAt,
+        error: message,
+      });
+      // A refusal is about this one prompt, not the provider — don't park it.
       const cooldown =
-        e instanceof LLMRateLimitedError ? e.retryAfterMs : TRANSIENT_COOLDOWN_MS;
-      providerCooldownUntil.set(p.id, Date.now() + cooldown);
-      soonestRetryMs = Math.min(soonestRetryMs, cooldown);
-      attempts.push(`${p.label}: ${String(e?.message || e)}`);
-      console.warn(
-        `[rotation] ${p.label} unavailable (cooling ${Math.ceil(cooldown / 1000)}s): ${String(
-          e?.message || e,
-        )}`,
-      );
+        e instanceof LLMRateLimitedError ? e.retryAfterMs : e instanceof ClaudeRefusalError ? 0 : TRANSIENT_COOLDOWN_MS;
+      if (cooldown > 0) providerCooldownUntil.set(p.id, { until: Date.now() + cooldown, reason: message.slice(0, 120) });
+      soonestRetryMs = Math.min(soonestRetryMs, cooldown || TRANSIENT_COOLDOWN_MS);
+      attempts.push(`${p.label}: ${message}`);
+      console.warn(`[route:${task}] ${p.label} unavailable (cooling ${Math.ceil(cooldown / 1000)}s): ${message}`);
     }
   }
 
-  // Every provider in the pool is unavailable. Surface a rate-limit error so
+  // Every provider on the route is unavailable. Surface a rate-limit error so
   // the analyzer pauses cleanly and leaves the rows PENDING for a later pass,
   // rather than a plain error that would mass-reject the batch.
   throw new LLMRateLimitedError(
-    `All rotation providers unavailable → ${attempts.join(" | ")}`,
+    `All providers on the "${label}" route are unavailable → ${attempts.join(" | ")}`,
     Number.isFinite(soonestRetryMs) ? soonestRetryMs : 60_000,
     false,
   );
 }
 
-// Single entry point for the analyzer. Every call goes through the rotation
-// engine: with one selected provider it behaves as plain single-provider mode,
-// with several it rotates and fails over on rate limits / errors.
+export type LLMPurpose = "single" | "batch";
+
+// Backward-compatible entry point: "single" = the extension route, "batch" =
+// the board-scan route.
 export async function generateText(
   prompt: string,
   signal?: AbortSignal,
   purpose: LLMPurpose = "single",
 ): Promise<LLMResult> {
-  const config = await getConfig();
-  return generateWithRotation(prompt, config, config.aiProviders, purpose, signal);
+  return generateForTask(purpose === "batch" ? "scan" : "extension", { prompt }, signal);
 }

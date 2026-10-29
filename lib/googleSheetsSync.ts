@@ -19,6 +19,7 @@ function getJobValue(job: Record<string, any>, key: string): string {
   // manual apply when present makes the sheet usable without the user having
   // to click through linkedin first.
   if (key === "url") return String(job.manualApplyUrl || job.url || "");
+  if (key === "applyMethod") return applyViaLabel(job.applyMethod);
   return String(job[key] ?? "");
 }
 
@@ -80,6 +81,14 @@ export async function syncApprovedJobsToSheet(): Promise<{ synced: number }> {
   return { synced: jobs.length };
 }
 
+const LINKEDIN_HEADER = ["No", "Date", "Platform", "Job Url", "Company", "Country", "Role", "Url", "Apply via"];
+
+export function applyViaLabel(applyMethod: string | null | undefined): string {
+  if (applyMethod === "EASY_APPLY") return "Easy Apply";
+  if (applyMethod === "EXTERNAL") return "Company site";
+  return "";
+}
+
 export async function syncJobToLinkedInTab(job: {
   id: number;
   title: string;
@@ -87,6 +96,7 @@ export async function syncJobToLinkedInTab(job: {
   location: string | null;
   url: string;
   manualApplyUrl?: string | null;
+  applyMethod?: string | null;
   createdAt: Date;
 }): Promise<void> {
   const config = await getConfig();
@@ -98,18 +108,26 @@ export async function syncJobToLinkedInTab(job: {
 
   const existing = await sheets.spreadsheets.values.get({
     spreadsheetId: config.googleSheetId,
-    range: `${tab}!A1:A1`,
+    range: `${tab}!A1:I1`,
   }).catch(() => null);
 
-  const hasHeader = existing?.data?.values && existing.data.values.length > 0;
+  const headerRow = existing?.data?.values?.[0] || [];
 
-  if (!hasHeader) {
+  if (headerRow.length === 0) {
     await sheets.spreadsheets.values.update({
       spreadsheetId: config.googleSheetId,
       range: `${tab}!A1`,
       valueInputOption: "RAW",
-      requestBody: { values: [["No", "Date", "Platform", "Job Url", "Company", "Country", "Role", "Url"]] },
+      requestBody: { values: [LINKEDIN_HEADER] },
     });
+  } else if (headerRow.length === 8) {
+    // A tab created before the "Apply via" column existed — extend its header.
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: config.googleSheetId,
+      range: `${tab}!I1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["Apply via"]] },
+    }).catch(() => {});
   }
 
   const countRes = await sheets.spreadsheets.values.get({
@@ -131,11 +149,12 @@ export async function syncJobToLinkedInTab(job: {
     job.location || "",
     job.title,
     applyHref,
+    applyViaLabel(job.applyMethod),
   ];
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: config.googleSheetId,
-    range: `${tab}!A:H`,
+    range: `${tab}!A:I`,
     valueInputOption: "RAW",
     requestBody: { values: [row] },
   });

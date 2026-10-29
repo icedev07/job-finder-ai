@@ -39,6 +39,21 @@ export type ScanLog = $Result.DefaultSelection<Prisma.$ScanLogPayload>
  */
 export type AnalysisLog = $Result.DefaultSelection<Prisma.$AnalysisLogPayload>
 /**
+ * Model Resume
+ * 
+ */
+export type Resume = $Result.DefaultSelection<Prisma.$ResumePayload>
+/**
+ * Model SavedAnswer
+ * 
+ */
+export type SavedAnswer = $Result.DefaultSelection<Prisma.$SavedAnswerPayload>
+/**
+ * Model AiUsage
+ * 
+ */
+export type AiUsage = $Result.DefaultSelection<Prisma.$AiUsagePayload>
+/**
  * Model ExtensionLog
  * 
  */
@@ -247,6 +262,36 @@ export class PrismaClient<
     * ```
     */
   get analysisLog(): Prisma.AnalysisLogDelegate<ExtArgs>;
+
+  /**
+   * `prisma.resume`: Exposes CRUD operations for the **Resume** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Resumes
+    * const resumes = await prisma.resume.findMany()
+    * ```
+    */
+  get resume(): Prisma.ResumeDelegate<ExtArgs>;
+
+  /**
+   * `prisma.savedAnswer`: Exposes CRUD operations for the **SavedAnswer** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SavedAnswers
+    * const savedAnswers = await prisma.savedAnswer.findMany()
+    * ```
+    */
+  get savedAnswer(): Prisma.SavedAnswerDelegate<ExtArgs>;
+
+  /**
+   * `prisma.aiUsage`: Exposes CRUD operations for the **AiUsage** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more AiUsages
+    * const aiUsages = await prisma.aiUsage.findMany()
+    * ```
+    */
+  get aiUsage(): Prisma.AiUsageDelegate<ExtArgs>;
 
   /**
    * `prisma.extensionLog`: Exposes CRUD operations for the **ExtensionLog** model.
@@ -703,6 +748,9 @@ export namespace Prisma {
     SkipRule: 'SkipRule',
     ScanLog: 'ScanLog',
     AnalysisLog: 'AnalysisLog',
+    Resume: 'Resume',
+    SavedAnswer: 'SavedAnswer',
+    AiUsage: 'AiUsage',
     ExtensionLog: 'ExtensionLog'
   };
 
@@ -719,7 +767,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "scrapedJob" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "extensionLog"
+      modelProps: "scrapedJob" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "resume" | "savedAnswer" | "aiUsage" | "extensionLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1073,6 +1121,216 @@ export namespace Prisma {
           }
         }
       }
+      Resume: {
+        payload: Prisma.$ResumePayload<ExtArgs>
+        fields: Prisma.ResumeFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ResumeFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ResumeFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          findFirst: {
+            args: Prisma.ResumeFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ResumeFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          findMany: {
+            args: Prisma.ResumeFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>[]
+          }
+          create: {
+            args: Prisma.ResumeCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          createMany: {
+            args: Prisma.ResumeCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ResumeCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>[]
+          }
+          delete: {
+            args: Prisma.ResumeDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          update: {
+            args: Prisma.ResumeUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          deleteMany: {
+            args: Prisma.ResumeDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ResumeUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ResumeUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ResumePayload>
+          }
+          aggregate: {
+            args: Prisma.ResumeAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateResume>
+          }
+          groupBy: {
+            args: Prisma.ResumeGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ResumeGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ResumeCountArgs<ExtArgs>
+            result: $Utils.Optional<ResumeCountAggregateOutputType> | number
+          }
+        }
+      }
+      SavedAnswer: {
+        payload: Prisma.$SavedAnswerPayload<ExtArgs>
+        fields: Prisma.SavedAnswerFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SavedAnswerFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SavedAnswerFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          findFirst: {
+            args: Prisma.SavedAnswerFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SavedAnswerFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          findMany: {
+            args: Prisma.SavedAnswerFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>[]
+          }
+          create: {
+            args: Prisma.SavedAnswerCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          createMany: {
+            args: Prisma.SavedAnswerCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SavedAnswerCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>[]
+          }
+          delete: {
+            args: Prisma.SavedAnswerDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          update: {
+            args: Prisma.SavedAnswerUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          deleteMany: {
+            args: Prisma.SavedAnswerDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SavedAnswerUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.SavedAnswerUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SavedAnswerPayload>
+          }
+          aggregate: {
+            args: Prisma.SavedAnswerAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSavedAnswer>
+          }
+          groupBy: {
+            args: Prisma.SavedAnswerGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SavedAnswerGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SavedAnswerCountArgs<ExtArgs>
+            result: $Utils.Optional<SavedAnswerCountAggregateOutputType> | number
+          }
+        }
+      }
+      AiUsage: {
+        payload: Prisma.$AiUsagePayload<ExtArgs>
+        fields: Prisma.AiUsageFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.AiUsageFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.AiUsageFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          findFirst: {
+            args: Prisma.AiUsageFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.AiUsageFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          findMany: {
+            args: Prisma.AiUsageFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>[]
+          }
+          create: {
+            args: Prisma.AiUsageCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          createMany: {
+            args: Prisma.AiUsageCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.AiUsageCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>[]
+          }
+          delete: {
+            args: Prisma.AiUsageDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          update: {
+            args: Prisma.AiUsageUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          deleteMany: {
+            args: Prisma.AiUsageDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.AiUsageUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.AiUsageUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$AiUsagePayload>
+          }
+          aggregate: {
+            args: Prisma.AiUsageAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateAiUsage>
+          }
+          groupBy: {
+            args: Prisma.AiUsageGroupByArgs<ExtArgs>
+            result: $Utils.Optional<AiUsageGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.AiUsageCountArgs<ExtArgs>
+            result: $Utils.Optional<AiUsageCountAggregateOutputType> | number
+          }
+        }
+      }
       ExtensionLog: {
         payload: Prisma.$ExtensionLogPayload<ExtArgs>
         fields: Prisma.ExtensionLogFieldRefs
@@ -1349,11 +1607,15 @@ export namespace Prisma {
   export type ScrapedJobAvgAggregateOutputType = {
     id: number | null
     aiScore: number | null
+    resumeId: number | null
+    feedback: number | null
   }
 
   export type ScrapedJobSumAggregateOutputType = {
     id: number | null
     aiScore: number | null
+    resumeId: number | null
+    feedback: number | null
   }
 
   export type ScrapedJobMinAggregateOutputType = {
@@ -1364,6 +1626,7 @@ export namespace Prisma {
     location: string | null
     url: string | null
     manualApplyUrl: string | null
+    applyMethod: string | null
     description: string | null
     salary: string | null
     techStack: string | null
@@ -1372,6 +1635,17 @@ export namespace Prisma {
     aiReason: string | null
     sheetSynced: boolean | null
     createdAt: Date | null
+    stage: string | null
+    stageUpdatedAt: Date | null
+    appliedAt: Date | null
+    followUpAt: Date | null
+    notes: string | null
+    resumeId: number | null
+    applicationData: string | null
+    feedback: number | null
+    feedbackAt: Date | null
+    eligibility: string | null
+    signals: string | null
   }
 
   export type ScrapedJobMaxAggregateOutputType = {
@@ -1382,6 +1656,7 @@ export namespace Prisma {
     location: string | null
     url: string | null
     manualApplyUrl: string | null
+    applyMethod: string | null
     description: string | null
     salary: string | null
     techStack: string | null
@@ -1390,6 +1665,17 @@ export namespace Prisma {
     aiReason: string | null
     sheetSynced: boolean | null
     createdAt: Date | null
+    stage: string | null
+    stageUpdatedAt: Date | null
+    appliedAt: Date | null
+    followUpAt: Date | null
+    notes: string | null
+    resumeId: number | null
+    applicationData: string | null
+    feedback: number | null
+    feedbackAt: Date | null
+    eligibility: string | null
+    signals: string | null
   }
 
   export type ScrapedJobCountAggregateOutputType = {
@@ -1400,6 +1686,7 @@ export namespace Prisma {
     location: number
     url: number
     manualApplyUrl: number
+    applyMethod: number
     description: number
     salary: number
     techStack: number
@@ -1408,6 +1695,17 @@ export namespace Prisma {
     aiReason: number
     sheetSynced: number
     createdAt: number
+    stage: number
+    stageUpdatedAt: number
+    appliedAt: number
+    followUpAt: number
+    notes: number
+    resumeId: number
+    applicationData: number
+    feedback: number
+    feedbackAt: number
+    eligibility: number
+    signals: number
     _all: number
   }
 
@@ -1415,11 +1713,15 @@ export namespace Prisma {
   export type ScrapedJobAvgAggregateInputType = {
     id?: true
     aiScore?: true
+    resumeId?: true
+    feedback?: true
   }
 
   export type ScrapedJobSumAggregateInputType = {
     id?: true
     aiScore?: true
+    resumeId?: true
+    feedback?: true
   }
 
   export type ScrapedJobMinAggregateInputType = {
@@ -1430,6 +1732,7 @@ export namespace Prisma {
     location?: true
     url?: true
     manualApplyUrl?: true
+    applyMethod?: true
     description?: true
     salary?: true
     techStack?: true
@@ -1438,6 +1741,17 @@ export namespace Prisma {
     aiReason?: true
     sheetSynced?: true
     createdAt?: true
+    stage?: true
+    stageUpdatedAt?: true
+    appliedAt?: true
+    followUpAt?: true
+    notes?: true
+    resumeId?: true
+    applicationData?: true
+    feedback?: true
+    feedbackAt?: true
+    eligibility?: true
+    signals?: true
   }
 
   export type ScrapedJobMaxAggregateInputType = {
@@ -1448,6 +1762,7 @@ export namespace Prisma {
     location?: true
     url?: true
     manualApplyUrl?: true
+    applyMethod?: true
     description?: true
     salary?: true
     techStack?: true
@@ -1456,6 +1771,17 @@ export namespace Prisma {
     aiReason?: true
     sheetSynced?: true
     createdAt?: true
+    stage?: true
+    stageUpdatedAt?: true
+    appliedAt?: true
+    followUpAt?: true
+    notes?: true
+    resumeId?: true
+    applicationData?: true
+    feedback?: true
+    feedbackAt?: true
+    eligibility?: true
+    signals?: true
   }
 
   export type ScrapedJobCountAggregateInputType = {
@@ -1466,6 +1792,7 @@ export namespace Prisma {
     location?: true
     url?: true
     manualApplyUrl?: true
+    applyMethod?: true
     description?: true
     salary?: true
     techStack?: true
@@ -1474,6 +1801,17 @@ export namespace Prisma {
     aiReason?: true
     sheetSynced?: true
     createdAt?: true
+    stage?: true
+    stageUpdatedAt?: true
+    appliedAt?: true
+    followUpAt?: true
+    notes?: true
+    resumeId?: true
+    applicationData?: true
+    feedback?: true
+    feedbackAt?: true
+    eligibility?: true
+    signals?: true
     _all?: true
   }
 
@@ -1571,6 +1909,7 @@ export namespace Prisma {
     location: string | null
     url: string
     manualApplyUrl: string | null
+    applyMethod: string | null
     description: string | null
     salary: string | null
     techStack: string | null
@@ -1579,6 +1918,17 @@ export namespace Prisma {
     aiReason: string | null
     sheetSynced: boolean
     createdAt: Date
+    stage: string | null
+    stageUpdatedAt: Date | null
+    appliedAt: Date | null
+    followUpAt: Date | null
+    notes: string | null
+    resumeId: number | null
+    applicationData: string | null
+    feedback: number | null
+    feedbackAt: Date | null
+    eligibility: string | null
+    signals: string | null
     _count: ScrapedJobCountAggregateOutputType | null
     _avg: ScrapedJobAvgAggregateOutputType | null
     _sum: ScrapedJobSumAggregateOutputType | null
@@ -1608,6 +1958,7 @@ export namespace Prisma {
     location?: boolean
     url?: boolean
     manualApplyUrl?: boolean
+    applyMethod?: boolean
     description?: boolean
     salary?: boolean
     techStack?: boolean
@@ -1616,6 +1967,17 @@ export namespace Prisma {
     aiReason?: boolean
     sheetSynced?: boolean
     createdAt?: boolean
+    stage?: boolean
+    stageUpdatedAt?: boolean
+    appliedAt?: boolean
+    followUpAt?: boolean
+    notes?: boolean
+    resumeId?: boolean
+    applicationData?: boolean
+    feedback?: boolean
+    feedbackAt?: boolean
+    eligibility?: boolean
+    signals?: boolean
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
     _count?: boolean | ScrapedJobCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["scrapedJob"]>
@@ -1628,6 +1990,7 @@ export namespace Prisma {
     location?: boolean
     url?: boolean
     manualApplyUrl?: boolean
+    applyMethod?: boolean
     description?: boolean
     salary?: boolean
     techStack?: boolean
@@ -1636,6 +1999,17 @@ export namespace Prisma {
     aiReason?: boolean
     sheetSynced?: boolean
     createdAt?: boolean
+    stage?: boolean
+    stageUpdatedAt?: boolean
+    appliedAt?: boolean
+    followUpAt?: boolean
+    notes?: boolean
+    resumeId?: boolean
+    applicationData?: boolean
+    feedback?: boolean
+    feedbackAt?: boolean
+    eligibility?: boolean
+    signals?: boolean
   }, ExtArgs["result"]["scrapedJob"]>
 
   export type ScrapedJobSelectScalar = {
@@ -1646,6 +2020,7 @@ export namespace Prisma {
     location?: boolean
     url?: boolean
     manualApplyUrl?: boolean
+    applyMethod?: boolean
     description?: boolean
     salary?: boolean
     techStack?: boolean
@@ -1654,6 +2029,17 @@ export namespace Prisma {
     aiReason?: boolean
     sheetSynced?: boolean
     createdAt?: boolean
+    stage?: boolean
+    stageUpdatedAt?: boolean
+    appliedAt?: boolean
+    followUpAt?: boolean
+    notes?: boolean
+    resumeId?: boolean
+    applicationData?: boolean
+    feedback?: boolean
+    feedbackAt?: boolean
+    eligibility?: boolean
+    signals?: boolean
   }
 
   export type ScrapedJobInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -1675,6 +2061,7 @@ export namespace Prisma {
       location: string | null
       url: string
       manualApplyUrl: string | null
+      applyMethod: string | null
       description: string | null
       salary: string | null
       techStack: string | null
@@ -1683,6 +2070,17 @@ export namespace Prisma {
       aiReason: string | null
       sheetSynced: boolean
       createdAt: Date
+      stage: string | null
+      stageUpdatedAt: Date | null
+      appliedAt: Date | null
+      followUpAt: Date | null
+      notes: string | null
+      resumeId: number | null
+      applicationData: string | null
+      feedback: number | null
+      feedbackAt: Date | null
+      eligibility: string | null
+      signals: string | null
     }, ExtArgs["result"]["scrapedJob"]>
     composites: {}
   }
@@ -2084,6 +2482,7 @@ export namespace Prisma {
     readonly location: FieldRef<"ScrapedJob", 'String'>
     readonly url: FieldRef<"ScrapedJob", 'String'>
     readonly manualApplyUrl: FieldRef<"ScrapedJob", 'String'>
+    readonly applyMethod: FieldRef<"ScrapedJob", 'String'>
     readonly description: FieldRef<"ScrapedJob", 'String'>
     readonly salary: FieldRef<"ScrapedJob", 'String'>
     readonly techStack: FieldRef<"ScrapedJob", 'String'>
@@ -2092,6 +2491,17 @@ export namespace Prisma {
     readonly aiReason: FieldRef<"ScrapedJob", 'String'>
     readonly sheetSynced: FieldRef<"ScrapedJob", 'Boolean'>
     readonly createdAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly stage: FieldRef<"ScrapedJob", 'String'>
+    readonly stageUpdatedAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly appliedAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly followUpAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly notes: FieldRef<"ScrapedJob", 'String'>
+    readonly resumeId: FieldRef<"ScrapedJob", 'Int'>
+    readonly applicationData: FieldRef<"ScrapedJob", 'String'>
+    readonly feedback: FieldRef<"ScrapedJob", 'Int'>
+    readonly feedbackAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly eligibility: FieldRef<"ScrapedJob", 'String'>
+    readonly signals: FieldRef<"ScrapedJob", 'String'>
   }
     
 
@@ -6186,6 +6596,2978 @@ export namespace Prisma {
 
 
   /**
+   * Model Resume
+   */
+
+  export type AggregateResume = {
+    _count: ResumeCountAggregateOutputType | null
+    _avg: ResumeAvgAggregateOutputType | null
+    _sum: ResumeSumAggregateOutputType | null
+    _min: ResumeMinAggregateOutputType | null
+    _max: ResumeMaxAggregateOutputType | null
+  }
+
+  export type ResumeAvgAggregateOutputType = {
+    id: number | null
+    sizeBytes: number | null
+  }
+
+  export type ResumeSumAggregateOutputType = {
+    id: number | null
+    sizeBytes: number | null
+  }
+
+  export type ResumeMinAggregateOutputType = {
+    id: number | null
+    name: string | null
+    fileName: string | null
+    mimeType: string | null
+    sizeBytes: number | null
+    data: Buffer | null
+    textContent: string | null
+    parsed: string | null
+    tags: string | null
+    isDefault: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ResumeMaxAggregateOutputType = {
+    id: number | null
+    name: string | null
+    fileName: string | null
+    mimeType: string | null
+    sizeBytes: number | null
+    data: Buffer | null
+    textContent: string | null
+    parsed: string | null
+    tags: string | null
+    isDefault: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ResumeCountAggregateOutputType = {
+    id: number
+    name: number
+    fileName: number
+    mimeType: number
+    sizeBytes: number
+    data: number
+    textContent: number
+    parsed: number
+    tags: number
+    isDefault: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ResumeAvgAggregateInputType = {
+    id?: true
+    sizeBytes?: true
+  }
+
+  export type ResumeSumAggregateInputType = {
+    id?: true
+    sizeBytes?: true
+  }
+
+  export type ResumeMinAggregateInputType = {
+    id?: true
+    name?: true
+    fileName?: true
+    mimeType?: true
+    sizeBytes?: true
+    data?: true
+    textContent?: true
+    parsed?: true
+    tags?: true
+    isDefault?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ResumeMaxAggregateInputType = {
+    id?: true
+    name?: true
+    fileName?: true
+    mimeType?: true
+    sizeBytes?: true
+    data?: true
+    textContent?: true
+    parsed?: true
+    tags?: true
+    isDefault?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ResumeCountAggregateInputType = {
+    id?: true
+    name?: true
+    fileName?: true
+    mimeType?: true
+    sizeBytes?: true
+    data?: true
+    textContent?: true
+    parsed?: true
+    tags?: true
+    isDefault?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ResumeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Resume to aggregate.
+     */
+    where?: ResumeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Resumes to fetch.
+     */
+    orderBy?: ResumeOrderByWithRelationInput | ResumeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ResumeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Resumes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Resumes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Resumes
+    **/
+    _count?: true | ResumeCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ResumeAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ResumeSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ResumeMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ResumeMaxAggregateInputType
+  }
+
+  export type GetResumeAggregateType<T extends ResumeAggregateArgs> = {
+        [P in keyof T & keyof AggregateResume]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateResume[P]>
+      : GetScalarType<T[P], AggregateResume[P]>
+  }
+
+
+
+
+  export type ResumeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ResumeWhereInput
+    orderBy?: ResumeOrderByWithAggregationInput | ResumeOrderByWithAggregationInput[]
+    by: ResumeScalarFieldEnum[] | ResumeScalarFieldEnum
+    having?: ResumeScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ResumeCountAggregateInputType | true
+    _avg?: ResumeAvgAggregateInputType
+    _sum?: ResumeSumAggregateInputType
+    _min?: ResumeMinAggregateInputType
+    _max?: ResumeMaxAggregateInputType
+  }
+
+  export type ResumeGroupByOutputType = {
+    id: number
+    name: string
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    data: Buffer
+    textContent: string | null
+    parsed: string | null
+    tags: string | null
+    isDefault: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: ResumeCountAggregateOutputType | null
+    _avg: ResumeAvgAggregateOutputType | null
+    _sum: ResumeSumAggregateOutputType | null
+    _min: ResumeMinAggregateOutputType | null
+    _max: ResumeMaxAggregateOutputType | null
+  }
+
+  type GetResumeGroupByPayload<T extends ResumeGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ResumeGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ResumeGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ResumeGroupByOutputType[P]>
+            : GetScalarType<T[P], ResumeGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ResumeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    fileName?: boolean
+    mimeType?: boolean
+    sizeBytes?: boolean
+    data?: boolean
+    textContent?: boolean
+    parsed?: boolean
+    tags?: boolean
+    isDefault?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["resume"]>
+
+  export type ResumeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    name?: boolean
+    fileName?: boolean
+    mimeType?: boolean
+    sizeBytes?: boolean
+    data?: boolean
+    textContent?: boolean
+    parsed?: boolean
+    tags?: boolean
+    isDefault?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["resume"]>
+
+  export type ResumeSelectScalar = {
+    id?: boolean
+    name?: boolean
+    fileName?: boolean
+    mimeType?: boolean
+    sizeBytes?: boolean
+    data?: boolean
+    textContent?: boolean
+    parsed?: boolean
+    tags?: boolean
+    isDefault?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $ResumePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Resume"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      name: string
+      fileName: string
+      mimeType: string
+      sizeBytes: number
+      data: Buffer
+      textContent: string | null
+      parsed: string | null
+      tags: string | null
+      isDefault: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["resume"]>
+    composites: {}
+  }
+
+  type ResumeGetPayload<S extends boolean | null | undefined | ResumeDefaultArgs> = $Result.GetResult<Prisma.$ResumePayload, S>
+
+  type ResumeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ResumeFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ResumeCountAggregateInputType | true
+    }
+
+  export interface ResumeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Resume'], meta: { name: 'Resume' } }
+    /**
+     * Find zero or one Resume that matches the filter.
+     * @param {ResumeFindUniqueArgs} args - Arguments to find a Resume
+     * @example
+     * // Get one Resume
+     * const resume = await prisma.resume.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ResumeFindUniqueArgs>(args: SelectSubset<T, ResumeFindUniqueArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Resume that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ResumeFindUniqueOrThrowArgs} args - Arguments to find a Resume
+     * @example
+     * // Get one Resume
+     * const resume = await prisma.resume.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ResumeFindUniqueOrThrowArgs>(args: SelectSubset<T, ResumeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Resume that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeFindFirstArgs} args - Arguments to find a Resume
+     * @example
+     * // Get one Resume
+     * const resume = await prisma.resume.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ResumeFindFirstArgs>(args?: SelectSubset<T, ResumeFindFirstArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Resume that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeFindFirstOrThrowArgs} args - Arguments to find a Resume
+     * @example
+     * // Get one Resume
+     * const resume = await prisma.resume.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ResumeFindFirstOrThrowArgs>(args?: SelectSubset<T, ResumeFindFirstOrThrowArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Resumes that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Resumes
+     * const resumes = await prisma.resume.findMany()
+     * 
+     * // Get first 10 Resumes
+     * const resumes = await prisma.resume.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const resumeWithIdOnly = await prisma.resume.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ResumeFindManyArgs>(args?: SelectSubset<T, ResumeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Resume.
+     * @param {ResumeCreateArgs} args - Arguments to create a Resume.
+     * @example
+     * // Create one Resume
+     * const Resume = await prisma.resume.create({
+     *   data: {
+     *     // ... data to create a Resume
+     *   }
+     * })
+     * 
+     */
+    create<T extends ResumeCreateArgs>(args: SelectSubset<T, ResumeCreateArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Resumes.
+     * @param {ResumeCreateManyArgs} args - Arguments to create many Resumes.
+     * @example
+     * // Create many Resumes
+     * const resume = await prisma.resume.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ResumeCreateManyArgs>(args?: SelectSubset<T, ResumeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Resumes and returns the data saved in the database.
+     * @param {ResumeCreateManyAndReturnArgs} args - Arguments to create many Resumes.
+     * @example
+     * // Create many Resumes
+     * const resume = await prisma.resume.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Resumes and only return the `id`
+     * const resumeWithIdOnly = await prisma.resume.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ResumeCreateManyAndReturnArgs>(args?: SelectSubset<T, ResumeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Resume.
+     * @param {ResumeDeleteArgs} args - Arguments to delete one Resume.
+     * @example
+     * // Delete one Resume
+     * const Resume = await prisma.resume.delete({
+     *   where: {
+     *     // ... filter to delete one Resume
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ResumeDeleteArgs>(args: SelectSubset<T, ResumeDeleteArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Resume.
+     * @param {ResumeUpdateArgs} args - Arguments to update one Resume.
+     * @example
+     * // Update one Resume
+     * const resume = await prisma.resume.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ResumeUpdateArgs>(args: SelectSubset<T, ResumeUpdateArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Resumes.
+     * @param {ResumeDeleteManyArgs} args - Arguments to filter Resumes to delete.
+     * @example
+     * // Delete a few Resumes
+     * const { count } = await prisma.resume.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ResumeDeleteManyArgs>(args?: SelectSubset<T, ResumeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Resumes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Resumes
+     * const resume = await prisma.resume.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ResumeUpdateManyArgs>(args: SelectSubset<T, ResumeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Resume.
+     * @param {ResumeUpsertArgs} args - Arguments to update or create a Resume.
+     * @example
+     * // Update or create a Resume
+     * const resume = await prisma.resume.upsert({
+     *   create: {
+     *     // ... data to create a Resume
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Resume we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ResumeUpsertArgs>(args: SelectSubset<T, ResumeUpsertArgs<ExtArgs>>): Prisma__ResumeClient<$Result.GetResult<Prisma.$ResumePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Resumes.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeCountArgs} args - Arguments to filter Resumes to count.
+     * @example
+     * // Count the number of Resumes
+     * const count = await prisma.resume.count({
+     *   where: {
+     *     // ... the filter for the Resumes we want to count
+     *   }
+     * })
+    **/
+    count<T extends ResumeCountArgs>(
+      args?: Subset<T, ResumeCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ResumeCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Resume.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ResumeAggregateArgs>(args: Subset<T, ResumeAggregateArgs>): Prisma.PrismaPromise<GetResumeAggregateType<T>>
+
+    /**
+     * Group by Resume.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ResumeGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ResumeGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ResumeGroupByArgs['orderBy'] }
+        : { orderBy?: ResumeGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ResumeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetResumeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Resume model
+   */
+  readonly fields: ResumeFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Resume.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ResumeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Resume model
+   */ 
+  interface ResumeFieldRefs {
+    readonly id: FieldRef<"Resume", 'Int'>
+    readonly name: FieldRef<"Resume", 'String'>
+    readonly fileName: FieldRef<"Resume", 'String'>
+    readonly mimeType: FieldRef<"Resume", 'String'>
+    readonly sizeBytes: FieldRef<"Resume", 'Int'>
+    readonly data: FieldRef<"Resume", 'Bytes'>
+    readonly textContent: FieldRef<"Resume", 'String'>
+    readonly parsed: FieldRef<"Resume", 'String'>
+    readonly tags: FieldRef<"Resume", 'String'>
+    readonly isDefault: FieldRef<"Resume", 'Boolean'>
+    readonly createdAt: FieldRef<"Resume", 'DateTime'>
+    readonly updatedAt: FieldRef<"Resume", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Resume findUnique
+   */
+  export type ResumeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter, which Resume to fetch.
+     */
+    where: ResumeWhereUniqueInput
+  }
+
+  /**
+   * Resume findUniqueOrThrow
+   */
+  export type ResumeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter, which Resume to fetch.
+     */
+    where: ResumeWhereUniqueInput
+  }
+
+  /**
+   * Resume findFirst
+   */
+  export type ResumeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter, which Resume to fetch.
+     */
+    where?: ResumeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Resumes to fetch.
+     */
+    orderBy?: ResumeOrderByWithRelationInput | ResumeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Resumes.
+     */
+    cursor?: ResumeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Resumes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Resumes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Resumes.
+     */
+    distinct?: ResumeScalarFieldEnum | ResumeScalarFieldEnum[]
+  }
+
+  /**
+   * Resume findFirstOrThrow
+   */
+  export type ResumeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter, which Resume to fetch.
+     */
+    where?: ResumeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Resumes to fetch.
+     */
+    orderBy?: ResumeOrderByWithRelationInput | ResumeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Resumes.
+     */
+    cursor?: ResumeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Resumes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Resumes.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Resumes.
+     */
+    distinct?: ResumeScalarFieldEnum | ResumeScalarFieldEnum[]
+  }
+
+  /**
+   * Resume findMany
+   */
+  export type ResumeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter, which Resumes to fetch.
+     */
+    where?: ResumeWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Resumes to fetch.
+     */
+    orderBy?: ResumeOrderByWithRelationInput | ResumeOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Resumes.
+     */
+    cursor?: ResumeWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Resumes from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Resumes.
+     */
+    skip?: number
+    distinct?: ResumeScalarFieldEnum | ResumeScalarFieldEnum[]
+  }
+
+  /**
+   * Resume create
+   */
+  export type ResumeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * The data needed to create a Resume.
+     */
+    data: XOR<ResumeCreateInput, ResumeUncheckedCreateInput>
+  }
+
+  /**
+   * Resume createMany
+   */
+  export type ResumeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Resumes.
+     */
+    data: ResumeCreateManyInput | ResumeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Resume createManyAndReturn
+   */
+  export type ResumeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Resumes.
+     */
+    data: ResumeCreateManyInput | ResumeCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Resume update
+   */
+  export type ResumeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * The data needed to update a Resume.
+     */
+    data: XOR<ResumeUpdateInput, ResumeUncheckedUpdateInput>
+    /**
+     * Choose, which Resume to update.
+     */
+    where: ResumeWhereUniqueInput
+  }
+
+  /**
+   * Resume updateMany
+   */
+  export type ResumeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Resumes.
+     */
+    data: XOR<ResumeUpdateManyMutationInput, ResumeUncheckedUpdateManyInput>
+    /**
+     * Filter which Resumes to update
+     */
+    where?: ResumeWhereInput
+  }
+
+  /**
+   * Resume upsert
+   */
+  export type ResumeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * The filter to search for the Resume to update in case it exists.
+     */
+    where: ResumeWhereUniqueInput
+    /**
+     * In case the Resume found by the `where` argument doesn't exist, create a new Resume with this data.
+     */
+    create: XOR<ResumeCreateInput, ResumeUncheckedCreateInput>
+    /**
+     * In case the Resume was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ResumeUpdateInput, ResumeUncheckedUpdateInput>
+  }
+
+  /**
+   * Resume delete
+   */
+  export type ResumeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+    /**
+     * Filter which Resume to delete.
+     */
+    where: ResumeWhereUniqueInput
+  }
+
+  /**
+   * Resume deleteMany
+   */
+  export type ResumeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Resumes to delete
+     */
+    where?: ResumeWhereInput
+  }
+
+  /**
+   * Resume without action
+   */
+  export type ResumeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Resume
+     */
+    select?: ResumeSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model SavedAnswer
+   */
+
+  export type AggregateSavedAnswer = {
+    _count: SavedAnswerCountAggregateOutputType | null
+    _avg: SavedAnswerAvgAggregateOutputType | null
+    _sum: SavedAnswerSumAggregateOutputType | null
+    _min: SavedAnswerMinAggregateOutputType | null
+    _max: SavedAnswerMaxAggregateOutputType | null
+  }
+
+  export type SavedAnswerAvgAggregateOutputType = {
+    id: number | null
+    uses: number | null
+  }
+
+  export type SavedAnswerSumAggregateOutputType = {
+    id: number | null
+    uses: number | null
+  }
+
+  export type SavedAnswerMinAggregateOutputType = {
+    id: number | null
+    question: string | null
+    answer: string | null
+    tags: string | null
+    uses: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SavedAnswerMaxAggregateOutputType = {
+    id: number | null
+    question: string | null
+    answer: string | null
+    tags: string | null
+    uses: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SavedAnswerCountAggregateOutputType = {
+    id: number
+    question: number
+    answer: number
+    tags: number
+    uses: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SavedAnswerAvgAggregateInputType = {
+    id?: true
+    uses?: true
+  }
+
+  export type SavedAnswerSumAggregateInputType = {
+    id?: true
+    uses?: true
+  }
+
+  export type SavedAnswerMinAggregateInputType = {
+    id?: true
+    question?: true
+    answer?: true
+    tags?: true
+    uses?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SavedAnswerMaxAggregateInputType = {
+    id?: true
+    question?: true
+    answer?: true
+    tags?: true
+    uses?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SavedAnswerCountAggregateInputType = {
+    id?: true
+    question?: true
+    answer?: true
+    tags?: true
+    uses?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SavedAnswerAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SavedAnswer to aggregate.
+     */
+    where?: SavedAnswerWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SavedAnswers to fetch.
+     */
+    orderBy?: SavedAnswerOrderByWithRelationInput | SavedAnswerOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SavedAnswerWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SavedAnswers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SavedAnswers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SavedAnswers
+    **/
+    _count?: true | SavedAnswerCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SavedAnswerAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SavedAnswerSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SavedAnswerMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SavedAnswerMaxAggregateInputType
+  }
+
+  export type GetSavedAnswerAggregateType<T extends SavedAnswerAggregateArgs> = {
+        [P in keyof T & keyof AggregateSavedAnswer]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSavedAnswer[P]>
+      : GetScalarType<T[P], AggregateSavedAnswer[P]>
+  }
+
+
+
+
+  export type SavedAnswerGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SavedAnswerWhereInput
+    orderBy?: SavedAnswerOrderByWithAggregationInput | SavedAnswerOrderByWithAggregationInput[]
+    by: SavedAnswerScalarFieldEnum[] | SavedAnswerScalarFieldEnum
+    having?: SavedAnswerScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SavedAnswerCountAggregateInputType | true
+    _avg?: SavedAnswerAvgAggregateInputType
+    _sum?: SavedAnswerSumAggregateInputType
+    _min?: SavedAnswerMinAggregateInputType
+    _max?: SavedAnswerMaxAggregateInputType
+  }
+
+  export type SavedAnswerGroupByOutputType = {
+    id: number
+    question: string
+    answer: string
+    tags: string | null
+    uses: number
+    createdAt: Date
+    updatedAt: Date
+    _count: SavedAnswerCountAggregateOutputType | null
+    _avg: SavedAnswerAvgAggregateOutputType | null
+    _sum: SavedAnswerSumAggregateOutputType | null
+    _min: SavedAnswerMinAggregateOutputType | null
+    _max: SavedAnswerMaxAggregateOutputType | null
+  }
+
+  type GetSavedAnswerGroupByPayload<T extends SavedAnswerGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SavedAnswerGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SavedAnswerGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SavedAnswerGroupByOutputType[P]>
+            : GetScalarType<T[P], SavedAnswerGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SavedAnswerSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    question?: boolean
+    answer?: boolean
+    tags?: boolean
+    uses?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["savedAnswer"]>
+
+  export type SavedAnswerSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    question?: boolean
+    answer?: boolean
+    tags?: boolean
+    uses?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["savedAnswer"]>
+
+  export type SavedAnswerSelectScalar = {
+    id?: boolean
+    question?: boolean
+    answer?: boolean
+    tags?: boolean
+    uses?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $SavedAnswerPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SavedAnswer"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      question: string
+      answer: string
+      tags: string | null
+      uses: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["savedAnswer"]>
+    composites: {}
+  }
+
+  type SavedAnswerGetPayload<S extends boolean | null | undefined | SavedAnswerDefaultArgs> = $Result.GetResult<Prisma.$SavedAnswerPayload, S>
+
+  type SavedAnswerCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<SavedAnswerFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: SavedAnswerCountAggregateInputType | true
+    }
+
+  export interface SavedAnswerDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SavedAnswer'], meta: { name: 'SavedAnswer' } }
+    /**
+     * Find zero or one SavedAnswer that matches the filter.
+     * @param {SavedAnswerFindUniqueArgs} args - Arguments to find a SavedAnswer
+     * @example
+     * // Get one SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SavedAnswerFindUniqueArgs>(args: SelectSubset<T, SavedAnswerFindUniqueArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one SavedAnswer that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {SavedAnswerFindUniqueOrThrowArgs} args - Arguments to find a SavedAnswer
+     * @example
+     * // Get one SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SavedAnswerFindUniqueOrThrowArgs>(args: SelectSubset<T, SavedAnswerFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first SavedAnswer that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerFindFirstArgs} args - Arguments to find a SavedAnswer
+     * @example
+     * // Get one SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SavedAnswerFindFirstArgs>(args?: SelectSubset<T, SavedAnswerFindFirstArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first SavedAnswer that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerFindFirstOrThrowArgs} args - Arguments to find a SavedAnswer
+     * @example
+     * // Get one SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SavedAnswerFindFirstOrThrowArgs>(args?: SelectSubset<T, SavedAnswerFindFirstOrThrowArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more SavedAnswers that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SavedAnswers
+     * const savedAnswers = await prisma.savedAnswer.findMany()
+     * 
+     * // Get first 10 SavedAnswers
+     * const savedAnswers = await prisma.savedAnswer.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const savedAnswerWithIdOnly = await prisma.savedAnswer.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SavedAnswerFindManyArgs>(args?: SelectSubset<T, SavedAnswerFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a SavedAnswer.
+     * @param {SavedAnswerCreateArgs} args - Arguments to create a SavedAnswer.
+     * @example
+     * // Create one SavedAnswer
+     * const SavedAnswer = await prisma.savedAnswer.create({
+     *   data: {
+     *     // ... data to create a SavedAnswer
+     *   }
+     * })
+     * 
+     */
+    create<T extends SavedAnswerCreateArgs>(args: SelectSubset<T, SavedAnswerCreateArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many SavedAnswers.
+     * @param {SavedAnswerCreateManyArgs} args - Arguments to create many SavedAnswers.
+     * @example
+     * // Create many SavedAnswers
+     * const savedAnswer = await prisma.savedAnswer.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SavedAnswerCreateManyArgs>(args?: SelectSubset<T, SavedAnswerCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SavedAnswers and returns the data saved in the database.
+     * @param {SavedAnswerCreateManyAndReturnArgs} args - Arguments to create many SavedAnswers.
+     * @example
+     * // Create many SavedAnswers
+     * const savedAnswer = await prisma.savedAnswer.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SavedAnswers and only return the `id`
+     * const savedAnswerWithIdOnly = await prisma.savedAnswer.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SavedAnswerCreateManyAndReturnArgs>(args?: SelectSubset<T, SavedAnswerCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a SavedAnswer.
+     * @param {SavedAnswerDeleteArgs} args - Arguments to delete one SavedAnswer.
+     * @example
+     * // Delete one SavedAnswer
+     * const SavedAnswer = await prisma.savedAnswer.delete({
+     *   where: {
+     *     // ... filter to delete one SavedAnswer
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SavedAnswerDeleteArgs>(args: SelectSubset<T, SavedAnswerDeleteArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one SavedAnswer.
+     * @param {SavedAnswerUpdateArgs} args - Arguments to update one SavedAnswer.
+     * @example
+     * // Update one SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SavedAnswerUpdateArgs>(args: SelectSubset<T, SavedAnswerUpdateArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more SavedAnswers.
+     * @param {SavedAnswerDeleteManyArgs} args - Arguments to filter SavedAnswers to delete.
+     * @example
+     * // Delete a few SavedAnswers
+     * const { count } = await prisma.savedAnswer.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SavedAnswerDeleteManyArgs>(args?: SelectSubset<T, SavedAnswerDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SavedAnswers.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SavedAnswers
+     * const savedAnswer = await prisma.savedAnswer.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SavedAnswerUpdateManyArgs>(args: SelectSubset<T, SavedAnswerUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one SavedAnswer.
+     * @param {SavedAnswerUpsertArgs} args - Arguments to update or create a SavedAnswer.
+     * @example
+     * // Update or create a SavedAnswer
+     * const savedAnswer = await prisma.savedAnswer.upsert({
+     *   create: {
+     *     // ... data to create a SavedAnswer
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SavedAnswer we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SavedAnswerUpsertArgs>(args: SelectSubset<T, SavedAnswerUpsertArgs<ExtArgs>>): Prisma__SavedAnswerClient<$Result.GetResult<Prisma.$SavedAnswerPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of SavedAnswers.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerCountArgs} args - Arguments to filter SavedAnswers to count.
+     * @example
+     * // Count the number of SavedAnswers
+     * const count = await prisma.savedAnswer.count({
+     *   where: {
+     *     // ... the filter for the SavedAnswers we want to count
+     *   }
+     * })
+    **/
+    count<T extends SavedAnswerCountArgs>(
+      args?: Subset<T, SavedAnswerCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SavedAnswerCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SavedAnswer.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SavedAnswerAggregateArgs>(args: Subset<T, SavedAnswerAggregateArgs>): Prisma.PrismaPromise<GetSavedAnswerAggregateType<T>>
+
+    /**
+     * Group by SavedAnswer.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SavedAnswerGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SavedAnswerGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SavedAnswerGroupByArgs['orderBy'] }
+        : { orderBy?: SavedAnswerGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SavedAnswerGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSavedAnswerGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SavedAnswer model
+   */
+  readonly fields: SavedAnswerFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SavedAnswer.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SavedAnswerClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SavedAnswer model
+   */ 
+  interface SavedAnswerFieldRefs {
+    readonly id: FieldRef<"SavedAnswer", 'Int'>
+    readonly question: FieldRef<"SavedAnswer", 'String'>
+    readonly answer: FieldRef<"SavedAnswer", 'String'>
+    readonly tags: FieldRef<"SavedAnswer", 'String'>
+    readonly uses: FieldRef<"SavedAnswer", 'Int'>
+    readonly createdAt: FieldRef<"SavedAnswer", 'DateTime'>
+    readonly updatedAt: FieldRef<"SavedAnswer", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SavedAnswer findUnique
+   */
+  export type SavedAnswerFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter, which SavedAnswer to fetch.
+     */
+    where: SavedAnswerWhereUniqueInput
+  }
+
+  /**
+   * SavedAnswer findUniqueOrThrow
+   */
+  export type SavedAnswerFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter, which SavedAnswer to fetch.
+     */
+    where: SavedAnswerWhereUniqueInput
+  }
+
+  /**
+   * SavedAnswer findFirst
+   */
+  export type SavedAnswerFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter, which SavedAnswer to fetch.
+     */
+    where?: SavedAnswerWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SavedAnswers to fetch.
+     */
+    orderBy?: SavedAnswerOrderByWithRelationInput | SavedAnswerOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SavedAnswers.
+     */
+    cursor?: SavedAnswerWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SavedAnswers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SavedAnswers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SavedAnswers.
+     */
+    distinct?: SavedAnswerScalarFieldEnum | SavedAnswerScalarFieldEnum[]
+  }
+
+  /**
+   * SavedAnswer findFirstOrThrow
+   */
+  export type SavedAnswerFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter, which SavedAnswer to fetch.
+     */
+    where?: SavedAnswerWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SavedAnswers to fetch.
+     */
+    orderBy?: SavedAnswerOrderByWithRelationInput | SavedAnswerOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SavedAnswers.
+     */
+    cursor?: SavedAnswerWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SavedAnswers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SavedAnswers.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SavedAnswers.
+     */
+    distinct?: SavedAnswerScalarFieldEnum | SavedAnswerScalarFieldEnum[]
+  }
+
+  /**
+   * SavedAnswer findMany
+   */
+  export type SavedAnswerFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter, which SavedAnswers to fetch.
+     */
+    where?: SavedAnswerWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SavedAnswers to fetch.
+     */
+    orderBy?: SavedAnswerOrderByWithRelationInput | SavedAnswerOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SavedAnswers.
+     */
+    cursor?: SavedAnswerWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SavedAnswers from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SavedAnswers.
+     */
+    skip?: number
+    distinct?: SavedAnswerScalarFieldEnum | SavedAnswerScalarFieldEnum[]
+  }
+
+  /**
+   * SavedAnswer create
+   */
+  export type SavedAnswerCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * The data needed to create a SavedAnswer.
+     */
+    data: XOR<SavedAnswerCreateInput, SavedAnswerUncheckedCreateInput>
+  }
+
+  /**
+   * SavedAnswer createMany
+   */
+  export type SavedAnswerCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SavedAnswers.
+     */
+    data: SavedAnswerCreateManyInput | SavedAnswerCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SavedAnswer createManyAndReturn
+   */
+  export type SavedAnswerCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many SavedAnswers.
+     */
+    data: SavedAnswerCreateManyInput | SavedAnswerCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SavedAnswer update
+   */
+  export type SavedAnswerUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * The data needed to update a SavedAnswer.
+     */
+    data: XOR<SavedAnswerUpdateInput, SavedAnswerUncheckedUpdateInput>
+    /**
+     * Choose, which SavedAnswer to update.
+     */
+    where: SavedAnswerWhereUniqueInput
+  }
+
+  /**
+   * SavedAnswer updateMany
+   */
+  export type SavedAnswerUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SavedAnswers.
+     */
+    data: XOR<SavedAnswerUpdateManyMutationInput, SavedAnswerUncheckedUpdateManyInput>
+    /**
+     * Filter which SavedAnswers to update
+     */
+    where?: SavedAnswerWhereInput
+  }
+
+  /**
+   * SavedAnswer upsert
+   */
+  export type SavedAnswerUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * The filter to search for the SavedAnswer to update in case it exists.
+     */
+    where: SavedAnswerWhereUniqueInput
+    /**
+     * In case the SavedAnswer found by the `where` argument doesn't exist, create a new SavedAnswer with this data.
+     */
+    create: XOR<SavedAnswerCreateInput, SavedAnswerUncheckedCreateInput>
+    /**
+     * In case the SavedAnswer was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SavedAnswerUpdateInput, SavedAnswerUncheckedUpdateInput>
+  }
+
+  /**
+   * SavedAnswer delete
+   */
+  export type SavedAnswerDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+    /**
+     * Filter which SavedAnswer to delete.
+     */
+    where: SavedAnswerWhereUniqueInput
+  }
+
+  /**
+   * SavedAnswer deleteMany
+   */
+  export type SavedAnswerDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SavedAnswers to delete
+     */
+    where?: SavedAnswerWhereInput
+  }
+
+  /**
+   * SavedAnswer without action
+   */
+  export type SavedAnswerDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SavedAnswer
+     */
+    select?: SavedAnswerSelect<ExtArgs> | null
+  }
+
+
+  /**
+   * Model AiUsage
+   */
+
+  export type AggregateAiUsage = {
+    _count: AiUsageCountAggregateOutputType | null
+    _avg: AiUsageAvgAggregateOutputType | null
+    _sum: AiUsageSumAggregateOutputType | null
+    _min: AiUsageMinAggregateOutputType | null
+    _max: AiUsageMaxAggregateOutputType | null
+  }
+
+  export type AiUsageAvgAggregateOutputType = {
+    id: number | null
+    inputTokens: number | null
+    outputTokens: number | null
+    cacheReadTokens: number | null
+    cacheWriteTokens: number | null
+    costUsd: number | null
+    durationMs: number | null
+  }
+
+  export type AiUsageSumAggregateOutputType = {
+    id: number | null
+    inputTokens: number | null
+    outputTokens: number | null
+    cacheReadTokens: number | null
+    cacheWriteTokens: number | null
+    costUsd: number | null
+    durationMs: number | null
+  }
+
+  export type AiUsageMinAggregateOutputType = {
+    id: number | null
+    task: string | null
+    provider: string | null
+    model: string | null
+    ok: boolean | null
+    inputTokens: number | null
+    outputTokens: number | null
+    cacheReadTokens: number | null
+    cacheWriteTokens: number | null
+    costUsd: number | null
+    durationMs: number | null
+    error: string | null
+    createdAt: Date | null
+  }
+
+  export type AiUsageMaxAggregateOutputType = {
+    id: number | null
+    task: string | null
+    provider: string | null
+    model: string | null
+    ok: boolean | null
+    inputTokens: number | null
+    outputTokens: number | null
+    cacheReadTokens: number | null
+    cacheWriteTokens: number | null
+    costUsd: number | null
+    durationMs: number | null
+    error: string | null
+    createdAt: Date | null
+  }
+
+  export type AiUsageCountAggregateOutputType = {
+    id: number
+    task: number
+    provider: number
+    model: number
+    ok: number
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens: number
+    cacheWriteTokens: number
+    costUsd: number
+    durationMs: number
+    error: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type AiUsageAvgAggregateInputType = {
+    id?: true
+    inputTokens?: true
+    outputTokens?: true
+    cacheReadTokens?: true
+    cacheWriteTokens?: true
+    costUsd?: true
+    durationMs?: true
+  }
+
+  export type AiUsageSumAggregateInputType = {
+    id?: true
+    inputTokens?: true
+    outputTokens?: true
+    cacheReadTokens?: true
+    cacheWriteTokens?: true
+    costUsd?: true
+    durationMs?: true
+  }
+
+  export type AiUsageMinAggregateInputType = {
+    id?: true
+    task?: true
+    provider?: true
+    model?: true
+    ok?: true
+    inputTokens?: true
+    outputTokens?: true
+    cacheReadTokens?: true
+    cacheWriteTokens?: true
+    costUsd?: true
+    durationMs?: true
+    error?: true
+    createdAt?: true
+  }
+
+  export type AiUsageMaxAggregateInputType = {
+    id?: true
+    task?: true
+    provider?: true
+    model?: true
+    ok?: true
+    inputTokens?: true
+    outputTokens?: true
+    cacheReadTokens?: true
+    cacheWriteTokens?: true
+    costUsd?: true
+    durationMs?: true
+    error?: true
+    createdAt?: true
+  }
+
+  export type AiUsageCountAggregateInputType = {
+    id?: true
+    task?: true
+    provider?: true
+    model?: true
+    ok?: true
+    inputTokens?: true
+    outputTokens?: true
+    cacheReadTokens?: true
+    cacheWriteTokens?: true
+    costUsd?: true
+    durationMs?: true
+    error?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type AiUsageAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AiUsage to aggregate.
+     */
+    where?: AiUsageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AiUsages to fetch.
+     */
+    orderBy?: AiUsageOrderByWithRelationInput | AiUsageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: AiUsageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AiUsages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AiUsages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned AiUsages
+    **/
+    _count?: true | AiUsageCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: AiUsageAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: AiUsageSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: AiUsageMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: AiUsageMaxAggregateInputType
+  }
+
+  export type GetAiUsageAggregateType<T extends AiUsageAggregateArgs> = {
+        [P in keyof T & keyof AggregateAiUsage]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateAiUsage[P]>
+      : GetScalarType<T[P], AggregateAiUsage[P]>
+  }
+
+
+
+
+  export type AiUsageGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: AiUsageWhereInput
+    orderBy?: AiUsageOrderByWithAggregationInput | AiUsageOrderByWithAggregationInput[]
+    by: AiUsageScalarFieldEnum[] | AiUsageScalarFieldEnum
+    having?: AiUsageScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: AiUsageCountAggregateInputType | true
+    _avg?: AiUsageAvgAggregateInputType
+    _sum?: AiUsageSumAggregateInputType
+    _min?: AiUsageMinAggregateInputType
+    _max?: AiUsageMaxAggregateInputType
+  }
+
+  export type AiUsageGroupByOutputType = {
+    id: number
+    task: string
+    provider: string
+    model: string
+    ok: boolean
+    inputTokens: number
+    outputTokens: number
+    cacheReadTokens: number
+    cacheWriteTokens: number
+    costUsd: number
+    durationMs: number | null
+    error: string | null
+    createdAt: Date
+    _count: AiUsageCountAggregateOutputType | null
+    _avg: AiUsageAvgAggregateOutputType | null
+    _sum: AiUsageSumAggregateOutputType | null
+    _min: AiUsageMinAggregateOutputType | null
+    _max: AiUsageMaxAggregateOutputType | null
+  }
+
+  type GetAiUsageGroupByPayload<T extends AiUsageGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<AiUsageGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof AiUsageGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], AiUsageGroupByOutputType[P]>
+            : GetScalarType<T[P], AiUsageGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type AiUsageSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    task?: boolean
+    provider?: boolean
+    model?: boolean
+    ok?: boolean
+    inputTokens?: boolean
+    outputTokens?: boolean
+    cacheReadTokens?: boolean
+    cacheWriteTokens?: boolean
+    costUsd?: boolean
+    durationMs?: boolean
+    error?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["aiUsage"]>
+
+  export type AiUsageSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    task?: boolean
+    provider?: boolean
+    model?: boolean
+    ok?: boolean
+    inputTokens?: boolean
+    outputTokens?: boolean
+    cacheReadTokens?: boolean
+    cacheWriteTokens?: boolean
+    costUsd?: boolean
+    durationMs?: boolean
+    error?: boolean
+    createdAt?: boolean
+  }, ExtArgs["result"]["aiUsage"]>
+
+  export type AiUsageSelectScalar = {
+    id?: boolean
+    task?: boolean
+    provider?: boolean
+    model?: boolean
+    ok?: boolean
+    inputTokens?: boolean
+    outputTokens?: boolean
+    cacheReadTokens?: boolean
+    cacheWriteTokens?: boolean
+    costUsd?: boolean
+    durationMs?: boolean
+    error?: boolean
+    createdAt?: boolean
+  }
+
+
+  export type $AiUsagePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "AiUsage"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      task: string
+      provider: string
+      model: string
+      ok: boolean
+      inputTokens: number
+      outputTokens: number
+      cacheReadTokens: number
+      cacheWriteTokens: number
+      costUsd: number
+      durationMs: number | null
+      error: string | null
+      createdAt: Date
+    }, ExtArgs["result"]["aiUsage"]>
+    composites: {}
+  }
+
+  type AiUsageGetPayload<S extends boolean | null | undefined | AiUsageDefaultArgs> = $Result.GetResult<Prisma.$AiUsagePayload, S>
+
+  type AiUsageCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<AiUsageFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: AiUsageCountAggregateInputType | true
+    }
+
+  export interface AiUsageDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AiUsage'], meta: { name: 'AiUsage' } }
+    /**
+     * Find zero or one AiUsage that matches the filter.
+     * @param {AiUsageFindUniqueArgs} args - Arguments to find a AiUsage
+     * @example
+     * // Get one AiUsage
+     * const aiUsage = await prisma.aiUsage.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends AiUsageFindUniqueArgs>(args: SelectSubset<T, AiUsageFindUniqueArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one AiUsage that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {AiUsageFindUniqueOrThrowArgs} args - Arguments to find a AiUsage
+     * @example
+     * // Get one AiUsage
+     * const aiUsage = await prisma.aiUsage.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends AiUsageFindUniqueOrThrowArgs>(args: SelectSubset<T, AiUsageFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first AiUsage that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageFindFirstArgs} args - Arguments to find a AiUsage
+     * @example
+     * // Get one AiUsage
+     * const aiUsage = await prisma.aiUsage.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends AiUsageFindFirstArgs>(args?: SelectSubset<T, AiUsageFindFirstArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first AiUsage that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageFindFirstOrThrowArgs} args - Arguments to find a AiUsage
+     * @example
+     * // Get one AiUsage
+     * const aiUsage = await prisma.aiUsage.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends AiUsageFindFirstOrThrowArgs>(args?: SelectSubset<T, AiUsageFindFirstOrThrowArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more AiUsages that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all AiUsages
+     * const aiUsages = await prisma.aiUsage.findMany()
+     * 
+     * // Get first 10 AiUsages
+     * const aiUsages = await prisma.aiUsage.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const aiUsageWithIdOnly = await prisma.aiUsage.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends AiUsageFindManyArgs>(args?: SelectSubset<T, AiUsageFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a AiUsage.
+     * @param {AiUsageCreateArgs} args - Arguments to create a AiUsage.
+     * @example
+     * // Create one AiUsage
+     * const AiUsage = await prisma.aiUsage.create({
+     *   data: {
+     *     // ... data to create a AiUsage
+     *   }
+     * })
+     * 
+     */
+    create<T extends AiUsageCreateArgs>(args: SelectSubset<T, AiUsageCreateArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many AiUsages.
+     * @param {AiUsageCreateManyArgs} args - Arguments to create many AiUsages.
+     * @example
+     * // Create many AiUsages
+     * const aiUsage = await prisma.aiUsage.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends AiUsageCreateManyArgs>(args?: SelectSubset<T, AiUsageCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many AiUsages and returns the data saved in the database.
+     * @param {AiUsageCreateManyAndReturnArgs} args - Arguments to create many AiUsages.
+     * @example
+     * // Create many AiUsages
+     * const aiUsage = await prisma.aiUsage.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many AiUsages and only return the `id`
+     * const aiUsageWithIdOnly = await prisma.aiUsage.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends AiUsageCreateManyAndReturnArgs>(args?: SelectSubset<T, AiUsageCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a AiUsage.
+     * @param {AiUsageDeleteArgs} args - Arguments to delete one AiUsage.
+     * @example
+     * // Delete one AiUsage
+     * const AiUsage = await prisma.aiUsage.delete({
+     *   where: {
+     *     // ... filter to delete one AiUsage
+     *   }
+     * })
+     * 
+     */
+    delete<T extends AiUsageDeleteArgs>(args: SelectSubset<T, AiUsageDeleteArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one AiUsage.
+     * @param {AiUsageUpdateArgs} args - Arguments to update one AiUsage.
+     * @example
+     * // Update one AiUsage
+     * const aiUsage = await prisma.aiUsage.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends AiUsageUpdateArgs>(args: SelectSubset<T, AiUsageUpdateArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more AiUsages.
+     * @param {AiUsageDeleteManyArgs} args - Arguments to filter AiUsages to delete.
+     * @example
+     * // Delete a few AiUsages
+     * const { count } = await prisma.aiUsage.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends AiUsageDeleteManyArgs>(args?: SelectSubset<T, AiUsageDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more AiUsages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many AiUsages
+     * const aiUsage = await prisma.aiUsage.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends AiUsageUpdateManyArgs>(args: SelectSubset<T, AiUsageUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one AiUsage.
+     * @param {AiUsageUpsertArgs} args - Arguments to update or create a AiUsage.
+     * @example
+     * // Update or create a AiUsage
+     * const aiUsage = await prisma.aiUsage.upsert({
+     *   create: {
+     *     // ... data to create a AiUsage
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the AiUsage we want to update
+     *   }
+     * })
+     */
+    upsert<T extends AiUsageUpsertArgs>(args: SelectSubset<T, AiUsageUpsertArgs<ExtArgs>>): Prisma__AiUsageClient<$Result.GetResult<Prisma.$AiUsagePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of AiUsages.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageCountArgs} args - Arguments to filter AiUsages to count.
+     * @example
+     * // Count the number of AiUsages
+     * const count = await prisma.aiUsage.count({
+     *   where: {
+     *     // ... the filter for the AiUsages we want to count
+     *   }
+     * })
+    **/
+    count<T extends AiUsageCountArgs>(
+      args?: Subset<T, AiUsageCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], AiUsageCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a AiUsage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends AiUsageAggregateArgs>(args: Subset<T, AiUsageAggregateArgs>): Prisma.PrismaPromise<GetAiUsageAggregateType<T>>
+
+    /**
+     * Group by AiUsage.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {AiUsageGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends AiUsageGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: AiUsageGroupByArgs['orderBy'] }
+        : { orderBy?: AiUsageGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, AiUsageGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAiUsageGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the AiUsage model
+   */
+  readonly fields: AiUsageFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for AiUsage.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__AiUsageClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the AiUsage model
+   */ 
+  interface AiUsageFieldRefs {
+    readonly id: FieldRef<"AiUsage", 'Int'>
+    readonly task: FieldRef<"AiUsage", 'String'>
+    readonly provider: FieldRef<"AiUsage", 'String'>
+    readonly model: FieldRef<"AiUsage", 'String'>
+    readonly ok: FieldRef<"AiUsage", 'Boolean'>
+    readonly inputTokens: FieldRef<"AiUsage", 'Int'>
+    readonly outputTokens: FieldRef<"AiUsage", 'Int'>
+    readonly cacheReadTokens: FieldRef<"AiUsage", 'Int'>
+    readonly cacheWriteTokens: FieldRef<"AiUsage", 'Int'>
+    readonly costUsd: FieldRef<"AiUsage", 'Float'>
+    readonly durationMs: FieldRef<"AiUsage", 'Int'>
+    readonly error: FieldRef<"AiUsage", 'String'>
+    readonly createdAt: FieldRef<"AiUsage", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * AiUsage findUnique
+   */
+  export type AiUsageFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter, which AiUsage to fetch.
+     */
+    where: AiUsageWhereUniqueInput
+  }
+
+  /**
+   * AiUsage findUniqueOrThrow
+   */
+  export type AiUsageFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter, which AiUsage to fetch.
+     */
+    where: AiUsageWhereUniqueInput
+  }
+
+  /**
+   * AiUsage findFirst
+   */
+  export type AiUsageFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter, which AiUsage to fetch.
+     */
+    where?: AiUsageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AiUsages to fetch.
+     */
+    orderBy?: AiUsageOrderByWithRelationInput | AiUsageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AiUsages.
+     */
+    cursor?: AiUsageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AiUsages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AiUsages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AiUsages.
+     */
+    distinct?: AiUsageScalarFieldEnum | AiUsageScalarFieldEnum[]
+  }
+
+  /**
+   * AiUsage findFirstOrThrow
+   */
+  export type AiUsageFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter, which AiUsage to fetch.
+     */
+    where?: AiUsageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AiUsages to fetch.
+     */
+    orderBy?: AiUsageOrderByWithRelationInput | AiUsageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for AiUsages.
+     */
+    cursor?: AiUsageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AiUsages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AiUsages.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of AiUsages.
+     */
+    distinct?: AiUsageScalarFieldEnum | AiUsageScalarFieldEnum[]
+  }
+
+  /**
+   * AiUsage findMany
+   */
+  export type AiUsageFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter, which AiUsages to fetch.
+     */
+    where?: AiUsageWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of AiUsages to fetch.
+     */
+    orderBy?: AiUsageOrderByWithRelationInput | AiUsageOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing AiUsages.
+     */
+    cursor?: AiUsageWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` AiUsages from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` AiUsages.
+     */
+    skip?: number
+    distinct?: AiUsageScalarFieldEnum | AiUsageScalarFieldEnum[]
+  }
+
+  /**
+   * AiUsage create
+   */
+  export type AiUsageCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * The data needed to create a AiUsage.
+     */
+    data: XOR<AiUsageCreateInput, AiUsageUncheckedCreateInput>
+  }
+
+  /**
+   * AiUsage createMany
+   */
+  export type AiUsageCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many AiUsages.
+     */
+    data: AiUsageCreateManyInput | AiUsageCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AiUsage createManyAndReturn
+   */
+  export type AiUsageCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many AiUsages.
+     */
+    data: AiUsageCreateManyInput | AiUsageCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * AiUsage update
+   */
+  export type AiUsageUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * The data needed to update a AiUsage.
+     */
+    data: XOR<AiUsageUpdateInput, AiUsageUncheckedUpdateInput>
+    /**
+     * Choose, which AiUsage to update.
+     */
+    where: AiUsageWhereUniqueInput
+  }
+
+  /**
+   * AiUsage updateMany
+   */
+  export type AiUsageUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update AiUsages.
+     */
+    data: XOR<AiUsageUpdateManyMutationInput, AiUsageUncheckedUpdateManyInput>
+    /**
+     * Filter which AiUsages to update
+     */
+    where?: AiUsageWhereInput
+  }
+
+  /**
+   * AiUsage upsert
+   */
+  export type AiUsageUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * The filter to search for the AiUsage to update in case it exists.
+     */
+    where: AiUsageWhereUniqueInput
+    /**
+     * In case the AiUsage found by the `where` argument doesn't exist, create a new AiUsage with this data.
+     */
+    create: XOR<AiUsageCreateInput, AiUsageUncheckedCreateInput>
+    /**
+     * In case the AiUsage was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<AiUsageUpdateInput, AiUsageUncheckedUpdateInput>
+  }
+
+  /**
+   * AiUsage delete
+   */
+  export type AiUsageDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+    /**
+     * Filter which AiUsage to delete.
+     */
+    where: AiUsageWhereUniqueInput
+  }
+
+  /**
+   * AiUsage deleteMany
+   */
+  export type AiUsageDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which AiUsages to delete
+     */
+    where?: AiUsageWhereInput
+  }
+
+  /**
+   * AiUsage without action
+   */
+  export type AiUsageDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AiUsage
+     */
+    select?: AiUsageSelect<ExtArgs> | null
+  }
+
+
+  /**
    * Model ExtensionLog
    */
 
@@ -7119,6 +10501,7 @@ export namespace Prisma {
     location: 'location',
     url: 'url',
     manualApplyUrl: 'manualApplyUrl',
+    applyMethod: 'applyMethod',
     description: 'description',
     salary: 'salary',
     techStack: 'techStack',
@@ -7126,7 +10509,18 @@ export namespace Prisma {
     aiScore: 'aiScore',
     aiReason: 'aiReason',
     sheetSynced: 'sheetSynced',
-    createdAt: 'createdAt'
+    createdAt: 'createdAt',
+    stage: 'stage',
+    stageUpdatedAt: 'stageUpdatedAt',
+    appliedAt: 'appliedAt',
+    followUpAt: 'followUpAt',
+    notes: 'notes',
+    resumeId: 'resumeId',
+    applicationData: 'applicationData',
+    feedback: 'feedback',
+    feedbackAt: 'feedbackAt',
+    eligibility: 'eligibility',
+    signals: 'signals'
   };
 
   export type ScrapedJobScalarFieldEnum = (typeof ScrapedJobScalarFieldEnum)[keyof typeof ScrapedJobScalarFieldEnum]
@@ -7178,6 +10572,56 @@ export namespace Prisma {
   };
 
   export type AnalysisLogScalarFieldEnum = (typeof AnalysisLogScalarFieldEnum)[keyof typeof AnalysisLogScalarFieldEnum]
+
+
+  export const ResumeScalarFieldEnum: {
+    id: 'id',
+    name: 'name',
+    fileName: 'fileName',
+    mimeType: 'mimeType',
+    sizeBytes: 'sizeBytes',
+    data: 'data',
+    textContent: 'textContent',
+    parsed: 'parsed',
+    tags: 'tags',
+    isDefault: 'isDefault',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ResumeScalarFieldEnum = (typeof ResumeScalarFieldEnum)[keyof typeof ResumeScalarFieldEnum]
+
+
+  export const SavedAnswerScalarFieldEnum: {
+    id: 'id',
+    question: 'question',
+    answer: 'answer',
+    tags: 'tags',
+    uses: 'uses',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SavedAnswerScalarFieldEnum = (typeof SavedAnswerScalarFieldEnum)[keyof typeof SavedAnswerScalarFieldEnum]
+
+
+  export const AiUsageScalarFieldEnum: {
+    id: 'id',
+    task: 'task',
+    provider: 'provider',
+    model: 'model',
+    ok: 'ok',
+    inputTokens: 'inputTokens',
+    outputTokens: 'outputTokens',
+    cacheReadTokens: 'cacheReadTokens',
+    cacheWriteTokens: 'cacheWriteTokens',
+    costUsd: 'costUsd',
+    durationMs: 'durationMs',
+    error: 'error',
+    createdAt: 'createdAt'
+  };
+
+  export type AiUsageScalarFieldEnum = (typeof AiUsageScalarFieldEnum)[keyof typeof AiUsageScalarFieldEnum]
 
 
   export const ExtensionLogScalarFieldEnum: {
@@ -7298,6 +10742,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Bytes'
+   */
+  export type BytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes'>
+    
+
+
+  /**
+   * Reference to a field of type 'Bytes[]'
+   */
+  export type ListBytesFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Bytes[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Float'
    */
   export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -7325,6 +10783,7 @@ export namespace Prisma {
     location?: StringNullableFilter<"ScrapedJob"> | string | null
     url?: StringFilter<"ScrapedJob"> | string
     manualApplyUrl?: StringNullableFilter<"ScrapedJob"> | string | null
+    applyMethod?: StringNullableFilter<"ScrapedJob"> | string | null
     description?: StringNullableFilter<"ScrapedJob"> | string | null
     salary?: StringNullableFilter<"ScrapedJob"> | string | null
     techStack?: StringNullableFilter<"ScrapedJob"> | string | null
@@ -7333,6 +10792,17 @@ export namespace Prisma {
     aiReason?: StringNullableFilter<"ScrapedJob"> | string | null
     sheetSynced?: BoolFilter<"ScrapedJob"> | boolean
     createdAt?: DateTimeFilter<"ScrapedJob"> | Date | string
+    stage?: StringNullableFilter<"ScrapedJob"> | string | null
+    stageUpdatedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    appliedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    followUpAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    notes?: StringNullableFilter<"ScrapedJob"> | string | null
+    resumeId?: IntNullableFilter<"ScrapedJob"> | number | null
+    applicationData?: StringNullableFilter<"ScrapedJob"> | string | null
+    feedback?: IntNullableFilter<"ScrapedJob"> | number | null
+    feedbackAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
+    signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
   }
 
@@ -7344,6 +10814,7 @@ export namespace Prisma {
     location?: SortOrderInput | SortOrder
     url?: SortOrder
     manualApplyUrl?: SortOrderInput | SortOrder
+    applyMethod?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     salary?: SortOrderInput | SortOrder
     techStack?: SortOrderInput | SortOrder
@@ -7352,6 +10823,17 @@ export namespace Prisma {
     aiReason?: SortOrderInput | SortOrder
     sheetSynced?: SortOrder
     createdAt?: SortOrder
+    stage?: SortOrderInput | SortOrder
+    stageUpdatedAt?: SortOrderInput | SortOrder
+    appliedAt?: SortOrderInput | SortOrder
+    followUpAt?: SortOrderInput | SortOrder
+    notes?: SortOrderInput | SortOrder
+    resumeId?: SortOrderInput | SortOrder
+    applicationData?: SortOrderInput | SortOrder
+    feedback?: SortOrderInput | SortOrder
+    feedbackAt?: SortOrderInput | SortOrder
+    eligibility?: SortOrderInput | SortOrder
+    signals?: SortOrderInput | SortOrder
     analysisLogs?: AnalysisLogOrderByRelationAggregateInput
   }
 
@@ -7368,6 +10850,7 @@ export namespace Prisma {
     location?: StringNullableFilter<"ScrapedJob"> | string | null
     url?: StringFilter<"ScrapedJob"> | string
     manualApplyUrl?: StringNullableFilter<"ScrapedJob"> | string | null
+    applyMethod?: StringNullableFilter<"ScrapedJob"> | string | null
     description?: StringNullableFilter<"ScrapedJob"> | string | null
     salary?: StringNullableFilter<"ScrapedJob"> | string | null
     techStack?: StringNullableFilter<"ScrapedJob"> | string | null
@@ -7376,6 +10859,17 @@ export namespace Prisma {
     aiReason?: StringNullableFilter<"ScrapedJob"> | string | null
     sheetSynced?: BoolFilter<"ScrapedJob"> | boolean
     createdAt?: DateTimeFilter<"ScrapedJob"> | Date | string
+    stage?: StringNullableFilter<"ScrapedJob"> | string | null
+    stageUpdatedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    appliedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    followUpAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    notes?: StringNullableFilter<"ScrapedJob"> | string | null
+    resumeId?: IntNullableFilter<"ScrapedJob"> | number | null
+    applicationData?: StringNullableFilter<"ScrapedJob"> | string | null
+    feedback?: IntNullableFilter<"ScrapedJob"> | number | null
+    feedbackAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
+    signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
   }, "id" | "platform_url" | "platform_title_company">
 
@@ -7387,6 +10881,7 @@ export namespace Prisma {
     location?: SortOrderInput | SortOrder
     url?: SortOrder
     manualApplyUrl?: SortOrderInput | SortOrder
+    applyMethod?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     salary?: SortOrderInput | SortOrder
     techStack?: SortOrderInput | SortOrder
@@ -7395,6 +10890,17 @@ export namespace Prisma {
     aiReason?: SortOrderInput | SortOrder
     sheetSynced?: SortOrder
     createdAt?: SortOrder
+    stage?: SortOrderInput | SortOrder
+    stageUpdatedAt?: SortOrderInput | SortOrder
+    appliedAt?: SortOrderInput | SortOrder
+    followUpAt?: SortOrderInput | SortOrder
+    notes?: SortOrderInput | SortOrder
+    resumeId?: SortOrderInput | SortOrder
+    applicationData?: SortOrderInput | SortOrder
+    feedback?: SortOrderInput | SortOrder
+    feedbackAt?: SortOrderInput | SortOrder
+    eligibility?: SortOrderInput | SortOrder
+    signals?: SortOrderInput | SortOrder
     _count?: ScrapedJobCountOrderByAggregateInput
     _avg?: ScrapedJobAvgOrderByAggregateInput
     _max?: ScrapedJobMaxOrderByAggregateInput
@@ -7413,6 +10919,7 @@ export namespace Prisma {
     location?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     url?: StringWithAggregatesFilter<"ScrapedJob"> | string
     manualApplyUrl?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+    applyMethod?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     description?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     salary?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     techStack?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
@@ -7421,6 +10928,17 @@ export namespace Prisma {
     aiReason?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     sheetSynced?: BoolWithAggregatesFilter<"ScrapedJob"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"ScrapedJob"> | Date | string
+    stage?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+    stageUpdatedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    appliedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    followUpAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    notes?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+    resumeId?: IntNullableWithAggregatesFilter<"ScrapedJob"> | number | null
+    applicationData?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+    feedback?: IntNullableWithAggregatesFilter<"ScrapedJob"> | number | null
+    feedbackAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    eligibility?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+    signals?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
   }
 
   export type AppConfigWhereInput = {
@@ -7660,6 +11178,253 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"AnalysisLog"> | Date | string
   }
 
+  export type ResumeWhereInput = {
+    AND?: ResumeWhereInput | ResumeWhereInput[]
+    OR?: ResumeWhereInput[]
+    NOT?: ResumeWhereInput | ResumeWhereInput[]
+    id?: IntFilter<"Resume"> | number
+    name?: StringFilter<"Resume"> | string
+    fileName?: StringFilter<"Resume"> | string
+    mimeType?: StringFilter<"Resume"> | string
+    sizeBytes?: IntFilter<"Resume"> | number
+    data?: BytesFilter<"Resume"> | Buffer
+    textContent?: StringNullableFilter<"Resume"> | string | null
+    parsed?: StringNullableFilter<"Resume"> | string | null
+    tags?: StringNullableFilter<"Resume"> | string | null
+    isDefault?: BoolFilter<"Resume"> | boolean
+    createdAt?: DateTimeFilter<"Resume"> | Date | string
+    updatedAt?: DateTimeFilter<"Resume"> | Date | string
+  }
+
+  export type ResumeOrderByWithRelationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    fileName?: SortOrder
+    mimeType?: SortOrder
+    sizeBytes?: SortOrder
+    data?: SortOrder
+    textContent?: SortOrderInput | SortOrder
+    parsed?: SortOrderInput | SortOrder
+    tags?: SortOrderInput | SortOrder
+    isDefault?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ResumeWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: ResumeWhereInput | ResumeWhereInput[]
+    OR?: ResumeWhereInput[]
+    NOT?: ResumeWhereInput | ResumeWhereInput[]
+    name?: StringFilter<"Resume"> | string
+    fileName?: StringFilter<"Resume"> | string
+    mimeType?: StringFilter<"Resume"> | string
+    sizeBytes?: IntFilter<"Resume"> | number
+    data?: BytesFilter<"Resume"> | Buffer
+    textContent?: StringNullableFilter<"Resume"> | string | null
+    parsed?: StringNullableFilter<"Resume"> | string | null
+    tags?: StringNullableFilter<"Resume"> | string | null
+    isDefault?: BoolFilter<"Resume"> | boolean
+    createdAt?: DateTimeFilter<"Resume"> | Date | string
+    updatedAt?: DateTimeFilter<"Resume"> | Date | string
+  }, "id">
+
+  export type ResumeOrderByWithAggregationInput = {
+    id?: SortOrder
+    name?: SortOrder
+    fileName?: SortOrder
+    mimeType?: SortOrder
+    sizeBytes?: SortOrder
+    data?: SortOrder
+    textContent?: SortOrderInput | SortOrder
+    parsed?: SortOrderInput | SortOrder
+    tags?: SortOrderInput | SortOrder
+    isDefault?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ResumeCountOrderByAggregateInput
+    _avg?: ResumeAvgOrderByAggregateInput
+    _max?: ResumeMaxOrderByAggregateInput
+    _min?: ResumeMinOrderByAggregateInput
+    _sum?: ResumeSumOrderByAggregateInput
+  }
+
+  export type ResumeScalarWhereWithAggregatesInput = {
+    AND?: ResumeScalarWhereWithAggregatesInput | ResumeScalarWhereWithAggregatesInput[]
+    OR?: ResumeScalarWhereWithAggregatesInput[]
+    NOT?: ResumeScalarWhereWithAggregatesInput | ResumeScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"Resume"> | number
+    name?: StringWithAggregatesFilter<"Resume"> | string
+    fileName?: StringWithAggregatesFilter<"Resume"> | string
+    mimeType?: StringWithAggregatesFilter<"Resume"> | string
+    sizeBytes?: IntWithAggregatesFilter<"Resume"> | number
+    data?: BytesWithAggregatesFilter<"Resume"> | Buffer
+    textContent?: StringNullableWithAggregatesFilter<"Resume"> | string | null
+    parsed?: StringNullableWithAggregatesFilter<"Resume"> | string | null
+    tags?: StringNullableWithAggregatesFilter<"Resume"> | string | null
+    isDefault?: BoolWithAggregatesFilter<"Resume"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"Resume"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Resume"> | Date | string
+  }
+
+  export type SavedAnswerWhereInput = {
+    AND?: SavedAnswerWhereInput | SavedAnswerWhereInput[]
+    OR?: SavedAnswerWhereInput[]
+    NOT?: SavedAnswerWhereInput | SavedAnswerWhereInput[]
+    id?: IntFilter<"SavedAnswer"> | number
+    question?: StringFilter<"SavedAnswer"> | string
+    answer?: StringFilter<"SavedAnswer"> | string
+    tags?: StringNullableFilter<"SavedAnswer"> | string | null
+    uses?: IntFilter<"SavedAnswer"> | number
+    createdAt?: DateTimeFilter<"SavedAnswer"> | Date | string
+    updatedAt?: DateTimeFilter<"SavedAnswer"> | Date | string
+  }
+
+  export type SavedAnswerOrderByWithRelationInput = {
+    id?: SortOrder
+    question?: SortOrder
+    answer?: SortOrder
+    tags?: SortOrderInput | SortOrder
+    uses?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SavedAnswerWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: SavedAnswerWhereInput | SavedAnswerWhereInput[]
+    OR?: SavedAnswerWhereInput[]
+    NOT?: SavedAnswerWhereInput | SavedAnswerWhereInput[]
+    question?: StringFilter<"SavedAnswer"> | string
+    answer?: StringFilter<"SavedAnswer"> | string
+    tags?: StringNullableFilter<"SavedAnswer"> | string | null
+    uses?: IntFilter<"SavedAnswer"> | number
+    createdAt?: DateTimeFilter<"SavedAnswer"> | Date | string
+    updatedAt?: DateTimeFilter<"SavedAnswer"> | Date | string
+  }, "id">
+
+  export type SavedAnswerOrderByWithAggregationInput = {
+    id?: SortOrder
+    question?: SortOrder
+    answer?: SortOrder
+    tags?: SortOrderInput | SortOrder
+    uses?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SavedAnswerCountOrderByAggregateInput
+    _avg?: SavedAnswerAvgOrderByAggregateInput
+    _max?: SavedAnswerMaxOrderByAggregateInput
+    _min?: SavedAnswerMinOrderByAggregateInput
+    _sum?: SavedAnswerSumOrderByAggregateInput
+  }
+
+  export type SavedAnswerScalarWhereWithAggregatesInput = {
+    AND?: SavedAnswerScalarWhereWithAggregatesInput | SavedAnswerScalarWhereWithAggregatesInput[]
+    OR?: SavedAnswerScalarWhereWithAggregatesInput[]
+    NOT?: SavedAnswerScalarWhereWithAggregatesInput | SavedAnswerScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"SavedAnswer"> | number
+    question?: StringWithAggregatesFilter<"SavedAnswer"> | string
+    answer?: StringWithAggregatesFilter<"SavedAnswer"> | string
+    tags?: StringNullableWithAggregatesFilter<"SavedAnswer"> | string | null
+    uses?: IntWithAggregatesFilter<"SavedAnswer"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"SavedAnswer"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SavedAnswer"> | Date | string
+  }
+
+  export type AiUsageWhereInput = {
+    AND?: AiUsageWhereInput | AiUsageWhereInput[]
+    OR?: AiUsageWhereInput[]
+    NOT?: AiUsageWhereInput | AiUsageWhereInput[]
+    id?: IntFilter<"AiUsage"> | number
+    task?: StringFilter<"AiUsage"> | string
+    provider?: StringFilter<"AiUsage"> | string
+    model?: StringFilter<"AiUsage"> | string
+    ok?: BoolFilter<"AiUsage"> | boolean
+    inputTokens?: IntFilter<"AiUsage"> | number
+    outputTokens?: IntFilter<"AiUsage"> | number
+    cacheReadTokens?: IntFilter<"AiUsage"> | number
+    cacheWriteTokens?: IntFilter<"AiUsage"> | number
+    costUsd?: FloatFilter<"AiUsage"> | number
+    durationMs?: IntNullableFilter<"AiUsage"> | number | null
+    error?: StringNullableFilter<"AiUsage"> | string | null
+    createdAt?: DateTimeFilter<"AiUsage"> | Date | string
+  }
+
+  export type AiUsageOrderByWithRelationInput = {
+    id?: SortOrder
+    task?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    ok?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AiUsageWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: AiUsageWhereInput | AiUsageWhereInput[]
+    OR?: AiUsageWhereInput[]
+    NOT?: AiUsageWhereInput | AiUsageWhereInput[]
+    task?: StringFilter<"AiUsage"> | string
+    provider?: StringFilter<"AiUsage"> | string
+    model?: StringFilter<"AiUsage"> | string
+    ok?: BoolFilter<"AiUsage"> | boolean
+    inputTokens?: IntFilter<"AiUsage"> | number
+    outputTokens?: IntFilter<"AiUsage"> | number
+    cacheReadTokens?: IntFilter<"AiUsage"> | number
+    cacheWriteTokens?: IntFilter<"AiUsage"> | number
+    costUsd?: FloatFilter<"AiUsage"> | number
+    durationMs?: IntNullableFilter<"AiUsage"> | number | null
+    error?: StringNullableFilter<"AiUsage"> | string | null
+    createdAt?: DateTimeFilter<"AiUsage"> | Date | string
+  }, "id">
+
+  export type AiUsageOrderByWithAggregationInput = {
+    id?: SortOrder
+    task?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    ok?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrderInput | SortOrder
+    error?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    _count?: AiUsageCountOrderByAggregateInput
+    _avg?: AiUsageAvgOrderByAggregateInput
+    _max?: AiUsageMaxOrderByAggregateInput
+    _min?: AiUsageMinOrderByAggregateInput
+    _sum?: AiUsageSumOrderByAggregateInput
+  }
+
+  export type AiUsageScalarWhereWithAggregatesInput = {
+    AND?: AiUsageScalarWhereWithAggregatesInput | AiUsageScalarWhereWithAggregatesInput[]
+    OR?: AiUsageScalarWhereWithAggregatesInput[]
+    NOT?: AiUsageScalarWhereWithAggregatesInput | AiUsageScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"AiUsage"> | number
+    task?: StringWithAggregatesFilter<"AiUsage"> | string
+    provider?: StringWithAggregatesFilter<"AiUsage"> | string
+    model?: StringWithAggregatesFilter<"AiUsage"> | string
+    ok?: BoolWithAggregatesFilter<"AiUsage"> | boolean
+    inputTokens?: IntWithAggregatesFilter<"AiUsage"> | number
+    outputTokens?: IntWithAggregatesFilter<"AiUsage"> | number
+    cacheReadTokens?: IntWithAggregatesFilter<"AiUsage"> | number
+    cacheWriteTokens?: IntWithAggregatesFilter<"AiUsage"> | number
+    costUsd?: FloatWithAggregatesFilter<"AiUsage"> | number
+    durationMs?: IntNullableWithAggregatesFilter<"AiUsage"> | number | null
+    error?: StringNullableWithAggregatesFilter<"AiUsage"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"AiUsage"> | Date | string
+  }
+
   export type ExtensionLogWhereInput = {
     AND?: ExtensionLogWhereInput | ExtensionLogWhereInput[]
     OR?: ExtensionLogWhereInput[]
@@ -7721,6 +11486,7 @@ export namespace Prisma {
     location?: string | null
     url: string
     manualApplyUrl?: string | null
+    applyMethod?: string | null
     description?: string | null
     salary?: string | null
     techStack?: string | null
@@ -7729,6 +11495,17 @@ export namespace Prisma {
     aiReason?: string | null
     sheetSynced?: boolean
     createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
   }
 
@@ -7740,6 +11517,7 @@ export namespace Prisma {
     location?: string | null
     url: string
     manualApplyUrl?: string | null
+    applyMethod?: string | null
     description?: string | null
     salary?: string | null
     techStack?: string | null
@@ -7748,6 +11526,17 @@ export namespace Prisma {
     aiReason?: string | null
     sheetSynced?: boolean
     createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
   }
 
@@ -7758,6 +11547,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -7766,6 +11556,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
   }
 
@@ -7777,6 +11578,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -7785,6 +11587,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
   }
 
@@ -7796,6 +11609,7 @@ export namespace Prisma {
     location?: string | null
     url: string
     manualApplyUrl?: string | null
+    applyMethod?: string | null
     description?: string | null
     salary?: string | null
     techStack?: string | null
@@ -7804,6 +11618,17 @@ export namespace Prisma {
     aiReason?: string | null
     sheetSynced?: boolean
     createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
   }
 
   export type ScrapedJobUpdateManyMutationInput = {
@@ -7813,6 +11638,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -7821,6 +11647,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ScrapedJobUncheckedUpdateManyInput = {
@@ -7831,6 +11668,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -7839,6 +11677,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type AppConfigCreateInput = {
@@ -8083,6 +11932,284 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ResumeCreateInput = {
+    name: string
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    data: Buffer
+    textContent?: string | null
+    parsed?: string | null
+    tags?: string | null
+    isDefault?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ResumeUncheckedCreateInput = {
+    id?: number
+    name: string
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    data: Buffer
+    textContent?: string | null
+    parsed?: string | null
+    tags?: string | null
+    isDefault?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ResumeUpdateInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    sizeBytes?: IntFieldUpdateOperationsInput | number
+    data?: BytesFieldUpdateOperationsInput | Buffer
+    textContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsed?: NullableStringFieldUpdateOperationsInput | string | null
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    isDefault?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ResumeUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    sizeBytes?: IntFieldUpdateOperationsInput | number
+    data?: BytesFieldUpdateOperationsInput | Buffer
+    textContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsed?: NullableStringFieldUpdateOperationsInput | string | null
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    isDefault?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ResumeCreateManyInput = {
+    id?: number
+    name: string
+    fileName: string
+    mimeType: string
+    sizeBytes: number
+    data: Buffer
+    textContent?: string | null
+    parsed?: string | null
+    tags?: string | null
+    isDefault?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ResumeUpdateManyMutationInput = {
+    name?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    sizeBytes?: IntFieldUpdateOperationsInput | number
+    data?: BytesFieldUpdateOperationsInput | Buffer
+    textContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsed?: NullableStringFieldUpdateOperationsInput | string | null
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    isDefault?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ResumeUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    name?: StringFieldUpdateOperationsInput | string
+    fileName?: StringFieldUpdateOperationsInput | string
+    mimeType?: StringFieldUpdateOperationsInput | string
+    sizeBytes?: IntFieldUpdateOperationsInput | number
+    data?: BytesFieldUpdateOperationsInput | Buffer
+    textContent?: NullableStringFieldUpdateOperationsInput | string | null
+    parsed?: NullableStringFieldUpdateOperationsInput | string | null
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    isDefault?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SavedAnswerCreateInput = {
+    question: string
+    answer: string
+    tags?: string | null
+    uses?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SavedAnswerUncheckedCreateInput = {
+    id?: number
+    question: string
+    answer: string
+    tags?: string | null
+    uses?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SavedAnswerUpdateInput = {
+    question?: StringFieldUpdateOperationsInput | string
+    answer?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    uses?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SavedAnswerUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    question?: StringFieldUpdateOperationsInput | string
+    answer?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    uses?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SavedAnswerCreateManyInput = {
+    id?: number
+    question: string
+    answer: string
+    tags?: string | null
+    uses?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SavedAnswerUpdateManyMutationInput = {
+    question?: StringFieldUpdateOperationsInput | string
+    answer?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    uses?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SavedAnswerUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    question?: StringFieldUpdateOperationsInput | string
+    answer?: StringFieldUpdateOperationsInput | string
+    tags?: NullableStringFieldUpdateOperationsInput | string | null
+    uses?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AiUsageCreateInput = {
+    task: string
+    provider: string
+    model: string
+    ok?: boolean
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    costUsd?: number
+    durationMs?: number | null
+    error?: string | null
+    createdAt?: Date | string
+  }
+
+  export type AiUsageUncheckedCreateInput = {
+    id?: number
+    task: string
+    provider: string
+    model: string
+    ok?: boolean
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    costUsd?: number
+    durationMs?: number | null
+    error?: string | null
+    createdAt?: Date | string
+  }
+
+  export type AiUsageUpdateInput = {
+    task?: StringFieldUpdateOperationsInput | string
+    provider?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    ok?: BoolFieldUpdateOperationsInput | boolean
+    inputTokens?: IntFieldUpdateOperationsInput | number
+    outputTokens?: IntFieldUpdateOperationsInput | number
+    cacheReadTokens?: IntFieldUpdateOperationsInput | number
+    cacheWriteTokens?: IntFieldUpdateOperationsInput | number
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AiUsageUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    task?: StringFieldUpdateOperationsInput | string
+    provider?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    ok?: BoolFieldUpdateOperationsInput | boolean
+    inputTokens?: IntFieldUpdateOperationsInput | number
+    outputTokens?: IntFieldUpdateOperationsInput | number
+    cacheReadTokens?: IntFieldUpdateOperationsInput | number
+    cacheWriteTokens?: IntFieldUpdateOperationsInput | number
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AiUsageCreateManyInput = {
+    id?: number
+    task: string
+    provider: string
+    model: string
+    ok?: boolean
+    inputTokens?: number
+    outputTokens?: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    costUsd?: number
+    durationMs?: number | null
+    error?: string | null
+    createdAt?: Date | string
+  }
+
+  export type AiUsageUpdateManyMutationInput = {
+    task?: StringFieldUpdateOperationsInput | string
+    provider?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    ok?: BoolFieldUpdateOperationsInput | boolean
+    inputTokens?: IntFieldUpdateOperationsInput | number
+    outputTokens?: IntFieldUpdateOperationsInput | number
+    cacheReadTokens?: IntFieldUpdateOperationsInput | number
+    cacheWriteTokens?: IntFieldUpdateOperationsInput | number
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type AiUsageUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    task?: StringFieldUpdateOperationsInput | string
+    provider?: StringFieldUpdateOperationsInput | string
+    model?: StringFieldUpdateOperationsInput | string
+    ok?: BoolFieldUpdateOperationsInput | boolean
+    inputTokens?: IntFieldUpdateOperationsInput | number
+    outputTokens?: IntFieldUpdateOperationsInput | number
+    cacheReadTokens?: IntFieldUpdateOperationsInput | number
+    cacheWriteTokens?: IntFieldUpdateOperationsInput | number
+    costUsd?: FloatFieldUpdateOperationsInput | number
+    durationMs?: NullableIntFieldUpdateOperationsInput | number | null
+    error?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type ExtensionLogCreateInput = {
     level?: string
     message: string
@@ -8211,6 +12338,17 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type AnalysisLogListRelationFilter = {
     every?: AnalysisLogWhereInput
     some?: AnalysisLogWhereInput
@@ -8245,6 +12383,7 @@ export namespace Prisma {
     location?: SortOrder
     url?: SortOrder
     manualApplyUrl?: SortOrder
+    applyMethod?: SortOrder
     description?: SortOrder
     salary?: SortOrder
     techStack?: SortOrder
@@ -8253,11 +12392,24 @@ export namespace Prisma {
     aiReason?: SortOrder
     sheetSynced?: SortOrder
     createdAt?: SortOrder
+    stage?: SortOrder
+    stageUpdatedAt?: SortOrder
+    appliedAt?: SortOrder
+    followUpAt?: SortOrder
+    notes?: SortOrder
+    resumeId?: SortOrder
+    applicationData?: SortOrder
+    feedback?: SortOrder
+    feedbackAt?: SortOrder
+    eligibility?: SortOrder
+    signals?: SortOrder
   }
 
   export type ScrapedJobAvgOrderByAggregateInput = {
     id?: SortOrder
     aiScore?: SortOrder
+    resumeId?: SortOrder
+    feedback?: SortOrder
   }
 
   export type ScrapedJobMaxOrderByAggregateInput = {
@@ -8268,6 +12420,7 @@ export namespace Prisma {
     location?: SortOrder
     url?: SortOrder
     manualApplyUrl?: SortOrder
+    applyMethod?: SortOrder
     description?: SortOrder
     salary?: SortOrder
     techStack?: SortOrder
@@ -8276,6 +12429,17 @@ export namespace Prisma {
     aiReason?: SortOrder
     sheetSynced?: SortOrder
     createdAt?: SortOrder
+    stage?: SortOrder
+    stageUpdatedAt?: SortOrder
+    appliedAt?: SortOrder
+    followUpAt?: SortOrder
+    notes?: SortOrder
+    resumeId?: SortOrder
+    applicationData?: SortOrder
+    feedback?: SortOrder
+    feedbackAt?: SortOrder
+    eligibility?: SortOrder
+    signals?: SortOrder
   }
 
   export type ScrapedJobMinOrderByAggregateInput = {
@@ -8286,6 +12450,7 @@ export namespace Prisma {
     location?: SortOrder
     url?: SortOrder
     manualApplyUrl?: SortOrder
+    applyMethod?: SortOrder
     description?: SortOrder
     salary?: SortOrder
     techStack?: SortOrder
@@ -8294,11 +12459,24 @@ export namespace Prisma {
     aiReason?: SortOrder
     sheetSynced?: SortOrder
     createdAt?: SortOrder
+    stage?: SortOrder
+    stageUpdatedAt?: SortOrder
+    appliedAt?: SortOrder
+    followUpAt?: SortOrder
+    notes?: SortOrder
+    resumeId?: SortOrder
+    applicationData?: SortOrder
+    feedback?: SortOrder
+    feedbackAt?: SortOrder
+    eligibility?: SortOrder
+    signals?: SortOrder
   }
 
   export type ScrapedJobSumOrderByAggregateInput = {
     id?: SortOrder
     aiScore?: SortOrder
+    resumeId?: SortOrder
+    feedback?: SortOrder
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -8399,6 +12577,20 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type AppConfigCountOrderByAggregateInput = {
@@ -8569,6 +12761,213 @@ export namespace Prisma {
     durationMs?: SortOrder
   }
 
+  export type BytesFilter<$PrismaModel = never> = {
+    equals?: Buffer | BytesFieldRefInput<$PrismaModel>
+    in?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesFilter<$PrismaModel> | Buffer
+  }
+
+  export type ResumeCountOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    fileName?: SortOrder
+    mimeType?: SortOrder
+    sizeBytes?: SortOrder
+    data?: SortOrder
+    textContent?: SortOrder
+    parsed?: SortOrder
+    tags?: SortOrder
+    isDefault?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ResumeAvgOrderByAggregateInput = {
+    id?: SortOrder
+    sizeBytes?: SortOrder
+  }
+
+  export type ResumeMaxOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    fileName?: SortOrder
+    mimeType?: SortOrder
+    sizeBytes?: SortOrder
+    data?: SortOrder
+    textContent?: SortOrder
+    parsed?: SortOrder
+    tags?: SortOrder
+    isDefault?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ResumeMinOrderByAggregateInput = {
+    id?: SortOrder
+    name?: SortOrder
+    fileName?: SortOrder
+    mimeType?: SortOrder
+    sizeBytes?: SortOrder
+    data?: SortOrder
+    textContent?: SortOrder
+    parsed?: SortOrder
+    tags?: SortOrder
+    isDefault?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ResumeSumOrderByAggregateInput = {
+    id?: SortOrder
+    sizeBytes?: SortOrder
+  }
+
+  export type BytesWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Buffer | BytesFieldRefInput<$PrismaModel>
+    in?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesWithAggregatesFilter<$PrismaModel> | Buffer
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBytesFilter<$PrismaModel>
+    _max?: NestedBytesFilter<$PrismaModel>
+  }
+
+  export type SavedAnswerCountOrderByAggregateInput = {
+    id?: SortOrder
+    question?: SortOrder
+    answer?: SortOrder
+    tags?: SortOrder
+    uses?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SavedAnswerAvgOrderByAggregateInput = {
+    id?: SortOrder
+    uses?: SortOrder
+  }
+
+  export type SavedAnswerMaxOrderByAggregateInput = {
+    id?: SortOrder
+    question?: SortOrder
+    answer?: SortOrder
+    tags?: SortOrder
+    uses?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SavedAnswerMinOrderByAggregateInput = {
+    id?: SortOrder
+    question?: SortOrder
+    answer?: SortOrder
+    tags?: SortOrder
+    uses?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SavedAnswerSumOrderByAggregateInput = {
+    id?: SortOrder
+    uses?: SortOrder
+  }
+
+  export type FloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type AiUsageCountOrderByAggregateInput = {
+    id?: SortOrder
+    task?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    ok?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AiUsageAvgOrderByAggregateInput = {
+    id?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type AiUsageMaxOrderByAggregateInput = {
+    id?: SortOrder
+    task?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    ok?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AiUsageMinOrderByAggregateInput = {
+    id?: SortOrder
+    task?: SortOrder
+    provider?: SortOrder
+    model?: SortOrder
+    ok?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrder
+    error?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type AiUsageSumOrderByAggregateInput = {
+    id?: SortOrder
+    inputTokens?: SortOrder
+    outputTokens?: SortOrder
+    cacheReadTokens?: SortOrder
+    cacheWriteTokens?: SortOrder
+    costUsd?: SortOrder
+    durationMs?: SortOrder
+  }
+
+  export type FloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
+  }
+
   export type ExtensionLogCountOrderByAggregateInput = {
     id?: SortOrder
     level?: SortOrder
@@ -8643,6 +13042,10 @@ export namespace Prisma {
     set?: Date | string
   }
 
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
+  }
+
   export type AnalysisLogUpdateManyWithoutScrapedJobNestedInput = {
     create?: XOR<AnalysisLogCreateWithoutScrapedJobInput, AnalysisLogUncheckedCreateWithoutScrapedJobInput> | AnalysisLogCreateWithoutScrapedJobInput[] | AnalysisLogUncheckedCreateWithoutScrapedJobInput[]
     connectOrCreate?: AnalysisLogCreateOrConnectWithoutScrapedJobInput | AnalysisLogCreateOrConnectWithoutScrapedJobInput[]
@@ -8695,6 +13098,18 @@ export namespace Prisma {
     upsert?: ScrapedJobUpsertWithoutAnalysisLogsInput
     connect?: ScrapedJobWhereUniqueInput
     update?: XOR<XOR<ScrapedJobUpdateToOneWithWhereWithoutAnalysisLogsInput, ScrapedJobUpdateWithoutAnalysisLogsInput>, ScrapedJobUncheckedUpdateWithoutAnalysisLogsInput>
+  }
+
+  export type BytesFieldUpdateOperationsInput = {
+    set?: Buffer
+  }
+
+  export type FloatFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
   }
 
   export type NestedIntFilter<$PrismaModel = never> = {
@@ -8768,6 +13183,17 @@ export namespace Prisma {
     gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -8890,6 +13316,20 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
   export type NestedEnumSkipRuleTypeFilter<$PrismaModel = never> = {
     equals?: $Enums.SkipRuleType | EnumSkipRuleTypeFieldRefInput<$PrismaModel>
     in?: $Enums.SkipRuleType[] | ListEnumSkipRuleTypeFieldRefInput<$PrismaModel>
@@ -8905,6 +13345,39 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumSkipRuleTypeFilter<$PrismaModel>
     _max?: NestedEnumSkipRuleTypeFilter<$PrismaModel>
+  }
+
+  export type NestedBytesFilter<$PrismaModel = never> = {
+    equals?: Buffer | BytesFieldRefInput<$PrismaModel>
+    in?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesFilter<$PrismaModel> | Buffer
+  }
+
+  export type NestedBytesWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Buffer | BytesFieldRefInput<$PrismaModel>
+    in?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    notIn?: Buffer[] | ListBytesFieldRefInput<$PrismaModel>
+    not?: NestedBytesWithAggregatesFilter<$PrismaModel> | Buffer
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBytesFilter<$PrismaModel>
+    _max?: NestedBytesFilter<$PrismaModel>
+  }
+
+  export type NestedFloatWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedFloatFilter<$PrismaModel>
+    _min?: NestedFloatFilter<$PrismaModel>
+    _max?: NestedFloatFilter<$PrismaModel>
   }
 
   export type AnalysisLogCreateWithoutScrapedJobInput = {
@@ -8976,6 +13449,7 @@ export namespace Prisma {
     location?: string | null
     url: string
     manualApplyUrl?: string | null
+    applyMethod?: string | null
     description?: string | null
     salary?: string | null
     techStack?: string | null
@@ -8984,6 +13458,17 @@ export namespace Prisma {
     aiReason?: string | null
     sheetSynced?: boolean
     createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
   }
 
   export type ScrapedJobUncheckedCreateWithoutAnalysisLogsInput = {
@@ -8994,6 +13479,7 @@ export namespace Prisma {
     location?: string | null
     url: string
     manualApplyUrl?: string | null
+    applyMethod?: string | null
     description?: string | null
     salary?: string | null
     techStack?: string | null
@@ -9002,6 +13488,17 @@ export namespace Prisma {
     aiReason?: string | null
     sheetSynced?: boolean
     createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
   }
 
   export type ScrapedJobCreateOrConnectWithoutAnalysisLogsInput = {
@@ -9027,6 +13524,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9035,6 +13533,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ScrapedJobUncheckedUpdateWithoutAnalysisLogsInput = {
@@ -9045,6 +13554,7 @@ export namespace Prisma {
     location?: NullableStringFieldUpdateOperationsInput | string | null
     url?: StringFieldUpdateOperationsInput | string
     manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     salary?: NullableStringFieldUpdateOperationsInput | string | null
     techStack?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9053,6 +13563,17 @@ export namespace Prisma {
     aiReason?: NullableStringFieldUpdateOperationsInput | string | null
     sheetSynced?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type AnalysisLogCreateManyScrapedJobInput = {
@@ -9127,6 +13648,18 @@ export namespace Prisma {
      * @deprecated Use AnalysisLogDefaultArgs instead
      */
     export type AnalysisLogArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AnalysisLogDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ResumeDefaultArgs instead
+     */
+    export type ResumeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ResumeDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use SavedAnswerDefaultArgs instead
+     */
+    export type SavedAnswerArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = SavedAnswerDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use AiUsageDefaultArgs instead
+     */
+    export type AiUsageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AiUsageDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ExtensionLogDefaultArgs instead
      */

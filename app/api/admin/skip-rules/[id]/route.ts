@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { invalidateSkipRuleCache } from "@/lib/jobSkipRules";
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const id = Number(params.id);
+type Ctx = { params: Promise<{ id: string }> };
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const id = Number((await params).id);
   const body = await req.json();
   const rule = await prisma.skipRule.update({
     where: { id },
@@ -16,11 +15,8 @@ export async function PATCH(
   return NextResponse.json(rule);
 }
 
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const id = Number(params.id);
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  const id = Number((await params).id);
   await prisma.skipRule.delete({ where: { id } });
   invalidateSkipRuleCache();
   return NextResponse.json({ ok: true });

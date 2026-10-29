@@ -15,6 +15,23 @@ const hideApprovedChk = document.getElementById("hideApprovedChk");
 const showResultsChk = document.getElementById("showResultsChk");
 const betaModeChk = document.getElementById("betaModeChk");
 const jobLimitInput = document.getElementById("jobLimitInput");
+const easyApplyModeSelect = document.getElementById("easyApplyModeSelect");
+const easyApplyMinRow = document.getElementById("easyApplyMinRow");
+const easyApplyMinScoreInput = document.getElementById("easyApplyMinScoreInput");
+
+// "skip" (default: reject + hide without AI) or "analyze" (judge like any job).
+function normalizeEasyApplyMode(raw) {
+  return raw === "analyze" ? "analyze" : "skip";
+}
+// 0..100; anything else becomes 0 (= no extra bar for Easy Apply jobs).
+function normalizeMinScore(raw) {
+  const n = parseInt(raw, 10);
+  if (isNaN(n) || n < 0) return 0;
+  return Math.min(100, n);
+}
+function applyEasyApplyModeUi() {
+  easyApplyMinRow.style.display = easyApplyModeSelect.value === "analyze" ? "flex" : "none";
+}
 
 const DEFAULT_JOB_LIMIT = 100;
 // Normalize the user's "Job scan limit" input into the value the scanner uses:
@@ -30,6 +47,22 @@ function normalizeJobLimit(raw) {
   if (n < 1) return DEFAULT_JOB_LIMIT;
   return n;
 }
+
+// The side panel must open inside the click (Chrome needs the user gesture),
+// so remember this window's id up front.
+let currentWindowId = null;
+chrome.windows.getCurrent((w) => {
+  currentWindowId = w ? w.id : null;
+});
+document.getElementById("autofillBtn").addEventListener("click", () => {
+  if (!chrome.sidePanel || currentWindowId == null) {
+    statusMsg.textContent = "The autofill panel needs Chrome 116 or newer.";
+    return;
+  }
+  chrome.sidePanel.open({ windowId: currentWindowId }).then(() => window.close()).catch((e) => {
+    statusMsg.textContent = `Could not open the panel: ${e.message}`;
+  });
+});
 
 const MAX_VISIBLE_RESULTS = 100;
 const downloadBtn = document.getElementById("downloadBtn");
@@ -54,7 +87,10 @@ function addLog(msg, level) {
   console.log("[JobScanner]", msg);
 }
 
-chrome.storage.local.get(["extensionApiKey", "serverUrl", "sendLogsToServer", "hideApproved", "showResults", "betaMode", "jobLimit"], (data) => {
+chrome.storage.local.get(["extensionApiKey", "serverUrl", "sendLogsToServer", "hideApproved", "showResults", "betaMode", "jobLimit", "easyApplyMode", "easyApplyMinScore"], (data) => {
+  easyApplyModeSelect.value = normalizeEasyApplyMode(data.easyApplyMode);
+  easyApplyMinScoreInput.value = String(normalizeMinScore(data.easyApplyMinScore));
+  applyEasyApplyModeUi();
   if (data.extensionApiKey) apiKeyInput.value = data.extensionApiKey;
   if (data.serverUrl) serverUrlInput.value = data.serverUrl;
   if (data.sendLogsToServer) sendLogsChk.checked = true;
@@ -86,6 +122,20 @@ sendLogsChk.addEventListener("change", () => {
 hideApprovedChk.addEventListener("change", () => {
   chrome.storage.local.set({ hideApproved: hideApprovedChk.checked });
   addLog(`Hide approved jobs: ${hideApprovedChk.checked ? "ON" : "OFF"}`);
+});
+
+easyApplyModeSelect.addEventListener("change", () => {
+  const mode = normalizeEasyApplyMode(easyApplyModeSelect.value);
+  chrome.storage.local.set({ easyApplyMode: mode });
+  applyEasyApplyModeUi();
+  addLog(`Easy Apply jobs: ${mode === "analyze" ? "analyze with AI" : "skip and hide"}`);
+});
+
+easyApplyMinScoreInput.addEventListener("change", () => {
+  const min = normalizeMinScore(easyApplyMinScoreInput.value);
+  easyApplyMinScoreInput.value = String(min);
+  chrome.storage.local.set({ easyApplyMinScore: min });
+  addLog(`Easy Apply minimum score: ${min || "same as other jobs"}`);
 });
 
 betaModeChk.addEventListener("change", () => {
@@ -161,9 +211,12 @@ function sendLogsToServer() {
       logs: state.logs.map((l) => ({ timestamp: l.ts, level: l.level, message: l.message })),
       sessionId: state.sessionId,
     };
+    const headers = { "Content-Type": "application/json" };
+    const key = apiKeyInput.value.trim();
+    if (key) headers["X-API-Key"] = key;
     fetch(`${serverUrl}/api/extension/logs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(payload),
     }).then((r) => r.json()).then((data) => {
       console.log("[JobScanner] Logs sent:", data);
@@ -222,6 +275,12 @@ function renderResultCard(r) {
   const meta = document.createElement("div");
   meta.className = "result-meta";
   meta.textContent = [r.company, r.location].filter(Boolean).join(" — ");
+  if (r.applyMethod === "EASY_APPLY" && r.status !== "easy_apply") {
+    const chip = document.createElement("span");
+    chip.className = "apply-chip";
+    chip.textContent = "Easy Apply";
+    meta.appendChild(chip);
+  }
   card.appendChild(meta);
 
   if (r.reason) {
@@ -379,25 +438,34 @@ startBtn.addEventListener("click", () => {
         logArea.textContent = "";
         const betaMode = betaModeChk.checked;
         const jobLimit = normalizeJobLimit(jobLimitInput.value);
+        const easyApplyMode = normalizeEasyApplyMode(easyApplyModeSelect.value);
+        const easyApplyMinScore = normalizeMinScore(easyApplyMinScoreInput.value);
+        chrome.storage.local.set({ easyApplyMode, easyApplyMinScore });
         // Persist the limit so a scan that pages via full reload can restore it
         // when the content script resumes after navigation.
         jobLimitInput.value = String(jobLimit);
         chrome.storage.local.set({ jobLimit });
         const limitLabel = jobLimit === -1 ? "all jobs (no limit)" : `${jobLimit} jobs`;
-        addLog(`Starting scan. Server: ${serverUrl}${betaMode ? " [AI search / beta mode]" : ""} [limit: ${limitLabel}]`);
-        sendStartScan(tab.id, serverUrl, data.extensionApiKey || "", false, betaMode, jobLimit);
+        const easyLabel = easyApplyMode === "analyze" ? `analyze${easyApplyMinScore ? ` (min ${easyApplyMinScore})` : ""}` : "skip";
+        addLog(`Starting scan. Server: ${serverUrl}${betaMode ? " [AI search / beta mode]" : ""} [limit: ${limitLabel}] [Easy Apply: ${easyLabel}]`);
+        if (!data.extensionApiKey) {
+          addLog("No API key saved — the server will reject requests. Paste the key from Admin → Extension.", "warn");
+        }
+        sendStartScan(tab.id, serverUrl, data.extensionApiKey || "", false, betaMode, jobLimit, easyApplyMode, easyApplyMinScore);
       });
     });
   });
 });
 
-function sendStartScan(tabId, serverUrl, apiKey, isRetry, betaMode, jobLimit) {
+function sendStartScan(tabId, serverUrl, apiKey, isRetry, betaMode, jobLimit, easyApplyMode, easyApplyMinScore) {
   chrome.tabs.sendMessage(tabId, {
     type: "START_SCAN",
     serverUrl,
     apiKey,
     betaMode: !!betaMode,
     jobLimit: normalizeJobLimit(jobLimit),
+    easyApplyMode: normalizeEasyApplyMode(easyApplyMode),
+    easyApplyMinScore: normalizeMinScore(easyApplyMinScore),
   }, (response) => {
     if (chrome.runtime.lastError) {
       if (!isRetry) {
@@ -416,7 +484,7 @@ function sendStartScan(tabId, serverUrl, apiKey, isRetry, betaMode, jobLimit) {
             return;
           }
           addLog("Content script injected. Retrying START_SCAN...");
-          setTimeout(() => sendStartScan(tabId, serverUrl, apiKey, true, betaMode, jobLimit), 500);
+          setTimeout(() => sendStartScan(tabId, serverUrl, apiKey, true, betaMode, jobLimit, easyApplyMode, easyApplyMinScore), 500);
         });
       } else {
         addLog(`ERROR sending START_SCAN: ${chrome.runtime.lastError.message}`, "error");

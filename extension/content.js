@@ -21,6 +21,14 @@
   // maybeResumeAfterNavigation.
   let jobLimit = -1;
   let processedJobs = 0;
+  // Easy Apply handling, chosen in the popup: "skip" (reject + hide without
+  // AI, the original behaviour) or "analyze" (judge like any other job, with
+  // an optional stricter minimum score).
+  let easyApplyMode = "skip";
+  let easyApplyMinScore = 0;
+  // Set when the server rejects the API key — the scan stops with this message
+  // instead of marking every remaining job as an error.
+  let authFailure = "";
   const MIN_VALID_CARDS_THRESHOLD = 3;
   const MIN_BROAD_CARDS_FOR_MISMATCH = 10;
 
@@ -38,6 +46,16 @@
   // True once we've scanned as many jobs as the limit allows. A limit of -1
   // (unlimited) or any non-positive value never trips, so the scan runs to the
   // last page exactly as it did before this feature existed.
+  function normalizeEasyApplyMode(raw) {
+    return raw === "analyze" ? "analyze" : "skip";
+  }
+
+  function normalizeMinScore(raw) {
+    const n = parseInt(raw, 10);
+    if (isNaN(n) || n < 0) return 0;
+    return Math.min(100, n);
+  }
+
   function jobLimitReached() {
     return jobLimit > 0 && processedJobs >= jobLimit;
   }
@@ -65,6 +83,9 @@
       apiKey = msg.apiKey || "";
       betaMode = !!msg.betaMode;
       jobLimit = normalizeJobLimit(msg.jobLimit);
+      easyApplyMode = normalizeEasyApplyMode(msg.easyApplyMode);
+      easyApplyMinScore = normalizeMinScore(msg.easyApplyMinScore);
+      authFailure = "";
       processedJobs = 0;
       stats = { checked: 0, approved: 0, hidden: 0, skipped: 0 };
       stopRequested = false;
@@ -996,6 +1017,42 @@
     return "";
   }
 
+  // Ghost-job signals from the detail panel's subtitle line, e.g.
+  // "Yerevan · Reposted 2 weeks ago · Over 100 applicants". Best effort: a
+  // piece that is not on the page is simply left out.
+  function extractSignals() {
+    let text = "";
+    if (betaMode) {
+      const d = getBetaDetailContainer();
+      if (d) {
+        for (const p of d.querySelectorAll("p")) {
+          const t = p.textContent || "";
+          if (/ago\b|applicant|clicked apply/i.test(t)) {
+            text = t;
+            break;
+          }
+        }
+      }
+    } else {
+      const scope = getDetailContainer() || document;
+      const c =
+        scope.querySelector(".job-details-jobs-unified-top-card__tertiary-description-container") ||
+        scope.querySelector(".job-details-jobs-unified-top-card__primary-description-container");
+      text = c ? c.textContent || "" : "";
+    }
+    text = text.replace(/\s+/g, " ").trim();
+    if (!text) return null;
+    const signals = {};
+    const posted = text.match(/(Reposted\s+)?(\d+\s+(?:minute|hour|day|week|month|year)s?\s+ago)/i);
+    if (posted) {
+      signals.postedText = posted[2];
+      signals.reposted = !!posted[1];
+    }
+    const applicants = text.match(/((?:Over\s+)?\d[\d,]*\s+(?:applicants?|people clicked apply))/i);
+    if (applicants) signals.applicants = applicants[1];
+    return Object.keys(signals).length ? signals : null;
+  }
+
   function extractLocation() {
     if (betaMode) return extractBetaLocation();
     const detail = getDetailContainer();
@@ -1075,6 +1132,13 @@
           body: JSON.stringify(jobData),
         });
 
+        if (res.status === 401) {
+          const body = await res.json().catch(() => ({}));
+          const err = new Error(body.error || "The server rejected the extension API key.");
+          err.authError = true;
+          throw err;
+        }
+
         if (!res.ok) {
           const errBody = await res.text().catch(() => "");
           log(`Server error ${res.status} (attempt ${attempt}/${MAX_ATTEMPTS}): ${errBody}`, "error");
@@ -1091,6 +1155,7 @@
         );
         return result;
       } catch (err) {
+        if (err.authError) throw err;
         lastErr = err;
         log(`Fetch failed (attempt ${attempt}/${MAX_ATTEMPTS}): ${err.message}`, "warn");
         if (attempt < MAX_ATTEMPTS) {
@@ -1198,7 +1263,7 @@
     // First: check Easy Apply from the card BEFORE clicking it
     const easyApply = isEasyApplyFromCard(card);
     if (easyApply) {
-      log(`Job ${index + 1}: Easy Apply detected from card`);
+      log(`Job ${index + 1}: Easy Apply detected from card (${easyApplyMode === "analyze" ? "will analyze with AI" : "will skip and hide"})`);
     }
 
     // Get job URL + quick fields from the card. The classic and AI-search
@@ -1247,6 +1312,7 @@
     const company = extractCompany() || cardCompanyText;
     const location = extractLocation() || cardLocationText;
     const description = extractDescription();
+    const signals = extractSignals();
     const jobUrl = cardJobId
       ? `https://www.linkedin.com/jobs/view/${cardJobId}`
       : extractJobUrl();
@@ -1311,6 +1377,9 @@
         applyUrl,
         description,
         easyApply,
+        easyApplyMode,
+        easyApplyMinScore,
+        signals,
       });
 
       stats.checked++;
@@ -1325,6 +1394,7 @@
         url: jobUrl,
         score: result.score || 0,
         reason: result.reason || "",
+        applyMethod: result.applyMethod || (easyApply ? "EASY_APPLY" : "EXTERNAL"),
         timestamp: new Date().toISOString(),
       };
 
@@ -1394,6 +1464,26 @@
       sendResult({ ...baseResult, status: "unknown", reason: result.reason || "Unknown server response" });
       return "unknown";
     } catch (err) {
+      if (err.authError) {
+        // Every other request would fail the same way — stop the scan and
+        // leave the card untouched.
+        authFailure = err.message;
+        stopRequested = true;
+        sendResult({
+          id: cardId,
+          index,
+          total: totalCards,
+          title,
+          company,
+          location,
+          url: jobUrl,
+          status: "error",
+          score: 0,
+          reason: err.message,
+          timestamp: new Date().toISOString(),
+        });
+        return "error";
+      }
       stats.skipped++;
       await maybeHideSkippedCard();
       sendProgress(`Error ${index + 1}: ${err.message}`, null);
@@ -1712,7 +1802,11 @@
 
       const processedOnPage = await processAllCardsOnCurrentPage(pageNum);
       if (stopRequested) {
-        sendDone(`Stopped. ${stats.checked} checked, ${stats.approved} approved, ${stats.hidden} hidden.`);
+        sendDone(
+          authFailure
+            ? `Stopped: ${authFailure}`
+            : `Stopped. ${stats.checked} checked, ${stats.approved} approved, ${stats.hidden} hidden.`,
+        );
         return;
       }
       if (jobLimitReached()) {
@@ -1743,7 +1837,7 @@
   function maybeResumeAfterNavigation() {
     chrome.runtime.sendMessage({ type: "GET_BG_STATE" }, (state) => {
       if (chrome.runtime.lastError || !state?.scanning || !state.resumeAfterNavigation || !state.isScanTab) return;
-      chrome.storage.local.get(["extensionApiKey", "betaMode", "jobLimit"], (data) => {
+      chrome.storage.local.get(["extensionApiKey", "betaMode", "jobLimit", "easyApplyMode", "easyApplyMinScore"], (data) => {
         if (!state.scanning || scanning) return;
         scanning = true;
         stopRequested = false;
@@ -1753,6 +1847,9 @@
         // Restore the limit and the running count so a scan that paged via a
         // full reload keeps honoring the same job-limit budget.
         jobLimit = normalizeJobLimit(data.jobLimit);
+        easyApplyMode = normalizeEasyApplyMode(data.easyApplyMode);
+        easyApplyMinScore = normalizeMinScore(data.easyApplyMinScore);
+        authFailure = "";
         processedJobs = state.processedJobs || 0;
         stats = state.stats || { checked: 0, approved: 0, hidden: 0, skipped: 0 };
         startScan();

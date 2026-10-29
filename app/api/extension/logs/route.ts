@@ -1,42 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { extensionCorsHeaders, requireExtensionKey } from "@/lib/extensionAuth";
 
 export const dynamic = "force-dynamic";
 
-function corsHeaders() {
-  return {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-api-key",
-  };
-}
+const CORS = extensionCorsHeaders("POST, OPTIONS");
 
 export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders() });
+  return new NextResponse(null, { status: 204, headers: CORS });
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const denied = await requireExtensionKey(req, CORS);
+  if (denied) return denied;
+
+  let body: { logs?: unknown; sessionId?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS });
+  }
   const { logs, sessionId } = body;
 
   if (!Array.isArray(logs) || logs.length === 0) {
-    return NextResponse.json({ error: "logs[] required" }, { status: 400, headers: corsHeaders() });
+    return NextResponse.json({ error: "logs[] required" }, { status: 400, headers: CORS });
   }
 
-  const data = logs.slice(0, 500).map((entry: any) => ({
-    level: String(entry.level || "info").substring(0, 20),
-    message: String(entry.message || "").substring(0, 2000),
-    sessionId: sessionId ? String(sessionId).substring(0, 100) : null,
-    createdAt: entry.timestamp ? new Date(entry.timestamp) : new Date(),
-  }));
+  const data = logs.slice(0, 500).map((entry: any) => {
+    const ts = entry?.timestamp ? new Date(entry.timestamp) : new Date();
+    return {
+      level: String(entry?.level || "info").substring(0, 20),
+      message: String(entry?.message || "").substring(0, 2000),
+      sessionId: sessionId ? String(sessionId).substring(0, 100) : null,
+      createdAt: Number.isNaN(ts.getTime()) ? new Date() : ts,
+    };
+  });
 
   try {
     await prisma.extensionLog.createMany({ data });
-    return NextResponse.json({ saved: data.length }, { headers: corsHeaders() });
+    return NextResponse.json({ saved: data.length }, { headers: CORS });
   } catch (error: any) {
     if (error.message?.includes("ExtensionLog")) {
-      return NextResponse.json({ error: "ExtensionLog table not found. Run /api/setup first." }, { status: 500, headers: corsHeaders() });
+      return NextResponse.json({ error: "ExtensionLog table not found. Run /api/setup first." }, { status: 500, headers: CORS });
     }
-    return NextResponse.json({ error: error.message }, { status: 500, headers: corsHeaders() });
+    return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
   }
 }

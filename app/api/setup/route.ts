@@ -1,5 +1,7 @@
+import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_ANALYSIS_PROMPT } from "@/lib/defaultPrompt";
 
 export const dynamic = "force-dynamic";
 
@@ -15,57 +17,92 @@ const DEFAULT_SHEET_COLUMNS = JSON.stringify([
   { key: "createdAt", label: "Date Found" },
 ]);
 
-const DEFAULT_ANALYSIS_PROMPT = `You are a strict job-suitability classifier for a software developer based in {{CURRENT_LOCATION}} who is targeting {{TARGET_MARKET}} positions.
+// Idempotent schema evolution for databases created by an older version of
+// this route (or migrated before a new table/column existed). Every statement
+// is safe to re-run; a failing one is skipped so the rest still apply.
+const EVOLUTION_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "ExtensionLog" (
+    "id" SERIAL NOT NULL,
+    "level" VARCHAR(20) NOT NULL DEFAULT 'info',
+    "message" TEXT NOT NULL,
+    "sessionId" VARCHAR(100),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ExtensionLog_pkey" PRIMARY KEY ("id")
+  );`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "manualApplyUrl" VARCHAR(2048);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "applyMethod" VARCHAR(20);`,
+  `CREATE TABLE IF NOT EXISTS "AiUsage" (
+    "id" SERIAL NOT NULL,
+    "task" VARCHAR(30) NOT NULL,
+    "provider" VARCHAR(30) NOT NULL,
+    "model" VARCHAR(120) NOT NULL,
+    "ok" BOOLEAN NOT NULL DEFAULT true,
+    "inputTokens" INTEGER NOT NULL DEFAULT 0,
+    "outputTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheReadTokens" INTEGER NOT NULL DEFAULT 0,
+    "cacheWriteTokens" INTEGER NOT NULL DEFAULT 0,
+    "costUsd" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "durationMs" INTEGER,
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "AiUsage_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "AiUsage_createdAt_idx" ON "AiUsage"("createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "AiUsage_provider_createdAt_idx" ON "AiUsage"("provider", "createdAt");`,
+  // Pipeline, feedback and signals on jobs.
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "stage" VARCHAR(20);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "stageUpdatedAt" TIMESTAMP(3);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "appliedAt" TIMESTAMP(3);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "followUpAt" TIMESTAMP(3);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "notes" TEXT;`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "resumeId" INTEGER;`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "applicationData" TEXT;`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "feedback" INTEGER;`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "feedbackAt" TIMESTAMP(3);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "eligibility" VARCHAR(30);`,
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "signals" TEXT;`,
+  `CREATE INDEX IF NOT EXISTS "ScrapedJob_stage_idx" ON "ScrapedJob"("stage");`,
+  `CREATE INDEX IF NOT EXISTS "ScrapedJob_status_createdAt_idx" ON "ScrapedJob"("status", "createdAt");`,
+  // Profile & resumes.
+  `CREATE TABLE IF NOT EXISTS "Resume" (
+    "id" SERIAL NOT NULL,
+    "name" VARCHAR(120) NOT NULL,
+    "fileName" VARCHAR(255) NOT NULL,
+    "mimeType" VARCHAR(100) NOT NULL,
+    "sizeBytes" INTEGER NOT NULL,
+    "data" BYTEA NOT NULL,
+    "textContent" TEXT,
+    "parsed" TEXT,
+    "tags" VARCHAR(500),
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Resume_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE TABLE IF NOT EXISTS "SavedAnswer" (
+    "id" SERIAL NOT NULL,
+    "question" TEXT NOT NULL,
+    "answer" TEXT NOT NULL,
+    "tags" VARCHAR(300),
+    "uses" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "SavedAnswer_pkey" PRIMARY KEY ("id")
+  );`,
+];
 
-==================== INPUT ====================
-JOB_TITLE: {{JOB_TITLE}}
-COMPANY: {{COMPANY}}
-LOCATION: {{LOCATION}}
-DESCRIPTION:
-{{DESCRIPTION}}
-================================================
-
-==================== HARD REJECT RULES (set approved=false, score 0-30) ====================
-R1. Job is NOT a software / engineering / data / ML / DevOps / QA / SRE / web / mobile role (e.g. sales, account manager, marketing, legal, HR, finance, recruiting, customer support, hardware-only roles, on-site lab work).
-R2. Job explicitly requires being physically present in a specific country or city OUTSIDE the {{TARGET_MARKET}} (e.g. "must reside in California", "on-site in Tokyo", "this role is US-based", "hybrid 3 days in NYC office", "must have authorization to work in the US/UK/Canada").
-R3. Job requires citizenship, security clearance, green card, H-1B sponsorship, or local work authorization that a {{CURRENT_LOCATION}}-based contractor would not have.
-R4. Job requires significant travel (>20%) tied to a region outside {{TARGET_MARKET}}.
-R5. Job is "remote (US only)", "remote (UK only)", "remote within EMEA" where {{CURRENT_LOCATION}} is excluded, or any geographically restricted remote that excludes {{CURRENT_LOCATION}}.
-
-==================== SOFT SIGNALS ====================
-S1. "Remote", "Remote worldwide", "Remote (Europe)", "Remote anywhere" → strong positive.
-S2. Company is European, headquartered in {{TARGET_MARKET}}, or hires globally via Deel/Remote.com/contractors → positive.
-S3. Tech stack mentioned (any of: TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, React, Next.js, Node, Django, FastAPI, Spring, Postgres, Kubernetes, AWS, GCP, etc.) → confirms it is a real software role.
-S4. Salary listed in EUR/GBP/USD with no geographic restriction → positive.
-
-==================== SCORING RUBRIC ====================
-0-30   = clear reject (any R1–R5 hit).
-31-59  = ambiguous / soft mismatch (e.g. unclear remote policy, stack acceptable but location unclear) → approved=false.
-60-79  = likely good fit (remote-friendly, software role, no clear blockers) → approved=true.
-80-100 = strong fit (explicit remote + {{TARGET_MARKET}} or worldwide + clear software role + decent stack) → approved=true.
-
-Approval threshold: approved=true ONLY when score >= 60.
-
-==================== OUTPUT CONTRACT ====================
-Return ONE JSON object and NOTHING ELSE.
-- No markdown.
-- No code fences (no \`\`\`).
-- No preamble like "Here is the result".
-- No commentary after the JSON.
-- Use lowercase booleans (true / false), not True/False/yes/no.
-- "reason" must be ONE sentence under 240 characters citing the specific rule(s) that drove the decision.
-- "techStack" is an array of bare technology names found in the description; empty array if none / not a software role.
-
-Schema (every key required, exact types):
-{"approved": boolean, "score": integer, "reason": string, "techStack": string[]}
-
-Example of a valid REJECTED response:
-{"approved": false, "score": 18, "reason": "R1: Account Manager role, not a software/engineering position.", "techStack": []}
-
-Example of a valid APPROVED response:
-{"approved": true, "score": 82, "reason": "Remote worldwide Senior Backend Engineer role; European company; Go + Postgres stack; no citizenship requirement.", "techStack": ["Go", "Postgres", "Docker", "Kubernetes"]}
-
-Now analyze the job above and output ONLY the JSON object.`;
+async function applyEvolution(): Promise<string[]> {
+  const applied: string[] = [];
+  for (const sql of EVOLUTION_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+      applied.push(sql.split("\n")[0].trim());
+    } catch {
+      // Skip a failing statement so the rest (and seedDefaults) still run.
+    }
+  }
+  return applied;
+}
 
 async function seedDefaults() {
   const defaults: Record<string, string> = {
@@ -84,6 +121,9 @@ async function seedDefaults() {
     job_analysis_prompt: DEFAULT_ANALYSIS_PROMPT,
     sheet_columns: DEFAULT_SHEET_COLUMNS,
     linkedin_sheet_tab: "LinkedIn",
+    // The extension must authenticate; a fresh install gets a random key the
+    // admin reveals in Settings and pastes into the popup.
+    extension_api_key: `jf_${randomBytes(24).toString("hex")}`,
   };
 
   for (const [key, value] of Object.entries(defaults)) {
@@ -104,31 +144,7 @@ export async function GET() {
     `;
 
     if (hasTable[0]?.exists) {
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "ExtensionLog" (
-          "id" SERIAL NOT NULL,
-          "level" VARCHAR(20) NOT NULL DEFAULT 'info',
-          "message" TEXT NOT NULL,
-          "sessionId" VARCHAR(100),
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "ExtensionLog_pkey" PRIMARY KEY ("id")
-        );
-      `).catch(() => {});
-
-      // Idempotent column additions for schema evolution on already-initialized DBs.
-      const additiveAlters = [
-        `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "manualApplyUrl" VARCHAR(2048);`,
-      ];
-      const appliedAlters: string[] = [];
-      for (const sql of additiveAlters) {
-        try {
-          await prisma.$executeRawUnsafe(sql);
-          appliedAlters.push(sql);
-        } catch {
-          // Ignore individual ALTER failures so seedDefaults still runs.
-        }
-      }
-
+      const appliedAlters = await applyEvolution();
       await seedDefaults();
       return NextResponse.json({
         status: "already_initialized",
@@ -154,6 +170,7 @@ export async function GET() {
         "location" TEXT,
         "url" VARCHAR(2048) NOT NULL,
         "manualApplyUrl" VARCHAR(2048),
+        "applyMethod" VARCHAR(20),
         "description" TEXT,
         "salary" TEXT,
         "techStack" TEXT,
@@ -222,17 +239,7 @@ export async function GET() {
       FOREIGN KEY ("scrapedJobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     `);
 
-    await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "ExtensionLog" (
-        "id" SERIAL NOT NULL,
-        "level" VARCHAR(20) NOT NULL DEFAULT 'info',
-        "message" TEXT NOT NULL,
-        "sessionId" VARCHAR(100),
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "ExtensionLog_pkey" PRIMARY KEY ("id")
-      );
-    `);
-
+    await applyEvolution();
     await seedDefaults();
 
     return NextResponse.json({ status: "success", message: "All tables created and defaults seeded." });

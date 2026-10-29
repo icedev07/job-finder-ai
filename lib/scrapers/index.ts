@@ -96,6 +96,7 @@ function verdictFrom(v: InlineVerdict): JobVerdict {
     aiScore: v.score,
     aiReason: v.reason,
     techStack: v.techStack,
+    eligibility: v.eligibility ?? null,
     model: v.model,
     tokensUsed: v.tokensUsed,
     durationMs: v.durationMs,

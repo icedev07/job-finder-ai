@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Job Finder · Autofill</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { color-scheme: light dark; --bg: #f9fafb; --card: #ffffff; --fg: #111827; --muted: #6b7280; --border: #e5e7eb; --primary: #1d4ed8; --green: #16a34a; --amber: #d97706; --red: #dc2626; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #0e1216; --card: #161b22; --fg: #f3f4f6; --muted: #9ca3af; --border: #2d333b; --primary: #60a5fa; } }
+    body { font: 13px/1.45 system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--fg); padding: 14px; }
+    h1 { font-size: 15px; margin-bottom: 2px; }
+    .sub { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 10px; }
+    .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+    .row { display: flex; gap: 6px; align-items: center; }
+    .url { font-family: ui-monospace, monospace; font-size: 11px; color: var(--muted); word-break: break-all; }
+    label.check { display: flex; gap: 6px; align-items: center; font-size: 12px; margin-top: 6px; cursor: pointer; }
+    select { width: 100%; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--fg); font: inherit; }
+    button { font: inherit; border-radius: 8px; border: 1px solid transparent; padding: 7px 10px; cursor: pointer; }
+    button.primary { background: var(--primary); color: #fff; width: 100%; font-weight: 600; }
+    button.secondary { background: transparent; border-color: var(--border); color: var(--fg); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .chip { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--border); }
+    .score { font-weight: 700; }
+    .legend span { display: inline-flex; align-items: center; gap: 4px; margin-right: 10px; font-size: 12px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    #results li { list-style: none; padding: 4px 0; border-top: 1px solid var(--border); font-size: 12px; display: flex; gap: 6px; }
+    #results li:first-child { border-top: 0; }
+    #results .what { color: var(--muted); }
+    #status { font-size: 12px; color: var(--muted); min-height: 18px; margin: 6px 0; white-space: pre-wrap; }
+    #status.error { color: var(--red); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <h1>Autofill this application</h1>
+  <div class="sub">Fills the open form from your profile. It never submits — you review and click Submit yourself.</div>
+
+  <div class="card">
+    <h2>Page</h2>
+    <div id="tabUrl" class="url">…</div>
+    <div id="matchBox" class="hidden" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Resume to attach</h2>
+    <select id="resumeSelect"><option value="">Loading…</option></select>
+    <label class="check"><input type="checkbox" id="aiChk" checked> Draft free-text answers with AI</label>
+    <label class="check"><input type="checkbox" id="overwriteChk"> Replace fields that already have a value</label>
+  </div>
+
+  <button id="fillBtn" class="primary">Autofill this page</button>
+  <div id="status"></div>
+
+  <div id="resultsCard" class="card hidden">
+    <h2>Result</h2>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--green)"></i><b id="nProfile">0</b> profile</span>
+      <span><i class="dot" style="background:var(--amber)"></i><b id="nAi">0</b> AI — read</span>
+      <span><i class="dot" style="background:var(--red)"></i><b id="nMissing">0</b> need you</span>
+    </div>
+    <ul id="results" style="margin-top:6px"></ul>
+    <div class="row" style="margin-top:8px">
+      <button id="clearBtn" class="secondary">Clear highlights</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>After you submit</h2>
+    <label class="check" style="margin-top:0"><input type="checkbox" id="saveAnswersChk" checked> Save my answers to the answer bank</label>
+    <button id="appliedBtn" class="secondary" style="width:100%;margin-top:8px">Mark as applied</button>
+    <div id="appliedMsg" class="sub" style="margin:6px 0 0"></div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

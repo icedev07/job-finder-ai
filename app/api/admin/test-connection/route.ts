@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { google } from "googleapis";
-import { getConfig } from "@/lib/config";
+import { getConfig, maskApiKey } from "@/lib/config";
 import {
   fetchOpenRouterFreeModels,
   generateWithGemini,
@@ -9,7 +9,10 @@ import {
   generateWithGroq,
   generateWithCerebras,
   generateWithCloudflare,
+  resolveRoute,
 } from "@/lib/llmClient";
+import { callClaude, listClaudeModels } from "@/lib/claudeClient";
+import { recordAiUsage } from "@/lib/aiUsage";
 
 export const dynamic = "force-dynamic";
 
@@ -253,9 +256,57 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (target === "claude") {
+      if (!config.anthropicApiKey) {
+        return NextResponse.json({ ok: false, error: "Claude API key is empty in DB" });
+      }
+      // The model under test: the one the LinkedIn route uses (or the default).
+      const model = resolveRoute(config, "extension").claudeModel;
+      try {
+        const models = await withTimeout(listClaudeModels(config.anthropicApiKey), TEST_DEADLINE_MS, "Claude models list");
+        const startedAt = Date.now();
+        const r = await callClaude({
+          apiKey: config.anthropicApiKey,
+          model,
+          effort: "low",
+          user: "Reply with the single word: OK",
+          maxTokens: 1000,
+          timeoutMs: TEST_DEADLINE_MS,
+        });
+        await recordAiUsage({
+          task: "test",
+          provider: "claude",
+          model: r.model,
+          ok: true,
+          ...r.usage,
+          costUsd: r.costUsd,
+          durationMs: Date.now() - startedAt,
+        });
+        return NextResponse.json({
+          ok: true,
+          keyPreview: maskApiKey(config.anthropicApiKey),
+          testedModel: model,
+          modelUsed: r.model,
+          sample: r.text.slice(0, 200),
+          costUsd: r.costUsd,
+          modelAvailable: models.some((m) => m.id === model),
+          availableModels: models.map((m) => m.id).slice(0, 30),
+        });
+      } catch (e: any) {
+        return NextResponse.json({ ok: false, testedModel: model, error: String(e?.message || e) });
+      }
+    }
+
     if (target === "rotation") {
-      // Test exactly the providers the user has ticked in Settings.
-      const selected = config.aiProviders;
+      // Test every provider used by the scan or extension route (or ticked in
+      // the legacy checklist).
+      const selected = Array.from(
+        new Set([
+          ...resolveRoute(config, "scan").providers,
+          ...resolveRoute(config, "extension").providers,
+          ...config.aiProviders,
+        ]),
+      );
       if (selected.length === 0) {
         return NextResponse.json({
           ok: false,
@@ -272,7 +323,24 @@ export async function POST(req: NextRequest) {
 
       for (const id of selected) {
         try {
-          if (id === "gemini") {
+          if (id === "claude") {
+            if (!config.anthropicApiKey) {
+              out.claude = "no key — skipped";
+              continue;
+            }
+            const model = resolveRoute(config, "extension").claudeModel;
+            const r = await callClaude({
+              apiKey: config.anthropicApiKey,
+              model,
+              effort: "low",
+              user: ping,
+              maxTokens: 1000,
+              timeoutMs: remaining(),
+            });
+            await recordAiUsage({ task: "test", provider: "claude", model: r.model, ok: true, ...r.usage, costUsd: r.costUsd });
+            out.claude = `OK · ${r.model}`;
+            anyOk = true;
+          } else if (id === "gemini") {
             if (!config.geminiApiKey) {
               out.gemini = "no key — skipped";
               continue;

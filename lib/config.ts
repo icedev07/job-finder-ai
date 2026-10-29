@@ -37,7 +37,59 @@ export const CONFIG_KEYS = {
   EXTENSION_API_KEY: "extension_api_key",
   ANALYZER_REQUEST_DELAY_MS: "analyzer_request_delay_ms",
   ANALYZER_BATCH_SIZE: "analyzer_batch_size",
+  // Claude (Anthropic) — the user's own paid key.
+  ANTHROPIC_API_KEY: "anthropic_api_key",
+  // JSON: per-task provider chain + Claude model/effort (see lib/aiRoutes.ts).
+  AI_ROUTES: "ai_routes",
+  // Monthly Claude spend cap in USD. Once reached, Claude is skipped and the
+  // routes fall back to the free providers until the next month. 0 = no cap.
+  CLAUDE_MONTHLY_BUDGET_USD: "claude_monthly_budget_usd",
+  // JSON CandidateProfile (lib/profileModel.ts) — written by /api/admin/profile.
+  CANDIDATE_PROFILE: "candidate_profile",
+  // "false" keeps the profile out of the job-matching prompts.
+  PROFILE_IN_MATCHING: "profile_in_matching",
+  // Score band whose verdicts land in the Review queue (inclusive).
+  REVIEW_BAND_MIN: "review_band_min",
+  REVIEW_BAND_MAX: "review_band_max",
+  // Days after "Applied" before a follow-up is due.
+  FOLLOWUP_DAYS: "followup_days",
 } as const;
+
+// Settings that are write-only from the admin UI: the API returns only whether
+// they are set plus a short hint, never the value itself.
+export const SECRET_CONFIG_KEYS = [
+  CONFIG_KEYS.GEMINI_API_KEY,
+  CONFIG_KEYS.OPENROUTER_API_KEY,
+  CONFIG_KEYS.GROQ_API_KEY,
+  CONFIG_KEYS.CEREBRAS_API_KEY,
+  CONFIG_KEYS.CLOUDFLARE_API_KEY,
+  CONFIG_KEYS.ANTHROPIC_API_KEY,
+  CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS,
+  CONFIG_KEYS.EXTENSION_API_KEY,
+] as const;
+
+export type SecretConfigKey = (typeof SECRET_CONFIG_KEYS)[number];
+
+export function isSecretConfigKey(key: string): key is SecretConfigKey {
+  return (SECRET_CONFIG_KEYS as readonly string[]).includes(key);
+}
+
+// A short, non-reversible description of a stored secret for the UI: the
+// service-account e-mail for the Sheets JSON, otherwise the last 4 characters.
+export function secretHint(key: string, value: string): string {
+  const v = (value || "").trim();
+  if (!v) return "";
+  if (key === CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS) {
+    try {
+      const email = JSON.parse(v)?.client_email;
+      if (typeof email === "string" && email) return email;
+    } catch {
+      // not JSON — fall through
+    }
+    return "saved (not valid JSON)";
+  }
+  return v.length <= 8 ? "saved" : `…${v.slice(-4)}`;
+}
 
 export async function getConfigValue(key: string): Promise<string | null> {
   const row = await prisma.appConfig.findUnique({ where: { key } });
@@ -138,10 +190,6 @@ function resolveOpenrouterTier(raw: string | undefined): OpenrouterTier {
 
 export async function getConfig() {
   const all = await getAllConfig();
-  const envAdmin = process.env.ADMIN_PASSWORD?.trim();
-  const dbAdmin = all[CONFIG_KEYS.ADMIN_PASSWORD]?.trim();
-  const adminPassword =
-    envAdmin && envAdmin.length > 0 ? envAdmin : dbAdmin || "admin";
 
   return {
     // Ordered list of providers the analyzer rotates across. One id → single-
@@ -170,13 +218,20 @@ export async function getConfig() {
     cloudflareModel: all[CONFIG_KEYS.CLOUDFLARE_MODEL] || "@cf/meta/llama-3.1-8b-instruct",
     googleSheetsCredentials: all[CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS] || "",
     googleSheetId: all[CONFIG_KEYS.GOOGLE_SHEET_ID] || "",
-    adminPassword,
     targetMarket: all[CONFIG_KEYS.TARGET_MARKET] || "Europe, Eastern Europe, Remote worldwide",
     currentLocation: all[CONFIG_KEYS.CURRENT_LOCATION] || "Armenia",
     jobAnalysisPrompt: all[CONFIG_KEYS.JOB_ANALYSIS_PROMPT] || "",
     sheetColumns: all[CONFIG_KEYS.SHEET_COLUMNS] || "",
     linkedinSheetTab: all[CONFIG_KEYS.LINKEDIN_SHEET_TAB] || "LinkedIn",
     extensionApiKey: all[CONFIG_KEYS.EXTENSION_API_KEY] || "",
+    anthropicApiKey: all[CONFIG_KEYS.ANTHROPIC_API_KEY] || "",
+    aiRoutesRaw: all[CONFIG_KEYS.AI_ROUTES] || "",
+    claudeMonthlyBudgetUsd: parseBudget(all[CONFIG_KEYS.CLAUDE_MONTHLY_BUDGET_USD]),
+    // Verdicts scored inside this band go to the Review queue: close to the
+    // approval line (60), where a quick human check helps most.
+    reviewBandMin: clampInt(all[CONFIG_KEYS.REVIEW_BAND_MIN], 0, 100, 45),
+    reviewBandMax: clampInt(all[CONFIG_KEYS.REVIEW_BAND_MAX], 0, 100, 70),
+    followUpDays: clampInt(all[CONFIG_KEYS.FOLLOWUP_DAYS], 1, 60, 7),
     // Inter-request pacing for the LLM. 500ms is well under any free-tier
     // per-minute cap (OpenRouter free is 20 req/min ≈ one request every 3s,
     // and batching already cuts request count ~5×). Set higher only if you see
@@ -195,6 +250,22 @@ export async function getConfig() {
       Math.max(1, Number(all[CONFIG_KEYS.ANALYZER_BATCH_SIZE]) || 5),
     ),
   };
+}
+
+export const DEFAULT_CLAUDE_MONTHLY_BUDGET_USD = 10;
+
+function clampInt(raw: string | undefined, min: number, max: number, fallback: number): number {
+  const n = Number(raw);
+  if (raw == null || raw.trim() === "" || !Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, Math.round(n)));
+}
+
+// Blank → the default cap. Anything non-numeric or negative also falls back to
+// the default, so a typo can never silently remove the cap. 0 means "no cap".
+function parseBudget(raw: string | undefined): number {
+  if (raw == null || raw.trim() === "") return DEFAULT_CLAUDE_MONTHLY_BUDGET_USD;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : DEFAULT_CLAUDE_MONTHLY_BUDGET_USD;
 }
 
 export const DEFAULT_SHEET_COLUMNS = [

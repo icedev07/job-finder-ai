@@ -1,10 +1,25 @@
 {
   "manifest_version": 3,
   "name": "LinkedIn Job Scanner",
-  "version": "1.4.0",
-  "description": "Scans LinkedIn job search results, analyzes suitability with AI, and saves approved jobs to Google Sheets.",
-  "permissions": ["activeTab", "storage", "scripting"],
-  "host_permissions": ["https://www.linkedin.com/*", "https://*.vercel.app/*"],
+  "version": "2.0.0",
+  "description": "Scans LinkedIn job searches with AI, and fills job application forms from your Job Finder profile (you always submit yourself).",
+  "minimum_chrome_version": "116",
+  "permissions": ["activeTab", "storage", "scripting", "sidePanel"],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://*.vercel.app/*",
+    "https://*.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://jobs.eu.lever.co/*",
+    "https://jobs.ashbyhq.com/*",
+    "https://apply.workable.com/*",
+    "https://jobs.smartrecruiters.com/*",
+    "https://*.jobs.personio.de/*",
+    "https://*.jobs.personio.com/*",
+    "https://*.recruitee.com/*",
+    "https://*.teamtailor.com/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -12,6 +27,9 @@
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "icons": {
     "16": "icons/icon16.png",

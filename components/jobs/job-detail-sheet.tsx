@@ -1,0 +1,310 @@
+'use client';
+
+import {
+  BanIcon,
+  CheckIcon,
+  ExternalLinkIcon,
+  FlaskConicalIcon,
+  LoaderCircleIcon,
+  RefreshCwIcon,
+  SendIcon,
+} from 'lucide-react';
+import Link from 'next/link';
+import { useCallback, useState } from 'react';
+
+import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
+import { FeedbackButtons } from '@/components/jobs/feedback-buttons';
+import { patchJobs, reanalyzeJobs } from '@/components/jobs/job-commands';
+import { StageSelect } from '@/components/jobs/stage-select';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Textarea } from '@/components/ui/textarea';
+import { api, errorMessage } from '@/lib/clientApi';
+import { formatDate, formatDateTime, platformLabel, safeHref, timeAgo, type JobStage, type JobStatus } from '@/lib/format';
+import { useLoadOnMount } from '@/hooks/use-load-on-mount';
+
+type AnalysisLog = { id: number; model: string; approved: boolean; score: number | null; reason: string | null; createdAt: string; durationMs: number | null };
+
+type JobDetail = {
+  id: number;
+  platform: string;
+  title: string;
+  company: string;
+  location: string | null;
+  url: string;
+  manualApplyUrl: string | null;
+  applyMethod: string | null;
+  description: string | null;
+  salary: string | null;
+  techStack: string | null;
+  status: JobStatus;
+  aiScore: number | null;
+  aiReason: string | null;
+  stage: JobStage | null;
+  appliedAt: string | null;
+  followUpAt: string | null;
+  notes: string | null;
+  feedback: number | null;
+  eligibility: string | null;
+  signals: Record<string, unknown> | null;
+  applicationData: { resumeName?: string; answers?: { question: string; answer: string }[] } | null;
+  createdAt: string;
+  analysisLogs: AnalysisLog[];
+};
+
+type DetailResponse = { job: JobDetail; sameCompany90d: number; resume: { id: number; name: string; fileName: string } | null };
+
+function dateInput(v: string | null): string {
+  return v ? new Date(v).toISOString().slice(0, 10) : '';
+}
+
+export function JobDetailSheet({
+  jobId,
+  onOpenChange,
+  onChanged,
+}: {
+  jobId: number | null;
+  onOpenChange: (open: boolean) => void;
+  onChanged: () => void;
+}) {
+  const [data, setData] = useState<DetailResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+
+  const load = useCallback(async () => {
+    if (jobId == null) return;
+    setError(null);
+    try {
+      const d = await api<DetailResponse>(`/api/admin/jobs/${jobId}`);
+      setData(d);
+      setNotes(d.job.notes ?? '');
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }, [jobId]);
+
+  // A different job: drop the previous one's data while the new one loads.
+  const [shownId, setShownId] = useState(jobId);
+  if (jobId !== shownId) {
+    setShownId(jobId);
+    setData(null);
+  }
+  useLoadOnMount(load);
+
+  const changed = () => {
+    void load();
+    onChanged();
+  };
+
+  const job = data?.job;
+  const applyHref = safeHref(job?.manualApplyUrl) ?? safeHref(job?.url);
+  const jobHref = safeHref(job?.url);
+  const signals = job?.signals ?? {};
+
+  return (
+    <Sheet open={jobId != null} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-2xl">
+        {!job ? (
+          <div className="grid h-full place-items-center p-8 text-sm text-muted-foreground">
+            {error ? <p className="text-destructive">{error}</p> : <LoaderCircleIcon className="size-5 animate-spin" />}
+          </div>
+        ) : (
+          <>
+            <SheetHeader className="gap-2 border-b p-4 pr-12">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ScoreChip score={job.aiScore} />
+                <StatusChip status={job.status} />
+                <EligibilityChip value={job.eligibility} />
+                <ApplyMethodChip method={job.applyMethod} />
+                <Badge variant="outline">{platformLabel(job.platform)}</Badge>
+              </div>
+              <SheetTitle className="text-lg leading-snug">{job.title}</SheetTitle>
+              <SheetDescription>
+                {job.company}
+                {job.location ? ` · ${job.location}` : ''}
+                {job.salary ? ` · ${job.salary}` : ''} · found {timeAgo(job.createdAt)}
+              </SheetDescription>
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {applyHref ? (
+                  <Button size="sm" render={<a href={applyHref} target="_blank" rel="noopener noreferrer" />}>
+                    <SendIcon />
+                    {job.applyMethod === 'EASY_APPLY' ? 'Open on LinkedIn' : 'Apply'}
+                  </Button>
+                ) : null}
+                {jobHref && jobHref !== applyHref ? (
+                  <Button size="sm" variant="outline" render={<a href={jobHref} target="_blank" rel="noopener noreferrer" />}>
+                    <ExternalLinkIcon />
+                    Job page
+                  </Button>
+                ) : null}
+                <StageSelect jobId={job.id} stage={job.stage} onChanged={changed} />
+                <FeedbackButtons jobId={job.id} feedback={job.feedback} onChanged={changed} />
+              </div>
+            </SheetHeader>
+
+            <div className="space-y-5 p-4">
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">AI verdict</h3>
+                <p className="text-sm">{job.aiReason || <span className="text-muted-foreground">No reason recorded.</span>}</p>
+                {job.techStack ? (
+                  <div className="flex flex-wrap gap-1">
+                    {job.techStack.split(',').map((t) => (
+                      <Badge key={t.trim()} variant="secondary">
+                        {t.trim()}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {job.status === 'REJECTED' ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void patchJobs([job.id], { status: 'APPROVED' }, { success: 'Approved by hand', onDone: changed })}
+                    >
+                      <CheckIcon />
+                      Approve anyway
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void patchJobs([job.id], { status: 'REJECTED' }, { success: 'Rejected by hand', onDone: changed })}
+                    >
+                      <BanIcon />
+                      Reject
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => void reanalyzeJobs([job.id], changed)}>
+                    <RefreshCwIcon />
+                    Re-analyze
+                  </Button>
+                  <Button size="sm" variant="ghost" render={<Link href={`/admin/ai?tab=playground&jobId=${job.id}`} />}>
+                    <FlaskConicalIcon />
+                    Try other models
+                  </Button>
+                </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">Signals</h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  <li>
+                    {data.sameCompany90d > 0
+                      ? `${data.sameCompany90d} other job${data.sameCompany90d === 1 ? '' : 's'} from ${job.company} in the last 90 days${
+                          data.sameCompany90d >= 8 ? ' — a lot of postings; check it is not a reposted / ghost role.' : '.'
+                        }`
+                      : `First job from ${job.company} in the last 90 days.`}
+                  </li>
+                  {typeof signals.postedText === 'string' ? <li>Posted: {signals.postedText}</li> : null}
+                  {signals.reposted === true ? <li className="text-tier-maybe-ink">LinkedIn marks this posting as reposted.</li> : null}
+                  {typeof signals.applicants === 'string' ? <li>Applicants: {signals.applicants}</li> : null}
+                </ul>
+              </section>
+
+              <Separator />
+
+              <section className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="followup">Follow-up date</Label>
+                  <Input
+                    id="followup"
+                    type="date"
+                    defaultValue={dateInput(job.followUpAt)}
+                    key={job.followUpAt ?? 'none'}
+                    onChange={(e) =>
+                      void patchJobs(
+                        [job.id],
+                        { followUpAt: e.target.value ? new Date(`${e.target.value}T09:00:00`).toISOString() : null },
+                        { success: e.target.value ? `Follow-up on ${formatDate(e.target.value)}` : 'Follow-up cleared', onDone: changed },
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5 text-sm">
+                  <Label>Applied</Label>
+                  <p className="text-muted-foreground">{job.appliedAt ? formatDateTime(job.appliedAt) : 'Not yet'}</p>
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    rows={3}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Recruiter name, interview dates, impressions…"
+                  />
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={savingNotes || notes === (job.notes ?? '')}
+                      onClick={async () => {
+                        setSavingNotes(true);
+                        await patchJobs([job.id], { notes: notes || null }, { success: 'Notes saved', onDone: changed });
+                        setSavingNotes(false);
+                      }}
+                    >
+                      Save notes
+                    </Button>
+                  </div>
+                </div>
+              </section>
+
+              {job.applicationData?.answers?.length || data.resume ? (
+                <>
+                  <Separator />
+                  <section className="space-y-2">
+                    <h3 className="text-sm font-semibold">What you sent</h3>
+                    {data.resume ? <p className="text-sm text-muted-foreground">Resume: {data.resume.name} ({data.resume.fileName})</p> : null}
+                    {job.applicationData?.answers?.map((a, i) => (
+                      <div key={i} className="rounded-lg border bg-muted/30 p-2 text-sm">
+                        <p className="font-medium">{a.question}</p>
+                        <p className="whitespace-pre-wrap text-muted-foreground">{a.answer}</p>
+                      </div>
+                    ))}
+                  </section>
+                </>
+              ) : null}
+
+              <Separator />
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">Description</h3>
+                <div className="max-h-[28rem] overflow-y-auto rounded-lg border bg-muted/20 p-3 text-sm leading-relaxed whitespace-pre-wrap">
+                  {job.description || <span className="text-muted-foreground">No description stored.</span>}
+                </div>
+              </section>
+
+              {job.analysisLogs.length ? (
+                <>
+                  <Separator />
+                  <section className="space-y-2">
+                    <h3 className="text-sm font-semibold">AI history</h3>
+                    <ul className="space-y-1.5 text-sm">
+                      {job.analysisLogs.map((l) => (
+                        <li key={l.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <ScoreChip score={l.score} />
+                          <span className={l.approved ? 'text-tier-match-ink' : 'text-destructive'}>{l.approved ? 'approved' : 'rejected'}</span>
+                          <code className="text-xs text-muted-foreground">{l.model}</code>
+                          <span className="text-xs text-muted-foreground">{formatDateTime(l.createdAt)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </>
+              ) : null}
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}

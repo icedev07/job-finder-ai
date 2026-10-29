@@ -56,6 +56,9 @@
     .result-badge.error, .result-badge.analysis_issue, .result-badge.unknown { background: #ffedd5; color: #c2410c; }
     .result-badge.skipped, .result-badge.already_processed { background: #f3f4f6; color: #4b5563; }
     .result-meta { font-size: 10px; color: #6b7280; margin-top: 2px; word-break: break-word; }
+    .apply-chip { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 8px; margin-left: 4px; font-weight: 600; background: #e0e7ff; color: #3730a3; }
+    .inline-setting { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #374151; }
+    .inline-setting select, .inline-setting input { font-size: 10px; padding: 3px 4px; border: 1px solid #d1d5db; border-radius: 4px; }
     .result-reason { font-size: 11px; color: #374151; margin-top: 6px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
 
     .log-section { margin-top: 10px; }
@@ -73,7 +76,7 @@
     <div class="config-row">
       <input type="text" id="serverUrlInput" placeholder="https://your-app.vercel.app">
     </div>
-    <label>API Key (optional)</label>
+    <label>API Key (from Admin → Extension)</label>
     <div class="config-row">
       <input type="text" id="apiKeyInput" placeholder="Extension API Key">
       <button id="saveBtn">Save</button>
@@ -97,6 +100,19 @@
         <input type="checkbox" id="betaModeChk"> Analyze AI search page (beta)
         <span title="Turn ON when you are on LinkedIn's new AI / natural-language jobs search (the 'search-results' page with a chat-style search). It uses a different layout, so the scanner switches to the matching extractor. Leave OFF for the classic /jobs/search/ results." style="color:#9ca3af;cursor:help">(?)</span>
       </label>
+      <div class="inline-setting">
+        <label for="easyApplyModeSelect" style="font-weight:600">Easy Apply jobs</label>
+        <select id="easyApplyModeSelect" style="flex:1">
+          <option value="skip">Skip and hide (default)</option>
+          <option value="analyze">Analyze with AI</option>
+        </select>
+        <span title="Skip and hide: Easy Apply jobs are rejected and hidden without using AI (the original behaviour). Analyze with AI: they are judged like every other job and marked 'Easy Apply' in the results, the admin and the Google Sheet." style="color:#9ca3af;cursor:help">(?)</span>
+      </div>
+      <div class="inline-setting" id="easyApplyMinRow" style="display:none">
+        <label for="easyApplyMinScoreInput">Approve Easy Apply only at score ≥</label>
+        <input type="number" id="easyApplyMinScoreInput" min="0" max="100" step="5" value="0" style="width:56px">
+        <span title="0 = the same bar as every other job. Easy Apply roles get many more applicants, so a stricter bar (for example 75) keeps only strong matches." style="color:#9ca3af;cursor:help">(?)</span>
+      </div>
     </div>
 
     <div class="config-section" style="margin-bottom:10px">
@@ -110,6 +126,7 @@
     </div>
 
     <button id="startBtn">Start Scan</button>
+    <button id="autofillBtn" type="button" style="width:100%;padding:8px;background:transparent;border:1px solid #d1d5db;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin:-4px 0 12px;color:#1d4ed8">Open autofill panel (application forms)</button>
 
     <div class="stats">
       <div class="stat">

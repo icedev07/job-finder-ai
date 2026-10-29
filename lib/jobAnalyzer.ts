@@ -1,73 +1,79 @@
 import { prisma } from "./prisma";
-import { generateText, LLMRateLimitedError } from "./llmClient";
+import { generateForTask, LLMRateLimitedError, type LLMRequest } from "./llmClient";
 import { getConfig } from "./config";
+import { DEFAULT_ANALYSIS_PROMPT } from "./defaultPrompt";
+import { profileForMatching } from "./profile";
+import { profileSummary, type CandidateProfile } from "./profileModel";
 
 export type AnalysisResult = {
   approved: boolean;
   score: number;
   reason: string;
   techStack: string[];
+  /** Where the employer can hire (worldwide, europe, emea, americas, specific, unclear); null if not given. */
+  eligibility?: string | null;
   /** When false, extension should not click "Not interested" (e.g. AI provider outage). */
   linkedInDismiss?: boolean;
 };
 
-const DEFAULT_ANALYSIS_PROMPT = `You are a strict job-suitability classifier for a software developer based in {{CURRENT_LOCATION}} who is targeting {{TARGET_MARKET}} positions.
+// The default prompt lives in lib/defaultPrompt.ts (shared with the admin UI and /api/setup).
 
-==================== INPUT ====================
-JOB_TITLE: {{JOB_TITLE}}
-COMPANY: {{COMPANY}}
-LOCATION: {{LOCATION}}
-DESCRIPTION:
-{{DESCRIPTION}}
-================================================
+export const ELIGIBILITY_VALUES = ["worldwide", "europe", "emea", "americas", "specific", "unclear"] as const;
 
-==================== HARD REJECT RULES (set approved=false, score 0-30) ====================
-R1. Job is NOT a software / engineering / data / ML / DevOps / QA / SRE / web / mobile role (e.g. sales, account manager, marketing, legal, HR, finance, recruiting, customer support, hardware-only roles, on-site lab work).
-R2. Job explicitly requires being physically present in a specific country or city OUTSIDE the {{TARGET_MARKET}} (e.g. "must reside in California", "on-site in Tokyo", "this role is US-based", "hybrid 3 days in NYC office", "must have authorization to work in the US/UK/Canada").
-R3. Job requires citizenship, security clearance, green card, H-1B sponsorship, or local work authorization that a {{CURRENT_LOCATION}}-based contractor would not have.
-R4. Job requires significant travel (>20%) tied to a region outside {{TARGET_MARKET}}.
-R5. Job is "remote (US only)", "remote (UK only)", "remote within EMEA" where {{CURRENT_LOCATION}} is excluded, or any geographically restricted remote that excludes {{CURRENT_LOCATION}}.
+function coerceEligibility(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const s = v.trim().toLowerCase();
+  return (ELIGIBILITY_VALUES as readonly string[]).includes(s) ? s : null;
+}
 
-==================== SOFT SIGNALS ====================
-S1. "Remote", "Remote worldwide", "Remote (Europe)", "Remote anywhere" → strong positive.
-S2. Company is European, headquartered in {{TARGET_MARKET}}, or hires globally via Deel/Remote.com/contractors → positive.
-S3. Tech stack mentioned (any of: TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, React, Next.js, Node, Django, FastAPI, Spring, Postgres, Kubernetes, AWS, GCP, etc.) → confirms it is a real software role.
-S4. Salary listed in EUR/GBP/USD with no geographic restriction → positive.
+type PromptConfig = {
+  targetMarket: string;
+  currentLocation: string;
+  jobAnalysisPrompt: string;
+  /** The candidate profile, when "use my profile when judging jobs" is on. */
+  profile?: CandidateProfile | null;
+};
 
-==================== SCORING RUBRIC ====================
-0-30   = clear reject (any R1–R5 hit).
-31-59  = ambiguous / soft mismatch (e.g. unclear remote policy, stack acceptable but location unclear) → approved=false.
-60-79  = likely good fit (remote-friendly, software role, no clear blockers) → approved=true.
-80-100 = strong fit (explicit remote + {{TARGET_MARKET}} or worldwide + clear software role + decent stack) → approved=true.
+// Config + profile for one analysis run.
+async function analysisConfig() {
+  const config = await getConfig();
+  let profile: CandidateProfile | null = null;
+  try {
+    profile = await profileForMatching();
+  } catch {
+    // profile unavailable — judge without it
+  }
+  return { ...config, profile };
+}
 
-Approval threshold: approved=true ONLY when score >= 60.
+// The profile only nudges the score; the hard reject rules always win.
+function profileBlock(profile: CandidateProfile | null | undefined): string {
+  if (!profile) return "";
+  return `==================== CANDIDATE PROFILE ====================
+${profileSummary(profile)}
 
-==================== OUTPUT CONTRACT ====================
-Return ONE JSON object and NOTHING ELSE.
-- No markdown.
-- No code fences (no \`\`\`).
-- No preamble like "Here is the result".
-- No commentary after the JSON.
-- Use lowercase booleans (true / false), not True/False/yes/no.
-- "reason" must be ONE sentence under 240 characters citing the specific rule(s) that drove the decision.
-- "techStack" is an array of bare technology names found in the description; empty array if none / not a software role.
+Use the profile as SOFT signals only — never to override a hard reject rule:
+S5. Strong overlap between the job's core stack / seniority and the candidate's skills and experience → positive.
+S6. Role clearly far more senior than the candidate's experience, or a core required technology the candidate lacks → negative.
 
-Schema (every key required, exact types):
-{"approved": boolean, "score": integer, "reason": string, "techStack": string[]}
+`;
+}
 
-Example of a valid REJECTED response:
-{"approved": false, "score": 18, "reason": "R1: Account Manager role, not a software/engineering position.", "techStack": []}
-
-Example of a valid APPROVED response:
-{"approved": true, "score": 82, "reason": "Remote worldwide Senior Backend Engineer role; European company; Go + Postgres stack; no citizenship requirement.", "techStack": ["Go", "Postgres", "Docker", "Kubernetes"]}
-
-Now analyze the job above and output ONLY the JSON object.`;
+// Insert the profile block into a single-job template: at {{CANDIDATE_PROFILE}}
+// when the template has it, else just before the hard reject rules.
+function withProfile(template: string, profile: CandidateProfile | null | undefined): string {
+  const block = profileBlock(profile);
+  if (template.includes("{{CANDIDATE_PROFILE}}")) return template.replace(/\{\{CANDIDATE_PROFILE\}\}/g, block);
+  if (!block) return template;
+  const at = template.search(/={3,}\s*HARD REJECT RULES/i);
+  return at === -1 ? `${block}${template}` : `${template.slice(0, at)}${block}${template.slice(at)}`;
+}
 
 function buildPrompt(
   job: { title: string; company: string; location: string | null; description: string | null },
-  config: { targetMarket: string; currentLocation: string; jobAnalysisPrompt: string }
+  config: PromptConfig,
 ): string {
-  const template = config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT;
+  const template = withProfile(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT, config.profile);
   return template
     .replace(/\{\{JOB_TITLE\}\}/g, job.title)
     .replace(/\{\{COMPANY\}\}/g, job.company)
@@ -77,16 +83,26 @@ function buildPrompt(
     .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
 }
 
+// Small models sometimes answer "approved":"false" (a string), which !!value
+// reads as true. Only a real true / "true" / "yes" / 1 counts as approved.
+function coerceApproved(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v === 1;
+  if (typeof v === "string") return ["true", "yes", "1"].includes(v.trim().toLowerCase());
+  return false;
+}
+
 function parseAIResponse(text: string): AnalysisResult {
   try {
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("No JSON found");
     const parsed = JSON.parse(jsonMatch[0]);
     return {
-      approved: !!parsed.approved,
+      approved: coerceApproved(parsed.approved),
       score: Math.min(100, Math.max(0, Number(parsed.score) || 0)),
       reason: String(parsed.reason || ""),
       techStack: Array.isArray(parsed.techStack) ? parsed.techStack.map(String) : [],
+      eligibility: coerceEligibility(parsed.eligibility),
     };
   } catch {
     return { approved: false, score: 0, reason: "Failed to parse AI response", techStack: [] };
@@ -129,10 +145,7 @@ function extractRulesCore(template: string): string {
   return slice(template) ?? slice(DEFAULT_ANALYSIS_PROMPT) ?? DEFAULT_ANALYSIS_PROMPT;
 }
 
-function buildBatchPrompt(
-  jobs: PendingJobRow[],
-  config: { targetMarket: string; currentLocation: string; jobAnalysisPrompt: string },
-): string {
+function buildBatchPrompt(jobs: PendingJobRow[], config: PromptConfig): string {
   const rules = extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT)
     .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
     .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
@@ -150,7 +163,7 @@ You will be given ${jobs.length} job postings. Analyze EACH ONE INDEPENDENTLY ag
 
 ${rules}
 
-==================== INPUT — ${jobs.length} JOBS ====================
+${profileBlock(config.profile)}==================== INPUT — ${jobs.length} JOBS ====================
 ${jobBlocks}
 ================================================
 
@@ -159,17 +172,115 @@ Return ONE JSON array and NOTHING ELSE.
 - No markdown, no code fences (no \`\`\`), no preamble, no commentary.
 - The array MUST contain exactly ${jobs.length} objects — one per job above.
 - Each object schema (every key required, exact types):
-  {"id": integer, "approved": boolean, "score": integer, "reason": string, "techStack": string[]}
+  {"id": integer, "approved": boolean, "score": integer, "reason": string, "techStack": string[], "eligibility": string}
 - "id" MUST equal the id= value of the job it judges; never invent or omit an id.
+- "eligibility" is where the employer can hire for the role: one of "worldwide", "europe", "emea", "americas", "specific" (named countries only) or "unclear".
 - Use lowercase booleans (true / false).
 - "reason" is ONE sentence under 240 characters citing the rule(s) that drove the decision.
 - "techStack" is an array of bare technology names found in that job's description; empty array if none.
 - approved=true ONLY when score >= 60.
 
 Example for two jobs with ids 11 and 12:
-[{"id":11,"approved":false,"score":18,"reason":"R1: Account Manager role, not a software position.","techStack":[]},{"id":12,"approved":true,"score":82,"reason":"Remote worldwide backend role; European company; Go + Postgres stack.","techStack":["Go","Postgres"]}]
+[{"id":11,"approved":false,"score":18,"reason":"R1: Account Manager role, not a software position.","techStack":[],"eligibility":"unclear"},{"id":12,"approved":true,"score":82,"reason":"Remote worldwide backend role; European company; Go + Postgres stack.","techStack":["Go","Postgres"],"eligibility":"worldwide"}]
 
 Now analyze all ${jobs.length} jobs and output ONLY the JSON array.`;
+}
+
+// ----------------------------------------------------------------------------
+// Claude prompts. Claude gets the same rules, split so the stable part (role,
+// rules, output guidance) is a cacheable system prompt and only the job(s) go
+// in the user turn. Structured outputs enforce the verdict schema, so the
+// response always parses.
+// ----------------------------------------------------------------------------
+
+const VERDICT_PROPERTIES = {
+  approved: { type: "boolean", description: "true only when score is 60 or higher" },
+  score: { type: "integer", description: "0-100 suitability score" },
+  reason: { type: "string", description: "One sentence under 240 characters citing the rule(s) that drove the decision" },
+  techStack: {
+    type: "array",
+    items: { type: "string" },
+    description: "Bare technology names found in the description; empty if none",
+  },
+  eligibility: {
+    type: "string",
+    enum: ["worldwide", "europe", "emea", "americas", "specific", "unclear"],
+    description: "Where the employer can hire for this role",
+  },
+};
+
+export const SINGLE_VERDICT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: VERDICT_PROPERTIES,
+  required: ["approved", "score", "reason", "techStack", "eligibility"],
+  additionalProperties: false,
+};
+
+export const BATCH_VERDICT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    verdicts: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { id: { type: "integer", description: "The id= value of the job this verdict judges" }, ...VERDICT_PROPERTIES },
+        required: ["id", "approved", "score", "reason", "techStack", "eligibility"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["verdicts"],
+  additionalProperties: false,
+};
+
+export function buildClaudeSystemPrompt(config: PromptConfig): string {
+  const rules = extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT)
+    .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
+    .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
+  return `You are a strict job-suitability classifier for a software developer based in ${config.currentLocation} who is targeting ${config.targetMarket} positions.
+
+You are given one or more job postings. Judge each one independently against the rules below — a verdict on one job must never influence another.
+
+${rules}
+
+${profileBlock(config.profile)}==================== OUTPUT ====================
+- "approved" is true ONLY when "score" is 60 or higher.
+- "eligibility" is where the employer can hire for the role: "worldwide", "europe", "emea", "americas", "specific" (named countries only) or "unclear".
+- "reason" is ONE sentence under 240 characters citing the specific rule(s) that drove the decision.
+- "techStack" lists the bare technology names found in the description; an empty array if none or not a software role.`;
+}
+
+function jobBlock(job: { title: string; company: string; location: string | null; description: string | null }, limit: number): string {
+  const desc = (job.description || "No description available").substring(0, limit);
+  return `JOB_TITLE: ${job.title}\nCOMPANY: ${job.company}\nLOCATION: ${job.location || "Not specified"}\nDESCRIPTION:\n${desc}`;
+}
+
+function buildSingleRequest(
+  job: { title: string; company: string; location: string | null; description: string | null },
+  config: PromptConfig,
+): LLMRequest {
+  return {
+    prompt: buildPrompt(job, config),
+    claude: {
+      system: buildClaudeSystemPrompt(config),
+      user: `Judge this job posting.\n\n${jobBlock(job, 6000)}`,
+      jsonSchema: SINGLE_VERDICT_SCHEMA,
+      maxTokens: 4000,
+    },
+  };
+}
+
+function buildBatchRequest(jobs: PendingJobRow[], config: PromptConfig): LLMRequest {
+  const blocks = jobs.map((j) => `### JOB id=${j.id}\n${jobBlock(j, BATCH_DESCRIPTION_LIMIT)}`).join("\n\n");
+  return {
+    prompt: buildBatchPrompt(jobs, config),
+    claude: {
+      system: buildClaudeSystemPrompt(config),
+      user: `Judge these ${jobs.length} job postings. Return exactly ${jobs.length} verdicts — one per job, each carrying the id= value of the job it judges.\n\n${blocks}`,
+      jsonSchema: BATCH_VERDICT_SCHEMA,
+      maxTokens: 8000,
+    },
+  };
 }
 
 // A single parsed verdict, preserving the model's own `id` when it supplied a
@@ -215,10 +326,11 @@ function extractJsonArray(text: string): string | null {
 
 function toVerdict(el: any): AnalysisResult {
   return {
-    approved: !!el?.approved,
+    approved: coerceApproved(el?.approved),
     score: Math.min(100, Math.max(0, Number(el?.score) || 0)),
     reason: String(el?.reason || ""),
     techStack: Array.isArray(el?.techStack) ? el.techStack.map(String) : [],
+    eligibility: coerceEligibility(el?.eligibility),
   };
 }
 
@@ -269,7 +381,20 @@ function matchVerdictsByPosition(
   return byPos;
 }
 
-export async function analyzeJob(jobId: number, signal?: AbortSignal): Promise<AnalysisResult> {
+export type AnalyzeJobOptions = {
+  /**
+   * Approve only at or above this score. Used for LinkedIn Easy Apply jobs,
+   * which get far more applicants, so a stricter bar can make sense.
+   */
+  minScore?: number;
+  minScoreLabel?: string;
+};
+
+export async function analyzeJob(
+  jobId: number,
+  signal?: AbortSignal,
+  options: AnalyzeJobOptions = {},
+): Promise<AnalysisResult> {
   // atomic check: only analyze if still PENDING (prevents double-analysis race condition)
   const updated = await prisma.scrapedJob.updateMany({
     where: { id: jobId, status: "PENDING" },
@@ -309,18 +434,23 @@ export async function analyzeJob(jobId: number, signal?: AbortSignal): Promise<A
     return { approved: false, score: 0, reason: "No description available for analysis", techStack: [] };
   }
 
-  const config = await getConfig();
-  const prompt = buildPrompt(job, config);
+  const config = await analysisConfig();
   const startTime = Date.now();
 
   let llmResult: { text: string; model: string; tokensUsed: number };
   try {
-    llmResult = await generateText(prompt, signal, "single");
+    // 25s per provider attempt leaves room for a second provider inside the
+    // extension route's 60s function limit.
+    llmResult = await generateForTask("extension", buildSingleRequest(job, config), signal, {
+      callTimeoutMs: 25_000,
+    });
   } catch (err: any) {
     // Rate-limit / quota errors are surfaced to the caller without marking the
     // job REJECTED — the row stays PENDING so the next batch can retry once
     // the provider window resets.
-    if (err instanceof LLMRateLimitedError) {
+    // The caller's deadline (e.g. the extension route's 60s limit) is not a
+    // verdict either — keep the job PENDING.
+    if (err instanceof LLMRateLimitedError || err?.message === "LLM call aborted") {
       throw err;
     }
     const raw = err?.message ?? String(err);
@@ -361,6 +491,11 @@ export async function analyzeJob(jobId: number, signal?: AbortSignal): Promise<A
   }
 
   const result = parseAIResponse(llmResult.text);
+  const minScore = options.minScore ?? 0;
+  if (result.approved && minScore > 0 && result.score < minScore) {
+    result.approved = false;
+    result.reason = `${result.reason} [${options.minScoreLabel || "Minimum score"}: ${result.score} is below ${minScore}]`.trim();
+  }
   const durationMs = Date.now() - startTime;
 
   await prisma.scrapedJob.update({
@@ -370,6 +505,7 @@ export async function analyzeJob(jobId: number, signal?: AbortSignal): Promise<A
       aiScore: result.score,
       aiReason: result.reason,
       techStack: result.techStack.length > 0 ? result.techStack.join(", ") : null,
+      eligibility: result.eligibility ?? null,
     },
   });
 
@@ -397,6 +533,8 @@ export type AnalyzeBatchOptions = {
   requestDelayMs?: number;
   /** Override how many jobs are packed into one LLM call. */
   batchSize?: number;
+  /** Only analyze these job ids (still only while they are PENDING). */
+  onlyIds?: number[];
 };
 
 // Leave at least this much wall-clock for the response + post-batch sheets
@@ -438,7 +576,7 @@ async function delay(ms: number, signal?: AbortSignal): Promise<void> {
  */
 async function analyzeBatch(
   jobs: PendingJobRow[],
-  config: Awaited<ReturnType<typeof getConfig>>,
+  config: PromptConfig,
   signal?: AbortSignal,
 ): Promise<{ approved: number; rejected: number; resolved: number; unresolved: number }> {
   let approved = 0;
@@ -487,9 +625,8 @@ async function analyzeBatch(
     location: job.location,
     description: job.description,
   }));
-  const prompt = buildBatchPrompt(promptRows, config);
   const startTime = Date.now();
-  const llmResult = await generateText(prompt, signal, "batch");
+  const llmResult = await generateForTask("scan", buildBatchRequest(promptRows, config), signal);
   const durationMs = Date.now() - startTime;
   const verdicts = matchVerdictsByPosition(
     parseBatchVerdicts(llmResult.text),
@@ -515,6 +652,7 @@ async function analyzeBatch(
         aiScore: v.score,
         aiReason: v.reason,
         techStack: v.techStack.length > 0 ? v.techStack.join(", ") : null,
+        eligibility: v.eligibility ?? null,
       },
     });
     if (u.count === 0) continue; // already analyzed by a concurrent run
@@ -549,7 +687,7 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
   retryAfterMs?: number;
   batchError?: string;
 }> {
-  const config = await getConfig();
+  const config = await analysisConfig();
   const batchSize = Math.min(12, Math.max(1, options.batchSize ?? config.analyzerBatchSize));
   // Vercel caps this route at 60s. Keep 48s of working budget so there is
   // always headroom to return a response and run the post-batch sheets sync.
@@ -568,7 +706,7 @@ export async function analyzeAllPending(options: AnalyzeBatchOptions = {}): Prom
   const killTimer = setTimeout(() => batchController.abort(), Math.max(1_000, deadline));
 
   const pending = await prisma.scrapedJob.findMany({
-    where: { status: "PENDING" },
+    where: { status: "PENDING", ...(options.onlyIds ? { id: { in: options.onlyIds } } : {}) },
     orderBy: { createdAt: "asc" },
     take: fetchLimit,
   });
@@ -687,7 +825,7 @@ export async function analyzeScrapedJobs(
   const verdicts = new Map<number, InlineVerdict>();
   if (jobs.length === 0) return { verdicts, rateLimited: false, timedOut: false };
 
-  const config = await getConfig();
+  const config = await analysisConfig();
   const batchSize = Math.min(12, Math.max(1, options.batchSize ?? config.analyzerBatchSize));
   const requestDelayMs = Math.max(0, options.requestDelayMs ?? config.analyzerRequestDelayMs);
   const budgetMs = options.timeBudgetMs;
@@ -739,14 +877,14 @@ export async function analyzeScrapedJobs(
     const chunk = needsLlm.slice(i, i + batchSize);
     // Positional ids 1..chunkLen, mapped back to the caller's original job
     // index after matching — same robustness as the DB-batched path.
-    const prompt = buildBatchPrompt(
+    const request = buildBatchRequest(
       chunk.map((c, j) => ({ ...c.row, id: j + 1 })),
       config,
     );
     const t0 = Date.now();
     let llmResult: { text: string; model: string; tokensUsed: number };
     try {
-      llmResult = await generateText(prompt, signal, "batch");
+      llmResult = await generateForTask("scan", request, signal);
     } catch (err: any) {
       if (err instanceof LLMRateLimitedError) {
         rateLimited = true;
@@ -793,4 +931,63 @@ export async function analyzeScrapedJobs(
   }
 
   return { verdicts, rateLimited, timedOut, error };
+}
+
+// ----------------------------------------------------------------------------
+// Playground: judge a job with a given route WITHOUT touching the database
+// (only the AI call itself is logged to AiUsage, as task "playground").
+// ----------------------------------------------------------------------------
+
+export type PlaygroundJob = {
+  title: string;
+  company: string;
+  location: string | null;
+  description: string | null;
+};
+
+export type PlaygroundResult = {
+  verdict: AnalysisResult;
+  raw: string;
+  provider: string;
+  model: string;
+  tokensUsed: number;
+  costUsd: number | null;
+  durationMs: number;
+};
+
+export async function analyzeJobPreview(
+  job: PlaygroundJob,
+  options: { route?: import("./aiRoutes").AiRoute; task?: "scan" | "extension"; signal?: AbortSignal } = {},
+): Promise<PlaygroundResult> {
+  const config = await analysisConfig();
+  const startedAt = Date.now();
+  const result = await generateForTask(options.task ?? "extension", buildSingleRequest(job, config), options.signal, {
+    routeOverride: options.route,
+    usageTask: "playground",
+    callTimeoutMs: 30_000,
+  });
+  return {
+    verdict: parseAIResponse(result.text),
+    raw: result.text,
+    provider: result.provider,
+    model: result.model,
+    tokensUsed: result.tokensUsed,
+    costUsd: result.costUsd ?? null,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
+// Re-judge specific jobs (Jobs table / detail panel): reset them to PENDING and
+// run the batched board-scan route over exactly those rows. Rows the AI could
+// not reach in this run stay PENDING for the next analyze pass or cron.
+export async function reanalyzeJobs(ids: number[], options: { timeBudgetMs?: number } = {}) {
+  const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n) && n > 0))).slice(0, 60);
+  if (unique.length === 0) {
+    return { analyzed: 0, approved: 0, rejected: 0, skipped: 0, remaining: 0, timedOut: false };
+  }
+  await prisma.scrapedJob.updateMany({
+    where: { id: { in: unique } },
+    data: { status: "PENDING", aiScore: null, aiReason: null, techStack: null, eligibility: null, sheetSynced: false },
+  });
+  return analyzeAllPending({ onlyIds: unique, limit: unique.length, timeBudgetMs: options.timeBudgetMs });
 }

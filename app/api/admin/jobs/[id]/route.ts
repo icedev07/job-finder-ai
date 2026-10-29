@@ -1,0 +1,63 @@
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { parseJobPatch, updateJobs } from "@/lib/jobActions";
+
+export const dynamic = "force-dynamic";
+
+type Ctx = { params: Promise<{ id: string }> };
+
+// Full job for the detail panel: description, AI history, apply links, and
+// how often the same company has shown up (a ghost-job / spam signal).
+export async function GET(_req: NextRequest, { params }: Ctx) {
+  const id = Number((await params).id);
+  if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
+  const job = await prisma.scrapedJob.findUnique({
+    where: { id },
+    include: { analysisLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
+  });
+  if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60_000);
+  const [sameCompany, resume] = await Promise.all([
+    prisma.scrapedJob.count({
+      where: { company: { equals: job.company, mode: "insensitive" }, createdAt: { gte: ninetyDaysAgo }, NOT: { id } },
+    }),
+    job.resumeId
+      ? prisma.resume.findUnique({ where: { id: job.resumeId }, select: { id: true, name: true, fileName: true } })
+      : Promise.resolve(null),
+  ]);
+
+  let signals: Record<string, unknown> | null = null;
+  try {
+    signals = job.signals ? JSON.parse(job.signals) : null;
+  } catch {
+    signals = null;
+  }
+  let application: Record<string, unknown> | null = null;
+  try {
+    application = job.applicationData ? JSON.parse(job.applicationData) : null;
+  } catch {
+    application = null;
+  }
+
+  return NextResponse.json({
+    job: { ...job, signals, applicationData: application },
+    sameCompany90d: sameCompany,
+    resume,
+  });
+}
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const id = Number((await params).id);
+  if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const patch = parseJobPatch(body);
+  if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
+  await updateJobs([id], patch);
+  return NextResponse.json({ ok: true });
+}

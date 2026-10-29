@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getConfig } from "@/lib/config";
+import { verifyAdminPassword } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,10 @@ function serializeRows(rows: unknown): unknown {
   );
 }
 
+// The admin session (checked by middleware) is enough to read. Reads run in a
+// READ ONLY transaction, so a "read" that smuggles a write — e.g.
+// WITH x AS (DELETE …) SELECT … — fails inside Postgres instead of running.
+// Writes additionally require the admin password, re-entered for each query.
 export async function POST(req: NextRequest) {
   let body: { sql?: unknown; password?: unknown; confirmWrite?: unknown };
   try {
@@ -34,31 +38,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "sql is required" }, { status: 400 });
   }
 
-  const config = await getConfig();
-  const expected = config.adminPassword || "admin";
-  const given = typeof body.password === "string" ? body.password : "";
-  if (given !== expected) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const keyword = firstKeyword(sql);
   const isRead = READ_KEYWORDS.includes(keyword);
 
-  if (!isRead && body.confirmWrite !== true) {
-    return NextResponse.json(
-      {
-        error:
-          "This query is not a read query. Set confirmWrite=true to execute it.",
-        keyword,
-      },
-      { status: 400 },
-    );
+  if (!isRead) {
+    if (body.confirmWrite !== true) {
+      return NextResponse.json(
+        {
+          error: "This query is not a read query. Set confirmWrite=true to execute it.",
+          keyword,
+        },
+        { status: 400 },
+      );
+    }
+    const password = typeof body.password === "string" ? body.password : "";
+    const check = password ? await verifyAdminPassword(password) : { ok: false };
+    if (!check.ok) {
+      return NextResponse.json(
+        { error: "Write queries need the admin password. Enter it and try again." },
+        { status: 401 },
+      );
+    }
   }
 
   const startedAt = Date.now();
   try {
     if (isRead) {
-      const rows = await prisma.$queryRawUnsafe<unknown[]>(sql);
+      const rows = await prisma.$transaction(
+        async (tx) => {
+          await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
+          await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '15s'");
+          return tx.$queryRawUnsafe<unknown[]>(sql);
+        },
+        { timeout: 20_000 },
+      );
       return NextResponse.json({
         kind: "rows",
         rows: serializeRows(rows),

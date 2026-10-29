@@ -1,20 +1,23 @@
 # Deployment & Configuration Guide
 
+Upgrading an existing 3.x deployment? Follow [README → Upgrading from 3.x](README.md#upgrading-from-3x) first: it covers the new environment variables, the database update and reconnecting the extension.
+
 ## Services used
 
 | Service | Purpose | Free? | Billing required? |
 |---------|---------|-------|-------------------|
-| Vercel | hosts the Next.js web app | yes, free tier | **no card required** |
-| Supabase | PostgreSQL database | yes, free tier | no card required |
-| Google Sheets API | output approved jobs | yes, completely free | no card required |
+| Vercel | hosts the Next.js web app and the daily cron | yes, free tier | **no card required** |
+| Supabase | PostgreSQL database | yes, free tier (500 MB) | no card required |
+| Google Sheets API | output approved jobs (optional) | yes, completely free | no card required |
 | Google Cloud service account | authenticates Sheets API | yes, completely free | no billing required |
-| Google Gemini API | AI job analysis (rotation provider) | **yes, free** | **no card required** |
-| Groq API | AI job analysis (rotation provider) | **yes, free** | **no card required** |
-| Cerebras API | AI job analysis (rotation provider) | **yes, free** | **no card required** |
-| OpenRouter API | AI job analysis (rotation provider) | **yes, free** | **no card required** |
-| Cloudflare Workers AI | AI job analysis (rotation provider) | **yes, free** (10k Neurons/day) | **no card required** |
+| Google Gemini API | AI job analysis | **yes, free** | **no card required** |
+| Groq API | AI job analysis | **yes, free** | **no card required** |
+| Cerebras API | AI job analysis | **yes, free** | **no card required** |
+| OpenRouter API | AI job analysis | **yes, free** | **no card required** |
+| Cloudflare Workers AI | AI job analysis | **yes, free** (10k Neurons/day) | **no card required** |
+| Anthropic Claude API | optional: best-quality verdicts, resume reading, form answers | pay as you go | yes (prepaid credits) |
 
-**Every service is 100% free and needs no credit card.** In Settings you tick one or more AI providers; the analyzer rotates across the ticked set and automatically fails over when one hits its rate limit.
+**Everything except Claude is free and needs no credit card.** Each AI task (board scans, the LinkedIn extension, resume reading, form answers) has its own route: an ordered list of providers that fails over automatically when one hits its rate limit. Claude is optional, and a monthly budget cap (default $10) keeps its cost predictable.
 
 ---
 
@@ -39,15 +42,19 @@
 
 ### Keep Supabase alive
 
-Supabase free tier pauses databases after 1 week of inactivity. The app has a `/api/health` endpoint that pings the database. Set up a free cron job to call it:
+Supabase free tier pauses databases after 1 week of inactivity. The app has a public `/api/health` endpoint that pings the database. Set up a free cron job to call it:
 
 1. Go to https://cron-job.org (free, no card required)
 2. Create a job: URL = `https://your-app.vercel.app/api/health`, schedule = every 10 minutes
 3. This keeps Supabase active
 
+The free database holds 500 MB. **Admin → Data** shows how much is used and offers safe clean-ups (old rejected jobs, logs, AI usage history). Resume files are stored in the database too.
+
 ---
 
-## Step 2: Set up Google Sheets API
+## Step 2: Set up Google Sheets API (optional)
+
+Skip this step if you do not need the spreadsheet: everything is also in the admin panel.
 
 ### Create a Google Cloud service account (free, no billing required)
 
@@ -76,7 +83,7 @@ Supabase free tier pauses databases after 1 week of inactivity. The app has a `/
 
 ## Step 3: Get your AI API keys
 
-In Settings you tick the AI providers the analyzer may use; it rotates across the ticked set and automatically fails over when one hits a rate limit. Grab as many of the free keys below as you can; each is optional and the rotation uses whatever you configure. One key is enough to start, but more keys means more daily headroom and the scanner and LinkedIn extension never block each other.
+Grab as many of the free keys below as you can. Each is optional and the routes use whatever you configure. One key is enough to start, but more keys mean more daily headroom, and the scanner and the LinkedIn extension never block each other.
 
 ### Google Gemini (free, no card)
 
@@ -117,6 +124,16 @@ Aggregator fallback across many free models.
 
 Free allocation is 10,000 Neurons/day (several thousand analyses).
 
+### Claude (optional, paid)
+
+Claude gives the most reliable verdicts (its replies are schema-checked JSON), and it is required for **Read with Claude** (turning your resume into your profile). It is also the default for drafting form answers.
+
+1. Go to https://platform.claude.com and sign in
+2. Add credits under **Billing** (Claude is prepaid)
+3. Open **API keys**, create a key and copy it (`sk-ant-…`)
+
+What it costs depends on the model you pick for each route; see [README → Claude](README.md#claude-your-anthropic-api-key-pay-as-you-go) for the price table. Claude Haiku 5.5 suits high-volume board scans; Opus 5.5 suits the LinkedIn extension, resume reading and form answers. The app tracks every call's cost and stops using Claude for the rest of the month once your budget is reached (default $10 per month).
+
 ---
 
 ## Step 4: Deploy to Vercel
@@ -125,19 +142,21 @@ Free allocation is 10,000 Neurons/day (several thousand analyses).
 2. Go to https://vercel.com and sign in with GitHub (free, no card needed)
 3. Click **Add New > Project**
 4. Import your GitHub repository
-5. Vercel auto-detects Next.js. Leave the default settings.
+5. Vercel auto-detects Next.js. Leave the default settings (`vercel.json` already sets the build command, the function time limits and the daily cron).
 6. Under **Environment Variables**, add:
-   - `DATABASE_URL` = your Supabase connection string from Step 1
+   - `DATABASE_URL`: your Supabase connection string from Step 1
+   - `CRON_SECRET`: a long random string (see below). Vercel Cron sends it with the daily scan; without it the scan is refused.
+   - `SESSION_SECRET`: another long random string. It signs admin sessions.
 7. Click **Deploy**
 
-### First deploy takes 2-3 minutes. After it's live:
+To generate a random string, run one of these locally:
 
-1. Open `https://your-project.vercel.app`
-2. You'll see the job listing page (empty)
-3. Go to `https://your-project.vercel.app/admin`
-4. Login with password: `admin` (change it in settings)
+```bash
+openssl rand -hex 32
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-### Create database tables
+### Create the database tables
 
 After the first deploy, visit this URL once in your browser:
 
@@ -145,129 +164,130 @@ After the first deploy, visit this URL once in your browser:
 https://your-project.vercel.app/api/setup
 ```
 
-You should see `{"status":"success","message":"All tables created successfully."}`. This creates all the required database tables automatically.
+You should see `{"status":"success","message":"All tables created and defaults seeded."}`. On an existing database it answers `"already_initialized"` and adds any missing tables and columns; your data is kept. It is safe to open again after every upgrade.
 
-Alternatively, run migrations from your local machine:
+Alternatively, run the migrations from your local machine (Node.js 20.9 or newer):
 
 ```bash
 npm install
 npx prisma generate
-npx prisma migrate deploy
+DATABASE_URL="postgresql://..." npx prisma migrate deploy
 ```
+
+### Sign in
+
+1. Open `https://your-project.vercel.app`. It redirects to the admin panel and asks you to sign in.
+2. Sign in with the default password `admin`.
+3. The Dashboard lists the setup steps still open, starting with the default password: open **Settings → Admin password** and set one with at least 8 characters.
 
 ---
 
 ## Step 5: Configure the admin panel
 
-Go to `/admin/settings` and fill in:
+**Admin → Setup** (`/admin/setup`) is a 12-step checklist that ticks itself off as you go and links to the right page for each step. The main places:
 
-### Target Configuration
-| Setting | Example value |
-|---------|--------------|
-| Target Market | `Europe, Eastern Europe, Remote worldwide` |
-| Current Location | `Armenia` |
+### AI → Providers & keys
 
-### AI Providers
-
-Tick the providers you want in the **AI Providers** checklist and paste a key for each. Tick **one** for single-provider mode, or **several** to rotate across them — the analyzer fails over automatically when one is rate-limited. A ticked provider with no key is simply skipped. Click **Test All Selected Providers** to verify.
+Paste a key for each provider you signed up for in Step 3 and click its **Test** button. Keys are write-only: after saving, the panel only shows that a key is set and its last characters.
 
 | Provider | Credentials | Where to get it |
 |----------|-------------|-----------------|
+| Claude | `sk-ant-...` | platform.claude.com → API keys |
 | Gemini | `AIzaSy...` | aistudio.google.com/apikey |
 | Groq | `gsk_...` | console.groq.com/keys |
 | Cerebras | `csk-...` | cloud.cerebras.ai |
 | OpenRouter | `sk-or-v1-...` | openrouter.ai/settings/keys |
 | Cloudflare | Account ID + API token | dash.cloudflare.com |
 
-The model defaults (`gemini-2.5-flash`, `llama-3.1-8b-instant`, `llama-3.3-70b`, Cloudflare `@cf/meta/llama-3.1-8b-instruct`) work out of the box and are editable in Settings.
+The model defaults (`gemini-2.5-flash`, `llama-3.1-8b-instant`, `llama-3.3-70b`, Cloudflare `@cf/meta/llama-3.1-8b-instruct`) work out of the box and are editable here. With a Claude key, **List models for this key** shows the models your key can use.
 
-### Google Sheets
-| Setting | Value |
-|---------|-------|
-| Google Sheet ID | the spreadsheet ID from step 2 |
-| Service Account JSON | paste the **entire** JSON key file content |
-| Sheet Columns | leave blank for defaults |
+### AI → Routes
 
-### LinkedIn Extension
-| Setting | Value |
-|---------|-------|
-| LinkedIn Sheet Tab | `LinkedIn` (or any name you prefer for the tab) |
-| Extension API Key | set a secret key for the Chrome extension (optional) |
+Each task has an ordered list of providers. Use **Add provider** and the up / down arrows to set the order. For Claude, pick a model and an effort level (`low` is usually enough for job matching). A provider without a key is skipped.
 
-### Admin
-| Setting | Value |
-|---------|-------|
-| Admin Password | change from `admin` to something secure |
+### AI → Usage & cost
 
-Click **Save All Settings**.
+Set the **Monthly budget** for Claude (default `$10`; `0` = no cap). The page shows calls, tokens, cost per task and model, provider health and recent errors.
+
+### Settings
+
+| Section | Setting | Example value |
+|---------|---------|---------------|
+| Target & matching | Target market | `Europe, Eastern Europe, Remote worldwide` |
+| | Current location | `Armenia` |
+| | Use my profile when judging jobs | on |
+| | Review band | `45` – `70` |
+| | Follow-up days | `7` |
+| Job analysis prompt | (blank = built-in prompt) | |
+| Google Sheets | Google Sheet ID | the spreadsheet ID from Step 2 |
+| | Service Account JSON | paste the **entire** JSON key file content |
+| | LinkedIn sheet tab | `LinkedIn` |
+| | Sheet columns | leave blank for defaults |
+| Admin password | New password | at least 8 characters |
+
+Click **Save** (or press `Ctrl+S`).
+
+### Profile & resumes
+
+Fill in your profile, or upload a PDF resume and click **Read with Claude** to fill it for you. Add more resume variants with tags (for example `.net, c#` and `react, typescript`) so autofill attaches the right one. The profile is also used as a soft signal when the AI judges jobs.
+
+### Sources and skip rules
+
+Enable the job sources you want under **Sources** and run **Scrape all sources** once to check everything works. Add **Skip rules** for companies or titles you never want to see.
 
 ---
 
-## Step 6: Install the Chrome Extension
+## Step 6: Install the Chrome extension
 
-1. Open `chrome://extensions` in Chrome
+1. Open `chrome://extensions` in Chrome (version 116 or newer)
 2. Enable **Developer mode** (toggle in top-right)
 3. Click **Load unpacked**
 4. Select the `extension/` folder from this project
 5. The extension icon appears in your toolbar
 
-### Configure the extension
+After pulling an update, click the reload icon on the extension's card.
 
-1. Open `extension/popup.js` in a text editor
-2. Change `SERVER_URL` on line 1 to your Vercel URL:
-   ```js
-   const SERVER_URL = "https://your-project.vercel.app";
-   ```
-3. Reload the extension in `chrome://extensions`
-4. (Optional) Click the extension icon and enter your Extension API Key
+### Connect the extension
 
-### How to use
+1. In the admin panel, open **Extension** (`/admin/extension`).
+2. Copy the **Server URL** and click **Reveal** to copy the **API key**.
+3. Click the extension icon, paste both into the popup and click **Save**.
+
+The key is required: without it the server refuses every extension request and the popup shows why. **New key** on the Extension page rotates the key; paste the new one into the popup afterwards.
+
+### Scan LinkedIn
 
 1. Go to https://www.linkedin.com/jobs/search/ and search for jobs
 2. Click the extension icon
-3. Click **Start Scan**
-4. The extension will check every job on the page, send it to your server for AI analysis, hide unsuitable jobs, and save approved jobs to Google Sheets
+3. Choose what to do with **Easy Apply jobs**: **Skip and hide** (default) or **Analyze with AI** (optionally only approving them above a minimum score)
+4. Click **Start Scan**
+5. The extension checks every job on the page, sends it to your server for AI analysis, hides unsuitable jobs, and saves approved jobs (and pushes them to Google Sheets)
+
+For LinkedIn's chat-style AI search (`/jobs/search-results/`), tick **Analyze AI search page (beta)** first. **Job scan limit** caps a run (default 100, `-1` = no limit).
+
+### Autofill an application form
+
+1. Open a job's application form (Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Personio, Recruitee, Teamtailor, or any other form with generic matching)
+2. Click the extension icon, then **Open autofill panel (application forms)**
+3. Check the resume to attach, then click **Autofill this page**. On a site outside the built-in list, Chrome first asks you to allow access to that site
+4. Review the highlighted fields: green = from your profile, amber = drafted by AI (read it), red = needs you
+5. Submit the form yourself, then click **Mark as applied**. The job moves to **Applications** with a follow-up date
+
+The extension never submits a form and never ticks consent boxes.
 
 ---
 
-## Step 7: Run scanners locally (optional)
+## Step 7: Daily scans
 
-Scanners require a browser (Playwright + Chrome) so they run on your local machine.
+`vercel.json` schedules `GET /api/admin/scanners/run` every day at 06:00 UTC. Vercel adds `Authorization: Bearer <CRON_SECRET>` to the call, and the route refuses anything else, so the `CRON_SECRET` variable from Step 4 must be set.
 
-### First-time setup
+To check it works:
 
-```bash
-git clone <your-repo-url>
-cd job_automation
-npm install
+- **Vercel → your project → Settings → Cron Jobs** lists the job and lets you run it once by hand.
+- **Admin → Logs → Scan logs** shows each run. A run refused because `CRON_SECRET` is missing is logged there too.
+- The top bar of the admin panel shows when the last scan ran.
 
-# create .env file
-cp .env.example .env
-# edit .env and set DATABASE_URL to your Supabase connection string
-
-npx prisma generate
-
-# one-time browser login for each platform
-npm run jobright:login
-npm run ziprecruiter:init
-npm run glassdoor:init
-npm run dice:init
-npm run simplify:init
-```
-
-### Run scans
-
-```bash
-npm run jobright:scan
-npm run ziprecruiter:scan
-npm run glassdoor:scan
-npm run dice:scan
-npm run simplify:scan
-```
-
-### After scanning
-
-Nothing extra to do. Each scan checks every job with AI inline, stores only the suitable / not-suitable results, and syncs approved ones to Google Sheets in the same run. The **Analyze Pending Jobs** button is only a fallback for clearing leftovers (a rescan reset, or a pre-upgrade backlog) and normally shows `0`.
+Each scan checks every job with AI inline, stores only the suitable / not-suitable results, and syncs approved ones to Google Sheets in the same run. The **Analyze pending** button is only a fallback for clearing leftovers and normally shows `0`.
 
 ---
 
@@ -277,12 +297,12 @@ Nothing extra to do. Each scan checks every job with AI inline, stores only the 
 |-------|-----------------|-----|
 | URL dedup | same job URL scraped twice | normalized URL check before saving |
 | Title+company dedup | same job on same platform | exact match before saving |
-| Cross-platform dedup | same job on Dice AND LinkedIn | normalized title+company match across all platforms |
+| Cross-platform dedup | same job on Greenhouse AND LinkedIn | normalized title+company match across all platforms |
 | Analysis dedup | analyzing a job already analyzed | a feed scan looks each job up first and analyzes only genuinely new ones |
 | Sheet sync dedup | syncing same job to sheet twice | `sheetSynced` flag |
 | Skip rules | unwanted companies/titles/URLs | checked before saving, configurable from admin |
 
-Once a job is analyzed (approved or rejected), it **never gets analyzed again** even if found again in a future scan.
+Once a job is analyzed (approved or rejected), it is **never analyzed again automatically**, even if a later scan finds it again. To judge jobs again (for example after changing the prompt or a route), select them on the Jobs page and click **Re-analyze**.
 
 ---
 
@@ -314,52 +334,76 @@ Once a job is analyzed (approved or rejected), it **never gets analyzed again** 
 | Country | location/country |
 | Role | job title |
 | Url | same as Job Url |
+| Apply via | "Easy Apply" or "Company site" (added automatically to an existing tab) |
 
 ---
 
 ## Troubleshooting
 
-**Cannot log in to `/admin` with password `admin`**
-- Make sure database tables exist: visit `/api/setup` first (see Step 4).
+**Cannot sign in with password `admin`**
+- Make sure the database tables exist: open `/api/setup` first (see Step 4).
 - If you see "database may be unreachable", your `DATABASE_URL` is wrong. Use the Supabase **session pooler** URI (port `5432`, see Step 1).
-- You can set `ADMIN_PASSWORD=admin` as an environment variable on Vercel to bypass the database for login.
 - A `503` error from `/api/admin/auth` in the Network tab means the app cannot reach Postgres, not a wrong password.
+- "Too many failed attempts. Try again in N min.": after 8 failed sign-ins, wait until the 15-minute window is over.
+- Locked out? Set `ADMIN_PASSWORD` as an environment variable on Vercel and redeploy. It overrides the stored password; remove it again once you have signed in and changed the password.
+
+**The admin panel keeps sending me back to the sign-in page**
+- Sessions last 7 days. Changing `SESSION_SECRET` (or `DATABASE_URL`, when `SESSION_SECRET` is not set) signs everyone out. Sign in again.
+- The session cookie needs HTTPS in production. Open the `https://` URL of your deployment.
+
+**The daily scan does not run**
+- Set `CRON_SECRET` on Vercel and redeploy. **Admin → Logs → Scan logs** shows refused runs, and **Admin → Setup** flags the missing variable.
+- Cron jobs only run on the production deployment, not on preview deployments.
 
 **Vercel function timeout**
-- Free tier has a 10-second limit on serverless functions.
-- AI analysis usually takes 2-6 seconds, so it should work fine.
-- If timeouts occur, prefer the fast providers (Cerebras, Groq) in the rotation.
+- `vercel.json` gives the AI routes 60 seconds (30 for some quick ones); the free plan allows that.
+- The scanners stop early when time runs out and pick up the rest on the next run.
+- If timeouts occur, prefer the fast providers (Cerebras, Groq) or Claude Haiku in the route, or lower **Jobs per AI call** under **Sources**.
 
 **Supabase database is paused**
 - Supabase pauses free databases after 1 week of inactivity.
 - Set up the cron job from Step 1 to prevent this.
 
-**Scanner fails with "context directory not found"**
-- Run the init script first: `npm run <platform>:init`
-- Log in manually in the browser that opens
-
 **"API key not configured" or 429 quota error**
-- Go to `/admin/settings`, tick several providers in the **AI Providers** checklist, and add a key for each — the rotation fails over automatically when one is rate-limited.
-- The more providers you tick and key (Gemini, Groq, Cerebras, OpenRouter, Cloudflare), the more daily headroom you get.
-- If every provider is rate-limited at once, the scan stops checking jobs — unchecked jobs are simply not stored and are re-fetched and retried on the next scan, never wrongly rejected.
+- Open **AI → Providers & keys** and add keys for more providers, then add them to the route under **AI → Routes**. The route fails over automatically when one is rate-limited.
+- The more providers you key (Gemini, Groq, Cerebras, OpenRouter, Cloudflare, Claude), the more daily headroom you get.
+- If every provider is rate-limited at once, the scan stops checking jobs. Unchecked jobs are simply not stored, and they are re-fetched and retried on the next scan, never wrongly rejected.
+- **AI → Usage & cost** shows which provider failed and why.
+
+**Claude errors**
+- "Claude API key is invalid": paste a fresh key under **AI → Providers & keys**.
+- "Claude rejected the request (400): Your credit balance is too low…": add credits under Billing in the Claude Console.
+- "Claude: monthly budget reached": the route uses its other providers until the 1st of next month (UTC). Raise the cap under **AI → Usage & cost** if you want Claude back now.
+- Resume reading needs Claude: without a key (or after the budget is reached) **Read with Claude** fails with a clear message. You can still fill the profile by hand.
 
 **Gemini: `Error fetching from https://generativelanguage.googleapis.com`**
-- In Settings set the model to **`gemini-1.5-flash`** and save (newer model names are not always available for every key or region).
+- Under **AI → Providers & keys** set the Gemini model to **`gemini-1.5-flash`** and save (newer model names are not always available for every key or region).
 - Create a fresh key at https://aistudio.google.com/apikey and paste it again.
-- After fixing, just run the scanners again — each scan re-fetches and checks any jobs missed earlier.
+- After fixing, just run the scanners again; each scan re-fetches and checks any jobs missed earlier.
+
+**Chrome extension not connecting**
+- "Extension API key missing" or "invalid": open **Admin → Extension**, copy the key into the popup and click **Save**.
+- Make sure the **Server URL** in the popup is your deployment URL (`https://your-project.vercel.app`, no trailing path).
+- Reload the extension in `chrome://extensions` after every update.
+- Check that you're on a LinkedIn jobs search page.
+
+**Autofill fills nothing or misses fields**
+- Make sure the page shows the application form itself (on Lever and some boards, click **Apply** first).
+- On a site outside the built-in list, accept Chrome's access prompt when you click **Autofill this page**.
+- Red fields had no matching profile value: add the value to your profile, or answer it once and keep **Save my answers to the answer bank** ticked.
+- Workday and LinkedIn's Easy Apply modal are not supported yet.
+
+**Resume upload fails**
+- Files are limited to 4 MB (Vercel's request limit is 4.5 MB). Export a smaller PDF.
 
 **Duplicate lines in the extension activity log**
 - Reload the extension after update: `chrome://extensions` then reload "LinkedIn Job Scanner" (background relay was removed).
 
 **Google Sheets not updating**
-- Make sure the sheet tabs are named `Jobs` and `LinkedIn`
+- Make sure the sheet tabs are named `Jobs` and `LinkedIn` (or the tab name set in Settings)
 - Make sure the service account email has Editor access to the sheet
 - Check that the Sheet ID is correct (from the URL)
-
-**Chrome extension not connecting**
-- Make sure `SERVER_URL` in `popup.js` matches your Vercel URL
-- Check that you're on a LinkedIn jobs search page
-- If using an API key, make sure it matches what's in `/admin/settings`
+- Use **Sync Sheets** on the Dashboard to push pending rows by hand
 
 **Jobs are being analyzed twice**
-- This should not happen. The system only analyzes PENDING jobs with an atomic status check. If you see duplicates, check `/admin/logs`.
+- This should not happen. Scans only analyze new jobs, with an atomic status check. If you see duplicates, check **Admin → Logs**.

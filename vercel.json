@@ -16,6 +16,33 @@
     },
     "app/api/admin/scanners/run/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/admin/ai/playground/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/ai/models/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/admin/jobs/reanalyze/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/jobs/export/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/admin/resumes/[id]/parse/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/admin/data/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/admin/db/query/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/extension/answers/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/extension/applications/route.ts": {
+      "maxDuration": 30
     }
   },
   "crons": [

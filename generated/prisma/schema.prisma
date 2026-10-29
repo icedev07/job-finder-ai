@@ -30,6 +30,9 @@ model ScrapedJob {
   location       String?
   url            String    @db.VarChar(2048)
   manualApplyUrl String?   @db.VarChar(2048)
+  // How the job is applied to: "EASY_APPLY" (LinkedIn's in-site form) or
+  // "EXTERNAL" (company / ATS site). Null when unknown (most board jobs).
+  applyMethod    String?   @db.VarChar(20)
   description    String?
   salary         String?
   techStack      String?
@@ -39,10 +42,35 @@ model ScrapedJob {
   sheetSynced    Boolean   @default(false)
   createdAt      DateTime  @default(now())
 
+  // ── Pipeline (applications board) ──
+  // null = not in the pipeline yet; SAVED, APPLIED, INTERVIEW, OFFER,
+  // REJECTED (by the company) or ARCHIVED.
+  stage           String?   @db.VarChar(20)
+  stageUpdatedAt  DateTime?
+  appliedAt       DateTime?
+  followUpAt      DateTime?
+  notes           String?
+  // Which resume variant was sent, and the answers given (JSON).
+  resumeId        Int?
+  applicationData String?
+
+  // ── Your feedback on the AI verdict: 1 = good match, -1 = bad match ──
+  feedback   Int?
+  feedbackAt DateTime?
+
+  // ── Signals ──
+  // Where the company can hire, as judged by the AI: worldwide, europe,
+  // emea, americas, specific, unclear.
+  eligibility String? @db.VarChar(30)
+  // JSON: { postedText, reposted, applicants, … } captured by the extension.
+  signals     String?
+
   analysisLogs AnalysisLog[]
 
   @@unique([platform, url])
   @@unique([platform, title, company])
+  @@index([stage])
+  @@index([status, createdAt])
 }
 
 // ── Admin configuration ─────────────────────────────────────────────────────
@@ -85,6 +113,61 @@ model AnalysisLog {
   createdAt    DateTime @default(now())
 
   scrapedJob ScrapedJob @relation(fields: [scrapedJobId], references: [id], onDelete: Cascade)
+}
+
+// ── Profile & resumes ───────────────────────────────────────────────────────
+
+// An uploaded resume variant (e.g. ".NET backend", "Full-stack JS"). The file
+// itself is stored in Postgres; resumes are small and this keeps the app to a
+// single database with no extra storage service.
+model Resume {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(120)
+  fileName    String   @db.VarChar(255)
+  mimeType    String   @db.VarChar(100)
+  sizeBytes   Int
+  data        Bytes
+  // Plain text extracted by Claude (used for answers and matching).
+  textContent String?
+  // JSON profile Claude extracted from this file.
+  parsed      String?
+  // Comma-separated keywords used to auto-pick this variant for a job.
+  tags        String?  @db.VarChar(500)
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
+// Answers to recurring application questions, reused by autofill.
+model SavedAnswer {
+  id        Int      @id @default(autoincrement())
+  question  String
+  answer    String
+  tags      String?  @db.VarChar(300)
+  uses      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+// One row per AI call (every provider, success or failure). Drives the usage
+// & cost page, the Claude monthly budget cap, and provider health stats.
+model AiUsage {
+  id               Int      @id @default(autoincrement())
+  task             String   @db.VarChar(30)
+  provider         String   @db.VarChar(30)
+  model            String   @db.VarChar(120)
+  ok               Boolean  @default(true)
+  inputTokens      Int      @default(0)
+  outputTokens     Int      @default(0)
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costUsd          Float    @default(0)
+  durationMs       Int?
+  error            String?
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([provider, createdAt])
 }
 
 model ExtensionLog {

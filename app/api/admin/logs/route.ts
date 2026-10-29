@@ -72,19 +72,13 @@ export async function DELETE(req: NextRequest) {
   const body = await req.json();
   const { type, ids } = body;
 
+  // The old one-click "cleanup" (delete every job and log) moved to
+  // Admin → Data → Danger zone, which needs a typed confirmation.
   if (type === "cleanup") {
-    const [deletedAnalysis, deletedJobs, deletedScans] = await prisma.$transaction([
-      prisma.analysisLog.deleteMany(),
-      prisma.scrapedJob.deleteMany(),
-      prisma.scanLog.deleteMany(),
-    ]);
-    return NextResponse.json({
-      deleted: {
-        analysisLogs: deletedAnalysis.count,
-        jobs: deletedJobs.count,
-        scanLogs: deletedScans.count,
-      },
-    });
+    return NextResponse.json(
+      { error: "Use Admin → Data → Danger zone to delete all jobs." },
+      { status: 410 },
+    );
   }
 
   if (!type || !Array.isArray(ids) || ids.length === 0) {

@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 import { shouldSkipJob } from "./jobSkipRules";
 
-function normalizeUrl(raw: string): string {
+export function normalizeUrl(raw: string): string {
   try {
     const u = new URL(raw);
     u.searchParams.delete("utm_source");
@@ -15,7 +15,7 @@ function normalizeUrl(raw: string): string {
     u.searchParams.delete("trk");
     u.searchParams.delete("source");
     u.hash = "";
-    let path = u.pathname.replace(/\/+$/, "");
+    const path = u.pathname.replace(/\/+$/, "");
     u.pathname = path || "/";
     const s = u.toString();
     return s.length <= 2048 ? s : s.slice(0, 2048);
@@ -253,6 +253,7 @@ export type JobVerdict = {
   aiScore: number;
   aiReason: string;
   techStack: string[];
+  eligibility?: string | null;
   model: string;
   tokensUsed: number;
   durationMs: number;
@@ -294,6 +295,7 @@ export async function createAnalyzedScrapedJob(params: {
         aiScore: verdict.aiScore,
         aiReason: verdict.aiReason,
         techStack: verdict.techStack.length > 0 ? verdict.techStack.join(", ") : null,
+        eligibility: verdict.eligibility ?? null,
       },
     });
     await prisma.analysisLog.create({
@@ -324,6 +326,7 @@ export async function applyVerdictToJob(rowId: number, verdict: JobVerdict): Pro
       aiScore: verdict.aiScore,
       aiReason: verdict.aiReason,
       techStack: verdict.techStack.length > 0 ? verdict.techStack.join(", ") : null,
+      eligibility: verdict.eligibility ?? null,
       sheetSynced: false,
     },
   });

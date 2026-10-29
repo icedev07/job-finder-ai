@@ -4,6 +4,7 @@ import { FEED_KEYS, getFeed, runFeedScan } from "@/lib/scrapers";
 import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
 import { getAllConfig } from "@/lib/config";
+import { safeEqual } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -195,13 +196,28 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  // Allow Vercel cron to trigger via GET. Optionally protect with CRON_SECRET.
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers.get("authorization") || "";
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-    }
+  // Vercel cron triggers this via GET and sends "Authorization: Bearer
+  // $CRON_SECRET" when that env var is set. The secret is required: without it
+  // anyone could start scans and spend AI quota (or Claude credit).
+  const secret = process.env.CRON_SECRET?.trim();
+  if (!secret) {
+    await prisma.scanLog
+      .create({
+        data: {
+          board: "cron",
+          errors: "Daily scan skipped: set the CRON_SECRET environment variable in Vercel to enable it.",
+          durationMs: 0,
+        },
+      })
+      .catch(() => {});
+    return NextResponse.json(
+      { success: false, error: "CRON_SECRET is not set. Add it in Vercel → Settings → Environment Variables." },
+      { status: 503 },
+    );
+  }
+  const auth = req.headers.get("authorization") || "";
+  if (!safeEqual(auth, `Bearer ${secret}`)) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const functionStartedAt = Date.now();
