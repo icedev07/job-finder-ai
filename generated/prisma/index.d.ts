@@ -34,6 +34,11 @@ export type UserConfig = $Result.DefaultSelection<Prisma.$UserConfigPayload>
  */
 export type ScrapedJob = $Result.DefaultSelection<Prisma.$ScrapedJobPayload>
 /**
+ * Model ApplicationEvent
+ * 
+ */
+export type ApplicationEvent = $Result.DefaultSelection<Prisma.$ApplicationEventPayload>
+/**
  * Model AppConfig
  * 
  */
@@ -267,6 +272,16 @@ export class PrismaClient<
     * ```
     */
   get scrapedJob(): Prisma.ScrapedJobDelegate<ExtArgs>;
+
+  /**
+   * `prisma.applicationEvent`: Exposes CRUD operations for the **ApplicationEvent** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ApplicationEvents
+    * const applicationEvents = await prisma.applicationEvent.findMany()
+    * ```
+    */
+  get applicationEvent(): Prisma.ApplicationEventDelegate<ExtArgs>;
 
   /**
    * `prisma.appConfig`: Exposes CRUD operations for the **AppConfig** model.
@@ -792,6 +807,7 @@ export namespace Prisma {
     ExtensionToken: 'ExtensionToken',
     UserConfig: 'UserConfig',
     ScrapedJob: 'ScrapedJob',
+    ApplicationEvent: 'ApplicationEvent',
     AppConfig: 'AppConfig',
     SkipRule: 'SkipRule',
     ScanLog: 'ScanLog',
@@ -815,7 +831,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "extensionToken" | "userConfig" | "scrapedJob" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "resume" | "savedAnswer" | "aiUsage" | "extensionLog"
+      modelProps: "user" | "extensionToken" | "userConfig" | "scrapedJob" | "applicationEvent" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "resume" | "savedAnswer" | "aiUsage" | "extensionLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1096,6 +1112,76 @@ export namespace Prisma {
           count: {
             args: Prisma.ScrapedJobCountArgs<ExtArgs>
             result: $Utils.Optional<ScrapedJobCountAggregateOutputType> | number
+          }
+        }
+      }
+      ApplicationEvent: {
+        payload: Prisma.$ApplicationEventPayload<ExtArgs>
+        fields: Prisma.ApplicationEventFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ApplicationEventFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ApplicationEventFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          findFirst: {
+            args: Prisma.ApplicationEventFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ApplicationEventFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          findMany: {
+            args: Prisma.ApplicationEventFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>[]
+          }
+          create: {
+            args: Prisma.ApplicationEventCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          createMany: {
+            args: Prisma.ApplicationEventCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ApplicationEventCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>[]
+          }
+          delete: {
+            args: Prisma.ApplicationEventDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          update: {
+            args: Prisma.ApplicationEventUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          deleteMany: {
+            args: Prisma.ApplicationEventDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ApplicationEventUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.ApplicationEventUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ApplicationEventPayload>
+          }
+          aggregate: {
+            args: Prisma.ApplicationEventAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateApplicationEvent>
+          }
+          groupBy: {
+            args: Prisma.ApplicationEventGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ApplicationEventGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ApplicationEventCountArgs<ExtArgs>
+            result: $Utils.Optional<ApplicationEventCountAggregateOutputType> | number
           }
         }
       }
@@ -1897,10 +1983,12 @@ export namespace Prisma {
 
   export type ScrapedJobCountOutputType = {
     analysisLogs: number
+    events: number
   }
 
   export type ScrapedJobCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     analysisLogs?: boolean | ScrapedJobCountOutputTypeCountAnalysisLogsArgs
+    events?: boolean | ScrapedJobCountOutputTypeCountEventsArgs
   }
 
   // Custom InputTypes
@@ -1919,6 +2007,13 @@ export namespace Prisma {
    */
   export type ScrapedJobCountOutputTypeCountAnalysisLogsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: AnalysisLogWhereInput
+  }
+
+  /**
+   * ScrapedJobCountOutputType without action
+   */
+  export type ScrapedJobCountOutputTypeCountEventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ApplicationEventWhereInput
   }
 
 
@@ -5094,6 +5189,7 @@ export namespace Prisma {
     createdAt: Date | null
     stage: string | null
     stageUpdatedAt: Date | null
+    closeReason: string | null
     appliedAt: Date | null
     followUpAt: Date | null
     notes: string | null
@@ -5126,6 +5222,7 @@ export namespace Prisma {
     createdAt: Date | null
     stage: string | null
     stageUpdatedAt: Date | null
+    closeReason: string | null
     appliedAt: Date | null
     followUpAt: Date | null
     notes: string | null
@@ -5158,6 +5255,7 @@ export namespace Prisma {
     createdAt: number
     stage: number
     stageUpdatedAt: number
+    closeReason: number
     appliedAt: number
     followUpAt: number
     notes: number
@@ -5208,6 +5306,7 @@ export namespace Prisma {
     createdAt?: true
     stage?: true
     stageUpdatedAt?: true
+    closeReason?: true
     appliedAt?: true
     followUpAt?: true
     notes?: true
@@ -5240,6 +5339,7 @@ export namespace Prisma {
     createdAt?: true
     stage?: true
     stageUpdatedAt?: true
+    closeReason?: true
     appliedAt?: true
     followUpAt?: true
     notes?: true
@@ -5272,6 +5372,7 @@ export namespace Prisma {
     createdAt?: true
     stage?: true
     stageUpdatedAt?: true
+    closeReason?: true
     appliedAt?: true
     followUpAt?: true
     notes?: true
@@ -5391,6 +5492,7 @@ export namespace Prisma {
     createdAt: Date
     stage: string | null
     stageUpdatedAt: Date | null
+    closeReason: string | null
     appliedAt: Date | null
     followUpAt: Date | null
     notes: string | null
@@ -5442,6 +5544,7 @@ export namespace Prisma {
     createdAt?: boolean
     stage?: boolean
     stageUpdatedAt?: boolean
+    closeReason?: boolean
     appliedAt?: boolean
     followUpAt?: boolean
     notes?: boolean
@@ -5453,6 +5556,7 @@ export namespace Prisma {
     eligibility?: boolean
     signals?: boolean
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
+    events?: boolean | ScrapedJob$eventsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ScrapedJobCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["scrapedJob"]>
@@ -5477,6 +5581,7 @@ export namespace Prisma {
     createdAt?: boolean
     stage?: boolean
     stageUpdatedAt?: boolean
+    closeReason?: boolean
     appliedAt?: boolean
     followUpAt?: boolean
     notes?: boolean
@@ -5510,6 +5615,7 @@ export namespace Prisma {
     createdAt?: boolean
     stage?: boolean
     stageUpdatedAt?: boolean
+    closeReason?: boolean
     appliedAt?: boolean
     followUpAt?: boolean
     notes?: boolean
@@ -5524,6 +5630,7 @@ export namespace Prisma {
 
   export type ScrapedJobInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
+    events?: boolean | ScrapedJob$eventsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ScrapedJobCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -5535,6 +5642,7 @@ export namespace Prisma {
     name: "ScrapedJob"
     objects: {
       analysisLogs: Prisma.$AnalysisLogPayload<ExtArgs>[]
+      events: Prisma.$ApplicationEventPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -5557,6 +5665,7 @@ export namespace Prisma {
       createdAt: Date
       stage: string | null
       stageUpdatedAt: Date | null
+      closeReason: string | null
       appliedAt: Date | null
       followUpAt: Date | null
       notes: string | null
@@ -5932,6 +6041,7 @@ export namespace Prisma {
   export interface Prisma__ScrapedJobClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     analysisLogs<T extends ScrapedJob$analysisLogsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$analysisLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalysisLogPayload<ExtArgs>, T, "findMany"> | Null>
+    events<T extends ScrapedJob$eventsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findMany"> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -5981,6 +6091,7 @@ export namespace Prisma {
     readonly createdAt: FieldRef<"ScrapedJob", 'DateTime'>
     readonly stage: FieldRef<"ScrapedJob", 'String'>
     readonly stageUpdatedAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly closeReason: FieldRef<"ScrapedJob", 'String'>
     readonly appliedAt: FieldRef<"ScrapedJob", 'DateTime'>
     readonly followUpAt: FieldRef<"ScrapedJob", 'DateTime'>
     readonly notes: FieldRef<"ScrapedJob", 'String'>
@@ -6329,6 +6440,26 @@ export namespace Prisma {
   }
 
   /**
+   * ScrapedJob.events
+   */
+  export type ScrapedJob$eventsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    where?: ApplicationEventWhereInput
+    orderBy?: ApplicationEventOrderByWithRelationInput | ApplicationEventOrderByWithRelationInput[]
+    cursor?: ApplicationEventWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ApplicationEventScalarFieldEnum | ApplicationEventScalarFieldEnum[]
+  }
+
+  /**
    * ScrapedJob without action
    */
   export type ScrapedJobDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -6340,6 +6471,1045 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: ScrapedJobInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ApplicationEvent
+   */
+
+  export type AggregateApplicationEvent = {
+    _count: ApplicationEventCountAggregateOutputType | null
+    _avg: ApplicationEventAvgAggregateOutputType | null
+    _sum: ApplicationEventSumAggregateOutputType | null
+    _min: ApplicationEventMinAggregateOutputType | null
+    _max: ApplicationEventMaxAggregateOutputType | null
+  }
+
+  export type ApplicationEventAvgAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    actorId: number | null
+  }
+
+  export type ApplicationEventSumAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    actorId: number | null
+  }
+
+  export type ApplicationEventMinAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    kind: string | null
+    fromStage: string | null
+    toStage: string | null
+    detail: string | null
+    actorId: number | null
+    via: string | null
+    createdAt: Date | null
+  }
+
+  export type ApplicationEventMaxAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    kind: string | null
+    fromStage: string | null
+    toStage: string | null
+    detail: string | null
+    actorId: number | null
+    via: string | null
+    createdAt: Date | null
+  }
+
+  export type ApplicationEventCountAggregateOutputType = {
+    id: number
+    jobId: number
+    userId: number
+    kind: number
+    fromStage: number
+    toStage: number
+    detail: number
+    actorId: number
+    via: number
+    createdAt: number
+    _all: number
+  }
+
+
+  export type ApplicationEventAvgAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    actorId?: true
+  }
+
+  export type ApplicationEventSumAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    actorId?: true
+  }
+
+  export type ApplicationEventMinAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    fromStage?: true
+    toStage?: true
+    detail?: true
+    actorId?: true
+    via?: true
+    createdAt?: true
+  }
+
+  export type ApplicationEventMaxAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    fromStage?: true
+    toStage?: true
+    detail?: true
+    actorId?: true
+    via?: true
+    createdAt?: true
+  }
+
+  export type ApplicationEventCountAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    fromStage?: true
+    toStage?: true
+    detail?: true
+    actorId?: true
+    via?: true
+    createdAt?: true
+    _all?: true
+  }
+
+  export type ApplicationEventAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ApplicationEvent to aggregate.
+     */
+    where?: ApplicationEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApplicationEvents to fetch.
+     */
+    orderBy?: ApplicationEventOrderByWithRelationInput | ApplicationEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ApplicationEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApplicationEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApplicationEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ApplicationEvents
+    **/
+    _count?: true | ApplicationEventCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: ApplicationEventAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: ApplicationEventSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ApplicationEventMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ApplicationEventMaxAggregateInputType
+  }
+
+  export type GetApplicationEventAggregateType<T extends ApplicationEventAggregateArgs> = {
+        [P in keyof T & keyof AggregateApplicationEvent]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateApplicationEvent[P]>
+      : GetScalarType<T[P], AggregateApplicationEvent[P]>
+  }
+
+
+
+
+  export type ApplicationEventGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ApplicationEventWhereInput
+    orderBy?: ApplicationEventOrderByWithAggregationInput | ApplicationEventOrderByWithAggregationInput[]
+    by: ApplicationEventScalarFieldEnum[] | ApplicationEventScalarFieldEnum
+    having?: ApplicationEventScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ApplicationEventCountAggregateInputType | true
+    _avg?: ApplicationEventAvgAggregateInputType
+    _sum?: ApplicationEventSumAggregateInputType
+    _min?: ApplicationEventMinAggregateInputType
+    _max?: ApplicationEventMaxAggregateInputType
+  }
+
+  export type ApplicationEventGroupByOutputType = {
+    id: number
+    jobId: number
+    userId: number
+    kind: string
+    fromStage: string | null
+    toStage: string | null
+    detail: string | null
+    actorId: number | null
+    via: string
+    createdAt: Date
+    _count: ApplicationEventCountAggregateOutputType | null
+    _avg: ApplicationEventAvgAggregateOutputType | null
+    _sum: ApplicationEventSumAggregateOutputType | null
+    _min: ApplicationEventMinAggregateOutputType | null
+    _max: ApplicationEventMaxAggregateOutputType | null
+  }
+
+  type GetApplicationEventGroupByPayload<T extends ApplicationEventGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ApplicationEventGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ApplicationEventGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ApplicationEventGroupByOutputType[P]>
+            : GetScalarType<T[P], ApplicationEventGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ApplicationEventSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    fromStage?: boolean
+    toStage?: boolean
+    detail?: boolean
+    actorId?: boolean
+    via?: boolean
+    createdAt?: boolean
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["applicationEvent"]>
+
+  export type ApplicationEventSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    fromStage?: boolean
+    toStage?: boolean
+    detail?: boolean
+    actorId?: boolean
+    via?: boolean
+    createdAt?: boolean
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["applicationEvent"]>
+
+  export type ApplicationEventSelectScalar = {
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    fromStage?: boolean
+    toStage?: boolean
+    detail?: boolean
+    actorId?: boolean
+    via?: boolean
+    createdAt?: boolean
+  }
+
+  export type ApplicationEventInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }
+  export type ApplicationEventIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }
+
+  export type $ApplicationEventPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ApplicationEvent"
+    objects: {
+      job: Prisma.$ScrapedJobPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      jobId: number
+      userId: number
+      kind: string
+      fromStage: string | null
+      toStage: string | null
+      detail: string | null
+      actorId: number | null
+      via: string
+      createdAt: Date
+    }, ExtArgs["result"]["applicationEvent"]>
+    composites: {}
+  }
+
+  type ApplicationEventGetPayload<S extends boolean | null | undefined | ApplicationEventDefaultArgs> = $Result.GetResult<Prisma.$ApplicationEventPayload, S>
+
+  type ApplicationEventCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<ApplicationEventFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: ApplicationEventCountAggregateInputType | true
+    }
+
+  export interface ApplicationEventDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ApplicationEvent'], meta: { name: 'ApplicationEvent' } }
+    /**
+     * Find zero or one ApplicationEvent that matches the filter.
+     * @param {ApplicationEventFindUniqueArgs} args - Arguments to find a ApplicationEvent
+     * @example
+     * // Get one ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ApplicationEventFindUniqueArgs>(args: SelectSubset<T, ApplicationEventFindUniqueArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one ApplicationEvent that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {ApplicationEventFindUniqueOrThrowArgs} args - Arguments to find a ApplicationEvent
+     * @example
+     * // Get one ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ApplicationEventFindUniqueOrThrowArgs>(args: SelectSubset<T, ApplicationEventFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first ApplicationEvent that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventFindFirstArgs} args - Arguments to find a ApplicationEvent
+     * @example
+     * // Get one ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ApplicationEventFindFirstArgs>(args?: SelectSubset<T, ApplicationEventFindFirstArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first ApplicationEvent that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventFindFirstOrThrowArgs} args - Arguments to find a ApplicationEvent
+     * @example
+     * // Get one ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ApplicationEventFindFirstOrThrowArgs>(args?: SelectSubset<T, ApplicationEventFindFirstOrThrowArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more ApplicationEvents that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ApplicationEvents
+     * const applicationEvents = await prisma.applicationEvent.findMany()
+     * 
+     * // Get first 10 ApplicationEvents
+     * const applicationEvents = await prisma.applicationEvent.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const applicationEventWithIdOnly = await prisma.applicationEvent.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ApplicationEventFindManyArgs>(args?: SelectSubset<T, ApplicationEventFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a ApplicationEvent.
+     * @param {ApplicationEventCreateArgs} args - Arguments to create a ApplicationEvent.
+     * @example
+     * // Create one ApplicationEvent
+     * const ApplicationEvent = await prisma.applicationEvent.create({
+     *   data: {
+     *     // ... data to create a ApplicationEvent
+     *   }
+     * })
+     * 
+     */
+    create<T extends ApplicationEventCreateArgs>(args: SelectSubset<T, ApplicationEventCreateArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many ApplicationEvents.
+     * @param {ApplicationEventCreateManyArgs} args - Arguments to create many ApplicationEvents.
+     * @example
+     * // Create many ApplicationEvents
+     * const applicationEvent = await prisma.applicationEvent.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ApplicationEventCreateManyArgs>(args?: SelectSubset<T, ApplicationEventCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ApplicationEvents and returns the data saved in the database.
+     * @param {ApplicationEventCreateManyAndReturnArgs} args - Arguments to create many ApplicationEvents.
+     * @example
+     * // Create many ApplicationEvents
+     * const applicationEvent = await prisma.applicationEvent.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ApplicationEvents and only return the `id`
+     * const applicationEventWithIdOnly = await prisma.applicationEvent.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ApplicationEventCreateManyAndReturnArgs>(args?: SelectSubset<T, ApplicationEventCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a ApplicationEvent.
+     * @param {ApplicationEventDeleteArgs} args - Arguments to delete one ApplicationEvent.
+     * @example
+     * // Delete one ApplicationEvent
+     * const ApplicationEvent = await prisma.applicationEvent.delete({
+     *   where: {
+     *     // ... filter to delete one ApplicationEvent
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ApplicationEventDeleteArgs>(args: SelectSubset<T, ApplicationEventDeleteArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one ApplicationEvent.
+     * @param {ApplicationEventUpdateArgs} args - Arguments to update one ApplicationEvent.
+     * @example
+     * // Update one ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ApplicationEventUpdateArgs>(args: SelectSubset<T, ApplicationEventUpdateArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more ApplicationEvents.
+     * @param {ApplicationEventDeleteManyArgs} args - Arguments to filter ApplicationEvents to delete.
+     * @example
+     * // Delete a few ApplicationEvents
+     * const { count } = await prisma.applicationEvent.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ApplicationEventDeleteManyArgs>(args?: SelectSubset<T, ApplicationEventDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ApplicationEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ApplicationEvents
+     * const applicationEvent = await prisma.applicationEvent.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ApplicationEventUpdateManyArgs>(args: SelectSubset<T, ApplicationEventUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one ApplicationEvent.
+     * @param {ApplicationEventUpsertArgs} args - Arguments to update or create a ApplicationEvent.
+     * @example
+     * // Update or create a ApplicationEvent
+     * const applicationEvent = await prisma.applicationEvent.upsert({
+     *   create: {
+     *     // ... data to create a ApplicationEvent
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ApplicationEvent we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ApplicationEventUpsertArgs>(args: SelectSubset<T, ApplicationEventUpsertArgs<ExtArgs>>): Prisma__ApplicationEventClient<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of ApplicationEvents.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventCountArgs} args - Arguments to filter ApplicationEvents to count.
+     * @example
+     * // Count the number of ApplicationEvents
+     * const count = await prisma.applicationEvent.count({
+     *   where: {
+     *     // ... the filter for the ApplicationEvents we want to count
+     *   }
+     * })
+    **/
+    count<T extends ApplicationEventCountArgs>(
+      args?: Subset<T, ApplicationEventCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ApplicationEventCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ApplicationEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ApplicationEventAggregateArgs>(args: Subset<T, ApplicationEventAggregateArgs>): Prisma.PrismaPromise<GetApplicationEventAggregateType<T>>
+
+    /**
+     * Group by ApplicationEvent.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ApplicationEventGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ApplicationEventGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ApplicationEventGroupByArgs['orderBy'] }
+        : { orderBy?: ApplicationEventGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ApplicationEventGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetApplicationEventGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ApplicationEvent model
+   */
+  readonly fields: ApplicationEventFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ApplicationEvent.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ApplicationEventClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    job<T extends ScrapedJobDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJobDefaultArgs<ExtArgs>>): Prisma__ScrapedJobClient<$Result.GetResult<Prisma.$ScrapedJobPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ApplicationEvent model
+   */ 
+  interface ApplicationEventFieldRefs {
+    readonly id: FieldRef<"ApplicationEvent", 'Int'>
+    readonly jobId: FieldRef<"ApplicationEvent", 'Int'>
+    readonly userId: FieldRef<"ApplicationEvent", 'Int'>
+    readonly kind: FieldRef<"ApplicationEvent", 'String'>
+    readonly fromStage: FieldRef<"ApplicationEvent", 'String'>
+    readonly toStage: FieldRef<"ApplicationEvent", 'String'>
+    readonly detail: FieldRef<"ApplicationEvent", 'String'>
+    readonly actorId: FieldRef<"ApplicationEvent", 'Int'>
+    readonly via: FieldRef<"ApplicationEvent", 'String'>
+    readonly createdAt: FieldRef<"ApplicationEvent", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ApplicationEvent findUnique
+   */
+  export type ApplicationEventFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ApplicationEvent to fetch.
+     */
+    where: ApplicationEventWhereUniqueInput
+  }
+
+  /**
+   * ApplicationEvent findUniqueOrThrow
+   */
+  export type ApplicationEventFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ApplicationEvent to fetch.
+     */
+    where: ApplicationEventWhereUniqueInput
+  }
+
+  /**
+   * ApplicationEvent findFirst
+   */
+  export type ApplicationEventFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ApplicationEvent to fetch.
+     */
+    where?: ApplicationEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApplicationEvents to fetch.
+     */
+    orderBy?: ApplicationEventOrderByWithRelationInput | ApplicationEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ApplicationEvents.
+     */
+    cursor?: ApplicationEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApplicationEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApplicationEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ApplicationEvents.
+     */
+    distinct?: ApplicationEventScalarFieldEnum | ApplicationEventScalarFieldEnum[]
+  }
+
+  /**
+   * ApplicationEvent findFirstOrThrow
+   */
+  export type ApplicationEventFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ApplicationEvent to fetch.
+     */
+    where?: ApplicationEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApplicationEvents to fetch.
+     */
+    orderBy?: ApplicationEventOrderByWithRelationInput | ApplicationEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ApplicationEvents.
+     */
+    cursor?: ApplicationEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApplicationEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApplicationEvents.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ApplicationEvents.
+     */
+    distinct?: ApplicationEventScalarFieldEnum | ApplicationEventScalarFieldEnum[]
+  }
+
+  /**
+   * ApplicationEvent findMany
+   */
+  export type ApplicationEventFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter, which ApplicationEvents to fetch.
+     */
+    where?: ApplicationEventWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ApplicationEvents to fetch.
+     */
+    orderBy?: ApplicationEventOrderByWithRelationInput | ApplicationEventOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ApplicationEvents.
+     */
+    cursor?: ApplicationEventWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ApplicationEvents from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ApplicationEvents.
+     */
+    skip?: number
+    distinct?: ApplicationEventScalarFieldEnum | ApplicationEventScalarFieldEnum[]
+  }
+
+  /**
+   * ApplicationEvent create
+   */
+  export type ApplicationEventCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ApplicationEvent.
+     */
+    data: XOR<ApplicationEventCreateInput, ApplicationEventUncheckedCreateInput>
+  }
+
+  /**
+   * ApplicationEvent createMany
+   */
+  export type ApplicationEventCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ApplicationEvents.
+     */
+    data: ApplicationEventCreateManyInput | ApplicationEventCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ApplicationEvent createManyAndReturn
+   */
+  export type ApplicationEventCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many ApplicationEvents.
+     */
+    data: ApplicationEventCreateManyInput | ApplicationEventCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ApplicationEvent update
+   */
+  export type ApplicationEventUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ApplicationEvent.
+     */
+    data: XOR<ApplicationEventUpdateInput, ApplicationEventUncheckedUpdateInput>
+    /**
+     * Choose, which ApplicationEvent to update.
+     */
+    where: ApplicationEventWhereUniqueInput
+  }
+
+  /**
+   * ApplicationEvent updateMany
+   */
+  export type ApplicationEventUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ApplicationEvents.
+     */
+    data: XOR<ApplicationEventUpdateManyMutationInput, ApplicationEventUncheckedUpdateManyInput>
+    /**
+     * Filter which ApplicationEvents to update
+     */
+    where?: ApplicationEventWhereInput
+  }
+
+  /**
+   * ApplicationEvent upsert
+   */
+  export type ApplicationEventUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ApplicationEvent to update in case it exists.
+     */
+    where: ApplicationEventWhereUniqueInput
+    /**
+     * In case the ApplicationEvent found by the `where` argument doesn't exist, create a new ApplicationEvent with this data.
+     */
+    create: XOR<ApplicationEventCreateInput, ApplicationEventUncheckedCreateInput>
+    /**
+     * In case the ApplicationEvent was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ApplicationEventUpdateInput, ApplicationEventUncheckedUpdateInput>
+  }
+
+  /**
+   * ApplicationEvent delete
+   */
+  export type ApplicationEventDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
+    /**
+     * Filter which ApplicationEvent to delete.
+     */
+    where: ApplicationEventWhereUniqueInput
+  }
+
+  /**
+   * ApplicationEvent deleteMany
+   */
+  export type ApplicationEventDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ApplicationEvents to delete
+     */
+    where?: ApplicationEventWhereInput
+  }
+
+  /**
+   * ApplicationEvent without action
+   */
+  export type ApplicationEventDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ApplicationEvent
+     */
+    select?: ApplicationEventSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ApplicationEventInclude<ExtArgs> | null
   }
 
 
@@ -14321,6 +15491,7 @@ export namespace Prisma {
     createdAt: 'createdAt',
     stage: 'stage',
     stageUpdatedAt: 'stageUpdatedAt',
+    closeReason: 'closeReason',
     appliedAt: 'appliedAt',
     followUpAt: 'followUpAt',
     notes: 'notes',
@@ -14334,6 +15505,22 @@ export namespace Prisma {
   };
 
   export type ScrapedJobScalarFieldEnum = (typeof ScrapedJobScalarFieldEnum)[keyof typeof ScrapedJobScalarFieldEnum]
+
+
+  export const ApplicationEventScalarFieldEnum: {
+    id: 'id',
+    jobId: 'jobId',
+    userId: 'userId',
+    kind: 'kind',
+    fromStage: 'fromStage',
+    toStage: 'toStage',
+    detail: 'detail',
+    actorId: 'actorId',
+    via: 'via',
+    createdAt: 'createdAt'
+  };
+
+  export type ApplicationEventScalarFieldEnum = (typeof ApplicationEventScalarFieldEnum)[keyof typeof ApplicationEventScalarFieldEnum]
 
 
   export const AppConfigScalarFieldEnum: {
@@ -14828,6 +16015,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"ScrapedJob"> | Date | string
     stage?: StringNullableFilter<"ScrapedJob"> | string | null
     stageUpdatedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    closeReason?: StringNullableFilter<"ScrapedJob"> | string | null
     appliedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     followUpAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     notes?: StringNullableFilter<"ScrapedJob"> | string | null
@@ -14839,6 +16027,7 @@ export namespace Prisma {
     eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
     signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
+    events?: ApplicationEventListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }
 
@@ -14862,6 +16051,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     stage?: SortOrderInput | SortOrder
     stageUpdatedAt?: SortOrderInput | SortOrder
+    closeReason?: SortOrderInput | SortOrder
     appliedAt?: SortOrderInput | SortOrder
     followUpAt?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
@@ -14873,6 +16063,7 @@ export namespace Prisma {
     eligibility?: SortOrderInput | SortOrder
     signals?: SortOrderInput | SortOrder
     analysisLogs?: AnalysisLogOrderByRelationAggregateInput
+    events?: ApplicationEventOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
   }
 
@@ -14901,6 +16092,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"ScrapedJob"> | Date | string
     stage?: StringNullableFilter<"ScrapedJob"> | string | null
     stageUpdatedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    closeReason?: StringNullableFilter<"ScrapedJob"> | string | null
     appliedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     followUpAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     notes?: StringNullableFilter<"ScrapedJob"> | string | null
@@ -14912,6 +16104,7 @@ export namespace Prisma {
     eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
     signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
+    events?: ApplicationEventListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }, "id" | "userId_platform_url" | "userId_platform_title_company">
 
@@ -14935,6 +16128,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     stage?: SortOrderInput | SortOrder
     stageUpdatedAt?: SortOrderInput | SortOrder
+    closeReason?: SortOrderInput | SortOrder
     appliedAt?: SortOrderInput | SortOrder
     followUpAt?: SortOrderInput | SortOrder
     notes?: SortOrderInput | SortOrder
@@ -14975,6 +16169,7 @@ export namespace Prisma {
     createdAt?: DateTimeWithAggregatesFilter<"ScrapedJob"> | Date | string
     stage?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     stageUpdatedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    closeReason?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     appliedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
     followUpAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
     notes?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
@@ -14985,6 +16180,88 @@ export namespace Prisma {
     reviewedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
     eligibility?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     signals?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
+  }
+
+  export type ApplicationEventWhereInput = {
+    AND?: ApplicationEventWhereInput | ApplicationEventWhereInput[]
+    OR?: ApplicationEventWhereInput[]
+    NOT?: ApplicationEventWhereInput | ApplicationEventWhereInput[]
+    id?: IntFilter<"ApplicationEvent"> | number
+    jobId?: IntFilter<"ApplicationEvent"> | number
+    userId?: IntFilter<"ApplicationEvent"> | number
+    kind?: StringFilter<"ApplicationEvent"> | string
+    fromStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    toStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    detail?: StringNullableFilter<"ApplicationEvent"> | string | null
+    actorId?: IntNullableFilter<"ApplicationEvent"> | number | null
+    via?: StringFilter<"ApplicationEvent"> | string
+    createdAt?: DateTimeFilter<"ApplicationEvent"> | Date | string
+    job?: XOR<ScrapedJobRelationFilter, ScrapedJobWhereInput>
+  }
+
+  export type ApplicationEventOrderByWithRelationInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    fromStage?: SortOrderInput | SortOrder
+    toStage?: SortOrderInput | SortOrder
+    detail?: SortOrderInput | SortOrder
+    actorId?: SortOrderInput | SortOrder
+    via?: SortOrder
+    createdAt?: SortOrder
+    job?: ScrapedJobOrderByWithRelationInput
+  }
+
+  export type ApplicationEventWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    AND?: ApplicationEventWhereInput | ApplicationEventWhereInput[]
+    OR?: ApplicationEventWhereInput[]
+    NOT?: ApplicationEventWhereInput | ApplicationEventWhereInput[]
+    jobId?: IntFilter<"ApplicationEvent"> | number
+    userId?: IntFilter<"ApplicationEvent"> | number
+    kind?: StringFilter<"ApplicationEvent"> | string
+    fromStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    toStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    detail?: StringNullableFilter<"ApplicationEvent"> | string | null
+    actorId?: IntNullableFilter<"ApplicationEvent"> | number | null
+    via?: StringFilter<"ApplicationEvent"> | string
+    createdAt?: DateTimeFilter<"ApplicationEvent"> | Date | string
+    job?: XOR<ScrapedJobRelationFilter, ScrapedJobWhereInput>
+  }, "id">
+
+  export type ApplicationEventOrderByWithAggregationInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    fromStage?: SortOrderInput | SortOrder
+    toStage?: SortOrderInput | SortOrder
+    detail?: SortOrderInput | SortOrder
+    actorId?: SortOrderInput | SortOrder
+    via?: SortOrder
+    createdAt?: SortOrder
+    _count?: ApplicationEventCountOrderByAggregateInput
+    _avg?: ApplicationEventAvgOrderByAggregateInput
+    _max?: ApplicationEventMaxOrderByAggregateInput
+    _min?: ApplicationEventMinOrderByAggregateInput
+    _sum?: ApplicationEventSumOrderByAggregateInput
+  }
+
+  export type ApplicationEventScalarWhereWithAggregatesInput = {
+    AND?: ApplicationEventScalarWhereWithAggregatesInput | ApplicationEventScalarWhereWithAggregatesInput[]
+    OR?: ApplicationEventScalarWhereWithAggregatesInput[]
+    NOT?: ApplicationEventScalarWhereWithAggregatesInput | ApplicationEventScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"ApplicationEvent"> | number
+    jobId?: IntWithAggregatesFilter<"ApplicationEvent"> | number
+    userId?: IntWithAggregatesFilter<"ApplicationEvent"> | number
+    kind?: StringWithAggregatesFilter<"ApplicationEvent"> | string
+    fromStage?: StringNullableWithAggregatesFilter<"ApplicationEvent"> | string | null
+    toStage?: StringNullableWithAggregatesFilter<"ApplicationEvent"> | string | null
+    detail?: StringNullableWithAggregatesFilter<"ApplicationEvent"> | string | null
+    actorId?: IntNullableWithAggregatesFilter<"ApplicationEvent"> | number | null
+    via?: StringWithAggregatesFilter<"ApplicationEvent"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"ApplicationEvent"> | Date | string
   }
 
   export type AppConfigWhereInput = {
@@ -15808,6 +17085,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -15819,6 +17097,7 @@ export namespace Prisma {
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -15842,6 +17121,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -15853,6 +17133,7 @@ export namespace Prisma {
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobUpdateInput = {
@@ -15873,6 +17154,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -15884,6 +17166,7 @@ export namespace Prisma {
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -15907,6 +17190,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -15918,6 +17202,7 @@ export namespace Prisma {
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobCreateManyInput = {
@@ -15940,6 +17225,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -15970,6 +17256,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -16002,6 +17289,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -16012,6 +17300,93 @@ export namespace Prisma {
     reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
+  }
+
+  export type ApplicationEventCreateInput = {
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+    job: ScrapedJobCreateNestedOneWithoutEventsInput
+  }
+
+  export type ApplicationEventUncheckedCreateInput = {
+    id?: number
+    jobId: number
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+  }
+
+  export type ApplicationEventUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    job?: ScrapedJobUpdateOneRequiredWithoutEventsNestedInput
+  }
+
+  export type ApplicationEventUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    jobId?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApplicationEventCreateManyInput = {
+    id?: number
+    jobId: number
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+  }
+
+  export type ApplicationEventUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApplicationEventUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    jobId?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type AppConfigCreateInput = {
@@ -16983,7 +18358,17 @@ export namespace Prisma {
     none?: AnalysisLogWhereInput
   }
 
+  export type ApplicationEventListRelationFilter = {
+    every?: ApplicationEventWhereInput
+    some?: ApplicationEventWhereInput
+    none?: ApplicationEventWhereInput
+  }
+
   export type AnalysisLogOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ApplicationEventOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -17020,6 +18405,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     stage?: SortOrder
     stageUpdatedAt?: SortOrder
+    closeReason?: SortOrder
     appliedAt?: SortOrder
     followUpAt?: SortOrder
     notes?: SortOrder
@@ -17060,6 +18446,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     stage?: SortOrder
     stageUpdatedAt?: SortOrder
+    closeReason?: SortOrder
     appliedAt?: SortOrder
     followUpAt?: SortOrder
     notes?: SortOrder
@@ -17092,6 +18479,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     stage?: SortOrder
     stageUpdatedAt?: SortOrder
+    closeReason?: SortOrder
     appliedAt?: SortOrder
     followUpAt?: SortOrder
     notes?: SortOrder
@@ -17154,6 +18542,64 @@ export namespace Prisma {
     _sum?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedIntNullableFilter<$PrismaModel>
     _max?: NestedIntNullableFilter<$PrismaModel>
+  }
+
+  export type ScrapedJobRelationFilter = {
+    is?: ScrapedJobWhereInput
+    isNot?: ScrapedJobWhereInput
+  }
+
+  export type ApplicationEventCountOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    fromStage?: SortOrder
+    toStage?: SortOrder
+    detail?: SortOrder
+    actorId?: SortOrder
+    via?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ApplicationEventAvgOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    actorId?: SortOrder
+  }
+
+  export type ApplicationEventMaxOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    fromStage?: SortOrder
+    toStage?: SortOrder
+    detail?: SortOrder
+    actorId?: SortOrder
+    via?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ApplicationEventMinOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    fromStage?: SortOrder
+    toStage?: SortOrder
+    detail?: SortOrder
+    actorId?: SortOrder
+    via?: SortOrder
+    createdAt?: SortOrder
+  }
+
+  export type ApplicationEventSumOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    actorId?: SortOrder
   }
 
   export type AppConfigCountOrderByAggregateInput = {
@@ -17280,11 +18726,6 @@ export namespace Prisma {
     jobsFound?: SortOrder
     jobsSaved?: SortOrder
     durationMs?: SortOrder
-  }
-
-  export type ScrapedJobRelationFilter = {
-    is?: ScrapedJobWhereInput
-    isNot?: ScrapedJobWhereInput
   }
 
   export type AnalysisLogCountOrderByAggregateInput = {
@@ -17909,6 +19350,13 @@ export namespace Prisma {
     connect?: AnalysisLogWhereUniqueInput | AnalysisLogWhereUniqueInput[]
   }
 
+  export type ApplicationEventCreateNestedManyWithoutJobInput = {
+    create?: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput> | ApplicationEventCreateWithoutJobInput[] | ApplicationEventUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: ApplicationEventCreateOrConnectWithoutJobInput | ApplicationEventCreateOrConnectWithoutJobInput[]
+    createMany?: ApplicationEventCreateManyJobInputEnvelope
+    connect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+  }
+
   export type UserCreateNestedOneWithoutJobsInput = {
     create?: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
     connectOrCreate?: UserCreateOrConnectWithoutJobsInput
@@ -17920,6 +19368,13 @@ export namespace Prisma {
     connectOrCreate?: AnalysisLogCreateOrConnectWithoutScrapedJobInput | AnalysisLogCreateOrConnectWithoutScrapedJobInput[]
     createMany?: AnalysisLogCreateManyScrapedJobInputEnvelope
     connect?: AnalysisLogWhereUniqueInput | AnalysisLogWhereUniqueInput[]
+  }
+
+  export type ApplicationEventUncheckedCreateNestedManyWithoutJobInput = {
+    create?: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput> | ApplicationEventCreateWithoutJobInput[] | ApplicationEventUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: ApplicationEventCreateOrConnectWithoutJobInput | ApplicationEventCreateOrConnectWithoutJobInput[]
+    createMany?: ApplicationEventCreateManyJobInputEnvelope
+    connect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
   }
 
   export type NullableStringFieldUpdateOperationsInput = {
@@ -17952,6 +19407,20 @@ export namespace Prisma {
     deleteMany?: AnalysisLogScalarWhereInput | AnalysisLogScalarWhereInput[]
   }
 
+  export type ApplicationEventUpdateManyWithoutJobNestedInput = {
+    create?: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput> | ApplicationEventCreateWithoutJobInput[] | ApplicationEventUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: ApplicationEventCreateOrConnectWithoutJobInput | ApplicationEventCreateOrConnectWithoutJobInput[]
+    upsert?: ApplicationEventUpsertWithWhereUniqueWithoutJobInput | ApplicationEventUpsertWithWhereUniqueWithoutJobInput[]
+    createMany?: ApplicationEventCreateManyJobInputEnvelope
+    set?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    disconnect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    delete?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    connect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    update?: ApplicationEventUpdateWithWhereUniqueWithoutJobInput | ApplicationEventUpdateWithWhereUniqueWithoutJobInput[]
+    updateMany?: ApplicationEventUpdateManyWithWhereWithoutJobInput | ApplicationEventUpdateManyWithWhereWithoutJobInput[]
+    deleteMany?: ApplicationEventScalarWhereInput | ApplicationEventScalarWhereInput[]
+  }
+
   export type UserUpdateOneRequiredWithoutJobsNestedInput = {
     create?: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
     connectOrCreate?: UserCreateOrConnectWithoutJobsInput
@@ -17972,6 +19441,34 @@ export namespace Prisma {
     update?: AnalysisLogUpdateWithWhereUniqueWithoutScrapedJobInput | AnalysisLogUpdateWithWhereUniqueWithoutScrapedJobInput[]
     updateMany?: AnalysisLogUpdateManyWithWhereWithoutScrapedJobInput | AnalysisLogUpdateManyWithWhereWithoutScrapedJobInput[]
     deleteMany?: AnalysisLogScalarWhereInput | AnalysisLogScalarWhereInput[]
+  }
+
+  export type ApplicationEventUncheckedUpdateManyWithoutJobNestedInput = {
+    create?: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput> | ApplicationEventCreateWithoutJobInput[] | ApplicationEventUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: ApplicationEventCreateOrConnectWithoutJobInput | ApplicationEventCreateOrConnectWithoutJobInput[]
+    upsert?: ApplicationEventUpsertWithWhereUniqueWithoutJobInput | ApplicationEventUpsertWithWhereUniqueWithoutJobInput[]
+    createMany?: ApplicationEventCreateManyJobInputEnvelope
+    set?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    disconnect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    delete?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    connect?: ApplicationEventWhereUniqueInput | ApplicationEventWhereUniqueInput[]
+    update?: ApplicationEventUpdateWithWhereUniqueWithoutJobInput | ApplicationEventUpdateWithWhereUniqueWithoutJobInput[]
+    updateMany?: ApplicationEventUpdateManyWithWhereWithoutJobInput | ApplicationEventUpdateManyWithWhereWithoutJobInput[]
+    deleteMany?: ApplicationEventScalarWhereInput | ApplicationEventScalarWhereInput[]
+  }
+
+  export type ScrapedJobCreateNestedOneWithoutEventsInput = {
+    create?: XOR<ScrapedJobCreateWithoutEventsInput, ScrapedJobUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: ScrapedJobCreateOrConnectWithoutEventsInput
+    connect?: ScrapedJobWhereUniqueInput
+  }
+
+  export type ScrapedJobUpdateOneRequiredWithoutEventsNestedInput = {
+    create?: XOR<ScrapedJobCreateWithoutEventsInput, ScrapedJobUncheckedCreateWithoutEventsInput>
+    connectOrCreate?: ScrapedJobCreateOrConnectWithoutEventsInput
+    upsert?: ScrapedJobUpsertWithoutEventsInput
+    connect?: ScrapedJobWhereUniqueInput
+    update?: XOR<XOR<ScrapedJobUpdateToOneWithWhereWithoutEventsInput, ScrapedJobUpdateWithoutEventsInput>, ScrapedJobUncheckedUpdateWithoutEventsInput>
   }
 
   export type UserCreateNestedOneWithoutSkipRulesInput = {
@@ -18356,6 +19853,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -18367,6 +19865,7 @@ export namespace Prisma {
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobUncheckedCreateWithoutUserInput = {
@@ -18388,6 +19887,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -18399,6 +19899,7 @@ export namespace Prisma {
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutUserInput = {
@@ -18596,6 +20097,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"ScrapedJob"> | Date | string
     stage?: StringNullableFilter<"ScrapedJob"> | string | null
     stageUpdatedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    closeReason?: StringNullableFilter<"ScrapedJob"> | string | null
     appliedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     followUpAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     notes?: StringNullableFilter<"ScrapedJob"> | string | null
@@ -18933,6 +20435,39 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type ApplicationEventCreateWithoutJobInput = {
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+  }
+
+  export type ApplicationEventUncheckedCreateWithoutJobInput = {
+    id?: number
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+  }
+
+  export type ApplicationEventCreateOrConnectWithoutJobInput = {
+    where: ApplicationEventWhereUniqueInput
+    create: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput>
+  }
+
+  export type ApplicationEventCreateManyJobInputEnvelope = {
+    data: ApplicationEventCreateManyJobInput | ApplicationEventCreateManyJobInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserCreateWithoutJobsInput = {
     username: string
     name: string
@@ -19004,6 +20539,38 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AnalysisLog"> | Date | string
   }
 
+  export type ApplicationEventUpsertWithWhereUniqueWithoutJobInput = {
+    where: ApplicationEventWhereUniqueInput
+    update: XOR<ApplicationEventUpdateWithoutJobInput, ApplicationEventUncheckedUpdateWithoutJobInput>
+    create: XOR<ApplicationEventCreateWithoutJobInput, ApplicationEventUncheckedCreateWithoutJobInput>
+  }
+
+  export type ApplicationEventUpdateWithWhereUniqueWithoutJobInput = {
+    where: ApplicationEventWhereUniqueInput
+    data: XOR<ApplicationEventUpdateWithoutJobInput, ApplicationEventUncheckedUpdateWithoutJobInput>
+  }
+
+  export type ApplicationEventUpdateManyWithWhereWithoutJobInput = {
+    where: ApplicationEventScalarWhereInput
+    data: XOR<ApplicationEventUpdateManyMutationInput, ApplicationEventUncheckedUpdateManyWithoutJobInput>
+  }
+
+  export type ApplicationEventScalarWhereInput = {
+    AND?: ApplicationEventScalarWhereInput | ApplicationEventScalarWhereInput[]
+    OR?: ApplicationEventScalarWhereInput[]
+    NOT?: ApplicationEventScalarWhereInput | ApplicationEventScalarWhereInput[]
+    id?: IntFilter<"ApplicationEvent"> | number
+    jobId?: IntFilter<"ApplicationEvent"> | number
+    userId?: IntFilter<"ApplicationEvent"> | number
+    kind?: StringFilter<"ApplicationEvent"> | string
+    fromStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    toStage?: StringNullableFilter<"ApplicationEvent"> | string | null
+    detail?: StringNullableFilter<"ApplicationEvent"> | string | null
+    actorId?: IntNullableFilter<"ApplicationEvent"> | number | null
+    via?: StringFilter<"ApplicationEvent"> | string
+    createdAt?: DateTimeFilter<"ApplicationEvent"> | Date | string
+  }
+
   export type UserUpsertWithoutJobsInput = {
     update: XOR<UserUpdateWithoutJobsInput, UserUncheckedUpdateWithoutJobsInput>
     create: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
@@ -19048,6 +20615,156 @@ export namespace Prisma {
     answers?: SavedAnswerUncheckedUpdateManyWithoutUserNestedInput
     skipRules?: SkipRuleUncheckedUpdateManyWithoutUserNestedInput
     extensionTokens?: ExtensionTokenUncheckedUpdateManyWithoutUserNestedInput
+  }
+
+  export type ScrapedJobCreateWithoutEventsInput = {
+    platform: string
+    title: string
+    company: string
+    location?: string | null
+    url: string
+    manualApplyUrl?: string | null
+    applyMethod?: string | null
+    description?: string | null
+    salary?: string | null
+    techStack?: string | null
+    status?: $Enums.JobStatus
+    aiScore?: number | null
+    aiReason?: string | null
+    sheetSynced?: boolean
+    createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
+    analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
+    user: UserCreateNestedOneWithoutJobsInput
+  }
+
+  export type ScrapedJobUncheckedCreateWithoutEventsInput = {
+    id?: number
+    userId: number
+    platform: string
+    title: string
+    company: string
+    location?: string | null
+    url: string
+    manualApplyUrl?: string | null
+    applyMethod?: string | null
+    description?: string | null
+    salary?: string | null
+    techStack?: string | null
+    status?: $Enums.JobStatus
+    aiScore?: number | null
+    aiReason?: string | null
+    sheetSynced?: boolean
+    createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
+    analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
+  }
+
+  export type ScrapedJobCreateOrConnectWithoutEventsInput = {
+    where: ScrapedJobWhereUniqueInput
+    create: XOR<ScrapedJobCreateWithoutEventsInput, ScrapedJobUncheckedCreateWithoutEventsInput>
+  }
+
+  export type ScrapedJobUpsertWithoutEventsInput = {
+    update: XOR<ScrapedJobUpdateWithoutEventsInput, ScrapedJobUncheckedUpdateWithoutEventsInput>
+    create: XOR<ScrapedJobCreateWithoutEventsInput, ScrapedJobUncheckedCreateWithoutEventsInput>
+    where?: ScrapedJobWhereInput
+  }
+
+  export type ScrapedJobUpdateToOneWithWhereWithoutEventsInput = {
+    where?: ScrapedJobWhereInput
+    data: XOR<ScrapedJobUpdateWithoutEventsInput, ScrapedJobUncheckedUpdateWithoutEventsInput>
+  }
+
+  export type ScrapedJobUpdateWithoutEventsInput = {
+    platform?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    company?: StringFieldUpdateOperationsInput | string
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    salary?: NullableStringFieldUpdateOperationsInput | string | null
+    techStack?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
+    aiScore?: NullableIntFieldUpdateOperationsInput | number | null
+    aiReason?: NullableStringFieldUpdateOperationsInput | string | null
+    sheetSynced?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
+    analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
+    user?: UserUpdateOneRequiredWithoutJobsNestedInput
+  }
+
+  export type ScrapedJobUncheckedUpdateWithoutEventsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    platform?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    company?: StringFieldUpdateOperationsInput | string
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    salary?: NullableStringFieldUpdateOperationsInput | string | null
+    techStack?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
+    aiScore?: NullableIntFieldUpdateOperationsInput | number | null
+    aiReason?: NullableStringFieldUpdateOperationsInput | string | null
+    sheetSynced?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
+    analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
   }
 
   export type UserCreateWithoutSkipRulesInput = {
@@ -19154,6 +20871,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -19164,6 +20882,7 @@ export namespace Prisma {
     reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
+    events?: ApplicationEventCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -19187,6 +20906,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -19197,6 +20917,7 @@ export namespace Prisma {
     reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
+    events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutAnalysisLogsInput = {
@@ -19233,6 +20954,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -19243,6 +20965,7 @@ export namespace Prisma {
     reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: ApplicationEventUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -19266,6 +20989,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -19276,6 +21000,7 @@ export namespace Prisma {
     reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
+    events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type UserCreateWithoutResumesInput = {
@@ -19475,6 +21200,7 @@ export namespace Prisma {
     createdAt?: Date | string
     stage?: string | null
     stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
     appliedAt?: Date | string | null
     followUpAt?: Date | string | null
     notes?: string | null
@@ -19565,6 +21291,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -19576,6 +21303,7 @@ export namespace Prisma {
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobUncheckedUpdateWithoutUserInput = {
@@ -19597,6 +21325,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -19608,6 +21337,7 @@ export namespace Prisma {
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobUncheckedUpdateManyWithoutUserInput = {
@@ -19629,6 +21359,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stage?: NullableStringFieldUpdateOperationsInput | string | null
     stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
     appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
@@ -19774,6 +21505,18 @@ export namespace Prisma {
     createdAt?: Date | string
   }
 
+  export type ApplicationEventCreateManyJobInput = {
+    id?: number
+    userId: number
+    kind: string
+    fromStage?: string | null
+    toStage?: string | null
+    detail?: string | null
+    actorId?: number | null
+    via: string
+    createdAt?: Date | string
+  }
+
   export type AnalysisLogUpdateWithoutScrapedJobInput = {
     model?: StringFieldUpdateOperationsInput | string
     approved?: BoolFieldUpdateOperationsInput | boolean
@@ -19806,6 +21549,41 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type ApplicationEventUpdateWithoutJobInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApplicationEventUncheckedUpdateWithoutJobInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ApplicationEventUncheckedUpdateManyWithoutJobInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    fromStage?: NullableStringFieldUpdateOperationsInput | string | null
+    toStage?: NullableStringFieldUpdateOperationsInput | string | null
+    detail?: NullableStringFieldUpdateOperationsInput | string | null
+    actorId?: NullableIntFieldUpdateOperationsInput | number | null
+    via?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
 
 
   /**
@@ -19835,6 +21613,10 @@ export namespace Prisma {
      * @deprecated Use ScrapedJobDefaultArgs instead
      */
     export type ScrapedJobArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ScrapedJobDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use ApplicationEventDefaultArgs instead
+     */
+    export type ApplicationEventArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ApplicationEventDefaultArgs<ExtArgs>
     /**
      * @deprecated Use AppConfigDefaultArgs instead
      */

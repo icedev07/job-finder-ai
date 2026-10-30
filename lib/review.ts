@@ -1,3 +1,4 @@
+import { APP_ACTOR, recordEvents, type Actor } from "./applicationEvents";
 import { updateJobs } from "./jobActions";
 import { prisma } from "./prisma";
 import type { UserSettings } from "./userSettings";
@@ -50,6 +51,7 @@ export async function reviewJobs(
   users: QueueUser[],
   ids: number[] | "all",
   action: ReviewAction,
+  actor: Actor = APP_ACTOR,
 ): Promise<{ updated: number; undo: ReviewUndo | null; approved: { id: number; userId: number; inSheet: boolean }[] }> {
   const none = { updated: 0, undo: null, approved: [] };
   if (!hasReview(users) || (ids !== "all" && ids.length === 0)) return none;
@@ -68,8 +70,7 @@ export async function reviewJobs(
   const updated = await updateJobs(
     rows.map((r) => r.id),
     { feedback: approve ? 1 : -1, status: approve ? "APPROVED" : "REJECTED", reviewedAt: at },
-    {},
-    at,
+    { now: at, actor },
   );
   return {
     updated,
@@ -101,29 +102,41 @@ export function parseReviewUndo(raw: unknown): ReviewUndo | string {
  * Reverse a Review action for these users' jobs: they go back to the queue
  * with the AI verdict they had. Jobs changed since (another decision, a
  * pipeline move) are left alone. A row the approval added to the Google Sheet
- * stays there: leftInSheet counts them.
+ * stays there: leftInSheet counts them. unsaved: the jobs that left Saved
+ * again (their Stage in the sheet is cleared).
  */
-export async function undoReview(userIds: number[], undo: ReviewUndo): Promise<{ updated: number; leftInSheet: number }> {
+export async function undoReview(
+  userIds: number[],
+  undo: ReviewUndo,
+  actor: Actor = APP_ACTOR,
+): Promise<{ updated: number; leftInSheet: number; unsaved: number[] }> {
   const at = new Date(undo.at);
   if (undo.kind === "keep") {
     const r = await prisma.scrapedJob.updateMany({
       where: { reviewedAt: at, feedback: null, userId: { in: userIds } },
       data: { reviewedAt: null },
     });
-    return { updated: r.count, leftInSheet: 0 };
+    return { updated: r.count, leftInSheet: 0, unsaved: [] };
   }
 
   const current = await prisma.scrapedJob.findMany({
     where: { id: { in: undo.jobs.map((j) => j.id) }, reviewedAt: at, userId: { in: userIds } },
-    select: { id: true, sheetSynced: true },
+    select: { id: true, userId: true, sheetSynced: true, stage: true },
   });
   const live = new Map(current.map((r) => [r.id, r.sheetSynced]));
-  if (live.size === 0) return { updated: 0, leftInSheet: 0 };
+  if (live.size === 0) return { updated: 0, leftInSheet: 0, unsaved: [] };
   // An approval put the job in Applications as Saved; it leaves again, unless moved on since.
-  await prisma.scrapedJob.updateMany({
-    where: { id: { in: [...live.keys()] }, stage: "SAVED" },
-    data: { stage: null, stageUpdatedAt: null },
-  });
+  const saved = current.filter((r) => r.stage === "SAVED");
+  if (saved.length) {
+    await prisma.scrapedJob.updateMany({
+      where: { id: { in: saved.map((r) => r.id) }, stage: "SAVED" },
+      data: { stage: null, stageUpdatedAt: null },
+    });
+    await recordEvents(
+      saved.map((r) => ({ jobId: r.id, userId: r.userId, kind: "stage" as const, fromStage: "SAVED", toStage: null, detail: { undone: true } })),
+      actor,
+    );
+  }
   let updated = 0;
   for (const status of ["APPROVED", "REJECTED"] as const) {
     const ids = undo.jobs.filter((j) => j.status === status && live.has(j.id)).map((j) => j.id);
@@ -135,5 +148,5 @@ export async function undoReview(userIds: number[], undo: ReviewUndo): Promise<{
     updated += r.count;
   }
   const leftInSheet = undo.jobs.filter((j) => j.status === "REJECTED" && !j.inSheet && live.get(j.id) === true).length;
-  return { updated, leftInSheet };
+  return { updated, leftInSheet, unsaved: saved.map((r) => r.id) };
 }

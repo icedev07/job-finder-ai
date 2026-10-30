@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     review_enabled: s.reviewEnabled ? "true" : "false",
     review_band_min: String(s.reviewBandMin),
     review_band_max: String(s.reviewBandMax),
+    applications_enabled: s.applicationsEnabled ? "true" : "false",
     followup_days: String(s.followUpDays),
     google_sheet_id: s.googleSheetId,
     // Blank tab names mean the defaults ("Jobs", "LinkedIn").
@@ -84,7 +85,7 @@ export async function PUT(req: NextRequest) {
   if (values.followup_days !== undefined && !intIn(values.followup_days, 1, 60)) {
     return badRequest("Follow-up days must be a whole number from 1 to 60.");
   }
-  for (const key of ["profile_in_matching", "review_enabled"] as const) {
+  for (const key of ["profile_in_matching", "review_enabled", "applications_enabled"] as const) {
     if (values[key] !== undefined && !["true", "false"].includes(values[key])) {
       return badRequest(`${key} must be "true" or "false".`);
     }

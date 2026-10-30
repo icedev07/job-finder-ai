@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -223,6 +223,7 @@ The first sections belong to the user selected in the **Viewing** menu (with one
 | | Use the profile when judging jobs | on |
 | | Review queue (off: close calls keep the AI verdict) | on |
 | | Review band | `45` – `70` |
+| Applications | Applications board (off: approved jobs stay out of Saved, no reminders) | on |
 | | Follow-up days | `7` |
 | Job analysis prompt | (blank = built-in prompt) | |
 | Job boards | which boards' new jobs are judged for this user | all |
@@ -288,7 +289,7 @@ For LinkedIn's chat-style AI search (`/jobs/search-results/`), tick **Analyze AI
 2. Click the extension icon, then **Open autofill panel (application forms)**
 3. Check the resume to attach, then click **Autofill this page**. On a site outside the built-in list, Chrome first asks you to allow access to that site
 4. Review the highlighted fields: green = from your profile, amber = drafted by AI (read it), red = needs you
-5. Submit the form yourself, then click **Mark as applied**. The job moves to **Applications** with a follow-up date
+5. Submit the form yourself, then click **Mark as applied**. The job moves to **Applied** in Applications with a follow-up date, and its timeline shows who applied
 
 The extension never submits a form and never ticks consent boxes.
 
@@ -325,7 +326,7 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 
 ## Google Sheet output
 
-The AI's approvals are sent at the end of each scan, LinkedIn ones as the extension finds them, and a job you approve by hand right away. Board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab, one row per job.
+The AI's approvals are sent at the end of each scan, LinkedIn ones as the extension finds them, and a job you approve by hand right away. Board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab, one row per job. For users with Applications on, a **Stage** column at the end of each tab follows the board (see the README's [Google Sheet output](README.md#google-sheet-output)).
 
 ### "Jobs" tab (from scanners)
 

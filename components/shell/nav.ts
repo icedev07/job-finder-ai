@@ -18,7 +18,7 @@ import {
 
 export type NavBadge = 'review' | 'followUps' | 'setup';
 /** A page each user can have off (Settings); hidden while it is off for everyone in view. */
-export type NavFeature = 'review';
+export type NavFeature = 'review' | 'applications';
 
 export interface NavItem {
   title: string;
@@ -57,7 +57,8 @@ export const NAV_GROUPS: NavGroup[] = [
         href: '/admin/applications',
         icon: KanbanIcon,
         badge: 'followUps',
-        keywords: 'pipeline board applied interview offer follow-up',
+        feature: 'applications',
+        keywords: 'pipeline board applied interview offer follow-up timeline archive close reason',
       },
     ],
   },

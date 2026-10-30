@@ -20,6 +20,9 @@ export const USER_KEYS = {
   // Score band whose verdicts land in the Review queue (inclusive).
   REVIEW_BAND_MIN: "review_band_min",
   REVIEW_BAND_MAX: "review_band_max",
+  // "false" turns Applications off: jobs approved by hand stay out of Saved,
+  // no follow-up reminders, and the board and its sheet Stage column are left alone.
+  APPLICATIONS_ENABLED: "applications_enabled",
   // Days after "Applied" before a follow-up is due.
   FOLLOWUP_DAYS: "followup_days",
   GOOGLE_SHEET_ID: "google_sheet_id",
@@ -49,6 +52,7 @@ export const SEARCH_KEYS: UserKey[] = [
   USER_KEYS.REVIEW_ENABLED,
   USER_KEYS.REVIEW_BAND_MIN,
   USER_KEYS.REVIEW_BAND_MAX,
+  USER_KEYS.APPLICATIONS_ENABLED,
   USER_KEYS.FOLLOWUP_DAYS,
   USER_KEYS.SCAN_BOARDS,
   USER_KEYS.EXTENSION_SETTINGS,
@@ -64,6 +68,8 @@ export type UserSettings = {
   reviewEnabled: boolean;
   reviewBandMin: number;
   reviewBandMax: number;
+  /** The Applications board: off, jobs approved by hand stay out of Saved and there are no reminders. */
+  applicationsEnabled: boolean;
   followUpDays: number;
   googleSheetId: string;
   jobsSheetTab: string;
@@ -124,6 +130,7 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     // approval line (60), where a quick human check helps most.
     reviewBandMin: clampInt(v[USER_KEYS.REVIEW_BAND_MIN], 0, 100, 45),
     reviewBandMax: clampInt(v[USER_KEYS.REVIEW_BAND_MAX], 0, 100, 70),
+    applicationsEnabled: v[USER_KEYS.APPLICATIONS_ENABLED] !== "false",
     followUpDays: clampInt(v[USER_KEYS.FOLLOWUP_DAYS], 1, 60, 7),
     googleSheetId: (v[USER_KEYS.GOOGLE_SHEET_ID] || "").trim(),
     jobsSheetTab: (v[USER_KEYS.JOBS_SHEET_TAB] || "").trim() || "Jobs",

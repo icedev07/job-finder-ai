@@ -2,9 +2,11 @@ import { prisma } from "./prisma";
 import { normalizeUrl } from "./scrapedJobs";
 import { updateJobs } from "./jobActions";
 import { rememberAnswers } from "./answers";
+import { recordEvents, type Actor } from "./applicationEvents";
 
 // Link an application form the extension is filling to a stored job, and
-// record "Mark as applied".
+// record "Mark as applied" (on the application's timeline, with who was
+// signed in to the extension).
 
 export type MatchedJob = {
   id: number;
@@ -115,7 +117,10 @@ export type ApplyInput = {
   saveAnswers?: boolean;
 };
 
-export async function markApplied(input: ApplyInput): Promise<{ jobId: number; created: boolean; savedAnswers: number }> {
+export async function markApplied(
+  input: ApplyInput,
+  actor: Actor,
+): Promise<{ jobId: number; created: boolean; savedAnswers: number }> {
   let job = await findJobForPage(input);
   let created = false;
   if (!job) {
@@ -156,9 +161,13 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
     .slice(0, 60)
     .map((a) => ({ question: a.question.slice(0, 1000), answer: a.answer.slice(0, 8000) }));
 
-  await updateJobs([job.id], { stage: "APPLIED" }, { userId: input.userId });
-  await prisma.scrapedJob.update({
+  // A job already at Interview or Offer stays there.
+  const moves = job.stage !== "INTERVIEW" && job.stage !== "OFFER";
+  const now = new Date();
+  if (moves) await updateJobs([job.id], { stage: "APPLIED" }, { scope: { userId: input.userId }, now, actor, record: false });
+  const after = await prisma.scrapedJob.update({
     where: { id: job.id },
+    select: { stage: true, followUpAt: true },
     data: {
       resumeId: input.resumeId ?? null,
       applicationData: JSON.stringify({
@@ -169,6 +178,25 @@ export async function markApplied(input: ApplyInput): Promise<{ jobId: number; c
       }),
     },
   });
+  await recordEvents(
+    [
+      {
+        jobId: job.id,
+        userId: input.userId,
+        kind: "applied",
+        fromStage: job.stage,
+        toStage: after.stage,
+        detail: {
+          resumeName: input.resumeName ?? null,
+          answers: answers.length,
+          ...(created ? { created: true } : {}),
+          ...(after.followUpAt ? { followUpAt: after.followUpAt.toISOString() } : {}),
+        },
+      },
+    ],
+    actor,
+    now,
+  );
   const savedAnswers = input.saveAnswers ? await rememberAnswers(input.userId, answers) : 0;
   return { jobId: job.id, created, savedAnswers };
 }

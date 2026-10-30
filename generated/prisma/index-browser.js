@@ -172,6 +172,7 @@ exports.Prisma.ScrapedJobScalarFieldEnum = {
   createdAt: 'createdAt',
   stage: 'stage',
   stageUpdatedAt: 'stageUpdatedAt',
+  closeReason: 'closeReason',
   appliedAt: 'appliedAt',
   followUpAt: 'followUpAt',
   notes: 'notes',
@@ -182,6 +183,19 @@ exports.Prisma.ScrapedJobScalarFieldEnum = {
   reviewedAt: 'reviewedAt',
   eligibility: 'eligibility',
   signals: 'signals'
+};
+
+exports.Prisma.ApplicationEventScalarFieldEnum = {
+  id: 'id',
+  jobId: 'jobId',
+  userId: 'userId',
+  kind: 'kind',
+  fromStage: 'fromStage',
+  toStage: 'toStage',
+  detail: 'detail',
+  actorId: 'actorId',
+  via: 'via',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.AppConfigScalarFieldEnum = {
@@ -306,6 +320,7 @@ exports.Prisma.ModelName = {
   ExtensionToken: 'ExtensionToken',
   UserConfig: 'UserConfig',
   ScrapedJob: 'ScrapedJob',
+  ApplicationEvent: 'ApplicationEvent',
   AppConfig: 'AppConfig',
   SkipRule: 'SkipRule',
   ScanLog: 'ScanLog',

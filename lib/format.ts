@@ -131,6 +131,30 @@ export function isJobStage(v: unknown): v is JobStage {
   return typeof v === "string" && (JOB_STAGES as readonly string[]).includes(v);
 }
 
+/** Why an application closed: the company said no (stage Rejected), or it was archived for one of the others. */
+export const CLOSE_REASONS = ["REJECTED", "WITHDREW", "POSITION_CLOSED", "NO_RESPONSE"] as const;
+export type CloseReason = (typeof CLOSE_REASONS)[number];
+
+export const CLOSE_REASON_LABEL: Record<CloseReason, string> = {
+  REJECTED: "Rejected by the company",
+  WITHDREW: "Withdrew",
+  POSITION_CLOSED: "Position closed",
+  NO_RESPONSE: "No response",
+};
+
+export function isCloseReason(v: unknown): v is CloseReason {
+  return typeof v === "string" && (CLOSE_REASONS as readonly string[]).includes(v);
+}
+
+/** The stage as the Google Sheet shows it: "Applied", "Archived (no response)", "" outside the pipeline. */
+export function stageText(stage: string | null | undefined, closeReason?: string | null): string {
+  if (!stage || !isJobStage(stage)) return "";
+  const label = STAGE_META[stage].label;
+  return stage === "ARCHIVED" && isCloseReason(closeReason) && closeReason !== "REJECTED"
+    ? `${label} (${CLOSE_REASON_LABEL[closeReason].toLowerCase()})`
+    : label;
+}
+
 export type ScoreTier = "hot" | "match" | "maybe" | "low";
 
 export function scoreTier(score: number | null | undefined): ScoreTier {

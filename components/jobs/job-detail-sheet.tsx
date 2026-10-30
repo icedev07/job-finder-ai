@@ -12,6 +12,7 @@ import {
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 
+import { Timeline, type TimelineEvent } from '@/components/applications/timeline';
 import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
 import { FeedbackButtons } from '@/components/jobs/feedback-buttons';
 import { patchJobs, reanalyzeJobs } from '@/components/jobs/job-commands';
@@ -20,11 +21,22 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { api, errorMessage } from '@/lib/clientApi';
-import { formatDate, formatDateTime, platformLabel, safeHref, timeAgo, type JobStage, type JobStatus } from '@/lib/format';
+import {
+  CLOSE_REASON_LABEL,
+  formatDate,
+  formatDateTime,
+  platformLabel,
+  safeHref,
+  timeAgo,
+  type CloseReason,
+  type JobStage,
+  type JobStatus,
+} from '@/lib/format';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 
 type AnalysisLog = { id: number; model: string; approved: boolean; score: number | null; reason: string | null; createdAt: string; durationMs: number | null };
@@ -45,6 +57,7 @@ type JobDetail = {
   aiScore: number | null;
   aiReason: string | null;
   stage: JobStage | null;
+  closeReason: CloseReason | null;
   appliedAt: string | null;
   followUpAt: string | null;
   notes: string | null;
@@ -56,7 +69,18 @@ type JobDetail = {
   analysisLogs: AnalysisLog[];
 };
 
-type DetailResponse = { job: JobDetail; sameCompany90d: number; resume: { id: number; name: string; fileName: string } | null };
+type DetailResponse = {
+  job: JobDetail;
+  sameCompany90d: number;
+  resume: { id: number; name: string; fileName: string } | null;
+  events: TimelineEvent[];
+};
+
+// The reasons an archived application can have (Rejected is its own stage).
+const ARCHIVE_REASONS = [
+  { value: 'NONE', label: 'No reason' },
+  ...(['WITHDREW', 'POSITION_CLOSED', 'NO_RESPONSE'] as const).map((r) => ({ value: r, label: CLOSE_REASON_LABEL[r] })),
+];
 
 function dateInput(v: string | null): string {
   return v ? new Date(v).toISOString().slice(0, 10) : '';
@@ -232,6 +256,39 @@ export function JobDetailSheet({
                   <Label>Applied</Label>
                   <p className="text-muted-foreground">{job.appliedAt ? formatDateTime(job.appliedAt) : 'Not yet'}</p>
                 </div>
+                {job.stage === 'REJECTED' ? (
+                  <div className="space-y-1.5 text-sm sm:col-span-2">
+                    <Label>Closed</Label>
+                    <p className="text-muted-foreground">{CLOSE_REASON_LABEL.REJECTED}</p>
+                  </div>
+                ) : null}
+                {job.stage === 'ARCHIVED' ? (
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="close-reason">Why it closed</Label>
+                    <Select
+                      items={ARCHIVE_REASONS}
+                      value={job.closeReason ?? 'NONE'}
+                      onValueChange={(v) => {
+                        const reason = v === 'NONE' || v == null ? null : (v as CloseReason);
+                        void patchJobs([job.id], { closeReason: reason }, {
+                          success: reason ? `Close reason: ${CLOSE_REASON_LABEL[reason]}` : 'Close reason cleared',
+                          onDone: changed,
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="close-reason" size="sm" className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ARCHIVE_REASONS.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>
+                            {r.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="notes">Notes</Label>
                   <Textarea
@@ -273,6 +330,13 @@ export function JobDetailSheet({
                   </section>
                 </>
               ) : null}
+
+              <Separator />
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">Timeline</h3>
+                <Timeline events={data.events ?? []} />
+              </section>
 
               <Separator />
 

@@ -3,10 +3,11 @@
 import { toast } from 'sonner';
 
 import { api, errorMessage } from '@/lib/clientApi';
-import { STAGE_META, type JobStage } from '@/lib/format';
+import { STAGE_META, type CloseReason, type JobStage } from '@/lib/format';
 
 export type JobSet = {
   stage?: JobStage | null;
+  closeReason?: CloseReason | null;
   feedback?: 1 | -1 | null;
   status?: 'APPROVED' | 'REJECTED';
   notes?: string | null;

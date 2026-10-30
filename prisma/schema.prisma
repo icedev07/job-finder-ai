@@ -114,6 +114,9 @@ model ScrapedJob {
   // REJECTED (by the company) or ARCHIVED.
   stage          String?   @db.VarChar(20)
   stageUpdatedAt DateTime?
+  // Why a closed application closed: REJECTED (stage REJECTED), or WITHDREW,
+  // POSITION_CLOSED or NO_RESPONSE (stage ARCHIVED, which may have none).
+  closeReason    String?   @db.VarChar(20)
   appliedAt      DateTime?
   followUpAt     DateTime?
   notes          String?
@@ -137,6 +140,7 @@ model ScrapedJob {
   signals     String?
 
   analysisLogs AnalysisLog[]
+  events       ApplicationEvent[]
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platform, url])
@@ -145,6 +149,34 @@ model ScrapedJob {
   @@index([status, createdAt])
   @@index([userId, status, createdAt])
   @@index([userId, stage])
+}
+
+// An application's timeline: every stage change, follow-up date, note and
+// "Mark as applied", with who did it.
+model ApplicationEvent {
+  id        Int      @id @default(autoincrement())
+  jobId     Int
+  // The job's user: whose application it is.
+  userId    Int
+  // stage, follow_up, note or applied.
+  kind      String   @db.VarChar(20)
+  fromStage String?  @db.VarChar(20)
+  toStage   String?  @db.VarChar(20)
+  // JSON with what the kind needs: the close reason, the follow-up date, the
+  // note, what the extension sent.
+  detail    String?
+  // Who did it: an admin on the dashboard or whoever is signed in to the
+  // extension; null when the app did it (no foreign key: a deleted admin's
+  // events stay).
+  actorId   Int?
+  // dashboard, extension or app.
+  via       String   @db.VarChar(20)
+  createdAt DateTime @default(now())
+
+  job ScrapedJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ── Admin configuration ─────────────────────────────────────────────────────

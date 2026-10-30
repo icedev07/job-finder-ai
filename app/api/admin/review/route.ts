@@ -1,6 +1,6 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
-import { sendApprovedJobsNow } from "@/lib/googleSheetsSync";
+import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
 import {
   hasReview,
@@ -11,7 +11,7 @@ import {
   undoReview,
   type ReviewAction,
 } from "@/lib/review";
-import { adminScope, scopedUsers, type ScopedUser } from "@/lib/scope";
+import { adminActor, adminScope, scopedUsers, type ScopedUser } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
@@ -107,7 +107,10 @@ export async function POST(req: NextRequest) {
   if (body.action === "undo") {
     const undo = parseReviewUndo(body.undo);
     if (typeof undo === "string") return badRequest(undo);
-    return NextResponse.json({ ok: true, ...(await undoReview(users.map((u) => u.id), undo)) });
+    const { updated, leftInSheet, unsaved } = await undoReview(users.map((u) => u.id), undo, adminActor(scope));
+    // Out of Saved again: their Stage in the sheet is cleared.
+    if (unsaved.length) after(() => updateSheetsAfterChange(unsaved));
+    return NextResponse.json({ ok: true, updated, leftInSheet });
   }
 
   const action = body.action as ReviewAction;
@@ -125,18 +128,17 @@ export async function POST(req: NextRequest) {
   }
 
   const queueUsers = ids === "all" ? narrow(users, body.only) : users;
-  const result = await reviewJobs(queueUsers, ids, action);
+  const result = await reviewJobs(queueUsers, ids, action, adminActor(scope));
 
-  // Approved jobs not in a sheet yet go to their user's sheet after the response;
-  // `sheet` counts those whose user has one.
+  // Approved jobs not in a sheet yet go to their user's sheet after the response
+  // (`sheet` counts those whose user has one); the ones already there get their
+  // Stage (Saved) updated.
   let sheet = 0;
   const toSend = result.approved.filter((j) => !j.inSheet);
-  if (toSend.length) {
-    if ((await getConfig()).googleSheetsCredentials) {
-      const withSheet = new Set(users.filter((u) => u.settings.googleSheetId).map((u) => u.id));
-      sheet = toSend.filter((j) => withSheet.has(j.userId)).length;
-    }
-    after(() => sendApprovedJobsNow(toSend.map((j) => j.id)));
+  if (toSend.length && (await getConfig()).googleSheetsCredentials) {
+    const withSheet = new Set(users.filter((u) => u.settings.googleSheetId).map((u) => u.id));
+    sheet = toSend.filter((j) => withSheet.has(j.userId)).length;
   }
+  if (result.approved.length) after(() => updateSheetsAfterChange(result.approved.map((j) => j.id)));
   return NextResponse.json({ ok: true, updated: result.updated, undo: result.undo, sheet });
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { NextRequest, NextResponse } from "next/server";
 import { cache } from "react";
 
+import type { Actor } from "./applicationEvents";
 import { describeDbError } from "./dbErrors";
 import { PATH_HEADER, SESSION_COOKIE, readSessionToken, type SessionPayload } from "./session";
 import { getUserFresh, invalidateUserCache, listUsers, type UserRow } from "./users";
@@ -157,6 +158,11 @@ async function loadPageScope(): Promise<AdminScope> {
 export const pageScope = cache(loadPageScope);
 
 /** The viewed user's id, or null when viewing all users. */
+/** The signed-in admin, as who made a change (an application's timeline). */
+export function adminActor(scope: AdminScope): Actor {
+  return { id: scope.admin.id, via: "dashboard" };
+}
+
 export function viewingUserId(scope: AdminScope): number | null {
   return scope.viewing === "all" ? null : scope.viewing;
 }

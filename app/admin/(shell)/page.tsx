@@ -121,13 +121,23 @@ export default async function DashboardPage() {
             href="/admin/review"
           />
         )}
-        <KpiTile
-          label="Applications"
-          value={formatNumber(data.applied)}
-          sub={`${formatNumber(data.interviews)} interviewing · ${formatNumber(status?.counts.followUpsDue ?? 0)} follow-ups due`}
-          icon={<KanbanIcon />}
-          href="/admin/applications"
-        />
+        {status && !status.features.applications ? (
+          <KpiTile
+            label="Applications"
+            value="Off"
+            sub="approved jobs stay out of Saved"
+            icon={<KanbanIcon />}
+            href="/admin/settings#applications"
+          />
+        ) : (
+          <KpiTile
+            label="Applications"
+            value={formatNumber(data.applied)}
+            sub={`${formatNumber(data.interviews)} interviewing · ${formatNumber(status?.counts.followUpsDue ?? 0)} follow-ups due`}
+            icon={<KanbanIcon />}
+            href="/admin/applications"
+          />
+        )}
         <KpiTile
           label="AI calls today"
           value={formatNumber(aiToday)}

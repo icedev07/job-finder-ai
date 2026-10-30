@@ -136,6 +136,45 @@ const EVOLUTION_STATEMENTS = [
   addForeignKey("ExtensionToken", "ExtensionToken_userId_fkey"),
   // Review: when a job left the queue ("Mark all reviewed" and Keep included).
   `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMP(3);`,
+  // Applications: why an application closed, and each application's timeline.
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "closeReason" VARCHAR(20);`,
+  `CREATE TABLE IF NOT EXISTS "ApplicationEvent" (
+    "id" SERIAL NOT NULL,
+    "jobId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "kind" VARCHAR(20) NOT NULL,
+    "fromStage" VARCHAR(20),
+    "toStage" VARCHAR(20),
+    "detail" TEXT,
+    "actorId" INTEGER,
+    "via" VARCHAR(20) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ApplicationEvent_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "ApplicationEvent_jobId_createdAt_idx" ON "ApplicationEvent"("jobId", "createdAt");`,
+  `CREATE INDEX IF NOT EXISTS "ApplicationEvent_userId_createdAt_idx" ON "ApplicationEvent"("userId", "createdAt");`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ApplicationEvent_jobId_fkey') THEN
+      ALTER TABLE "ApplicationEvent" ADD CONSTRAINT "ApplicationEvent_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $$;`,
+];
+
+// Once every job has its user: close reasons and timelines for the
+// applications that existed before them (the same as the applications
+// migration; a job that has a timeline is left alone).
+const APPLICATION_STATEMENTS = [
+  `UPDATE "ScrapedJob" SET "closeReason" = 'REJECTED' WHERE "stage" = 'REJECTED' AND "closeReason" IS NULL;`,
+  `INSERT INTO "ApplicationEvent" ("jobId", "userId", "kind", "toStage", "detail", "via", "createdAt")
+  SELECT j."id", j."userId", 'stage', s."stage", '{"imported":true}', 'app', s."at"
+  FROM "ScrapedJob" j
+  CROSS JOIN LATERAL (
+    SELECT 'APPLIED'::VARCHAR(20) AS "stage", j."appliedAt" AS "at" WHERE j."appliedAt" IS NOT NULL
+    UNION ALL
+    SELECT j."stage", COALESCE(j."stageUpdatedAt", j."createdAt")
+    WHERE j."stage" IS NOT NULL AND NOT (j."stage" = 'APPLIED' AND j."appliedAt" IS NOT NULL)
+  ) s
+  WHERE NOT EXISTS (SELECT 1 FROM "ApplicationEvent" e WHERE e."jobId" = j."id");`,
 ];
 
 // After migrateUserData() gave every existing row an owner: the constraints
@@ -244,6 +283,7 @@ async function evolve(upgrading: boolean): Promise<{ appliedAlters: string[]; us
   const users = await bootstrapAdmin();
   const notes = await migrateUserData(upgrading);
   appliedAlters.push(...(await applyStatements(USER_CONSTRAINT_STATEMENTS)));
+  appliedAlters.push(...(await applyStatements(APPLICATION_STATEMENTS)));
   await seedDefaults();
   return { appliedAlters, users, notes };
 }

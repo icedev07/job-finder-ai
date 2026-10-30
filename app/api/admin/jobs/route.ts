@@ -1,16 +1,17 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { sendApprovedJobsNow } from "@/lib/googleSheetsSync";
+import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
 import { JOB_LIST_SELECT, jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
-import { deleteJobs, parseJobPatch, updateJobs } from "@/lib/jobActions";
-import { adminScope, userWhere, viewingUserId } from "@/lib/scope";
+import { deleteJobs, parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
+import { adminActor, adminScope, userWhere, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // All for the user being viewed (or every user):
 // GET  → one page of jobs for the admin Jobs table (+ facet counts with facets=1).
-// PATCH { ids, set } → bulk stage / feedback / status / notes changes; jobs
-//   approved by hand go to their user's Google Sheet right after the response.
+// PATCH { ids, set } → bulk stage / close reason / feedback / status / notes /
+//   follow-up changes; right after the response, jobs approved by hand go to
+//   their user's Google Sheet and moved ones get their Stage updated there.
 // DELETE { ids } → bulk delete (max 500).
 
 export async function GET(req: NextRequest) {
@@ -76,8 +77,8 @@ export async function PATCH(req: NextRequest) {
   if (!ids?.length) return NextResponse.json({ error: "ids[] is required" }, { status: 400 });
   const patch = parseJobPatch((body as { set?: unknown }).set);
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
-  const updated = await updateJobs(ids, patch, userWhere(scope));
-  if (patch.status === "APPROVED") after(() => sendApprovedJobsNow(ids, userWhere(scope)));
+  const updated = await updateJobs(ids, patch, { scope: userWhere(scope), actor: adminActor(scope) });
+  if (touchesSheet(patch)) after(() => updateSheetsAfterChange(ids, userWhere(scope)));
   return NextResponse.json({ ok: true, updated });
 }
 

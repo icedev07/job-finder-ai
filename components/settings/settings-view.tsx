@@ -35,6 +35,7 @@ const KEYS = [
   'review_enabled',
   'review_band_min',
   'review_band_max',
+  'applications_enabled',
   'followup_days',
   'job_analysis_prompt',
   'scan_boards',
@@ -52,6 +53,7 @@ const LABEL: Record<Key, string> = {
   review_enabled: 'Review',
   review_band_min: 'Review band',
   review_band_max: 'Review band',
+  applications_enabled: 'Applications',
   followup_days: 'Follow-up days',
   job_analysis_prompt: 'Analysis prompt',
   scan_boards: 'Job boards',
@@ -81,7 +83,7 @@ export function SettingsView() {
 
 function UserSettingsForm() {
   const { multiUser } = useViewing();
-  // Review on/off, the band and the sheet change the sidebar badges and Setup.
+  // Review and Applications on/off, the band and the sheet change the sidebar badges and Setup.
   const { refresh } = useStatus();
   const [loaded, setLoaded] = useState<UserSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -181,6 +183,7 @@ function UserSettingsForm() {
 
   const usingDefaultPrompt = !draft.job_analysis_prompt.trim();
   const reviewOn = draft.review_enabled !== 'false';
+  const applicationsOn = draft.applications_enabled !== 'false';
 
   return (
     <>
@@ -244,13 +247,43 @@ function UserSettingsForm() {
             </div>
             <FieldDescription>Scores in this band count as close calls (the approval line is 60).</FieldDescription>
           </Field>
-          <Field>
-            <FieldLabel htmlFor="followup">Follow up after (days)</FieldLabel>
-            <Input id="followup" inputMode="numeric" className="w-24" value={draft.followup_days} onChange={(e) => set('followup_days')(e.target.value)} />
-            <FieldDescription>When a job is marked Applied, a follow-up reminder is set this many days later.</FieldDescription>
-          </Field>
         </FieldGroup>
       </SectionCard>
+
+      <div id="applications" className="scroll-mt-20">
+        <SectionCard title="Applications" description={`Tracking ${whose} applications from saved to offer.`}>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
+            <Field orientation="horizontal" className="sm:col-span-2">
+              <Switch
+                id="applications-enabled"
+                checked={applicationsOn}
+                onCheckedChange={(v) => set('applications_enabled')(v ? 'true' : 'false')}
+              />
+              <div className="space-y-0.5">
+                <FieldLabel htmlFor="applications-enabled">Applications board</FieldLabel>
+                <FieldDescription>
+                  Jobs approved by hand land in Saved, with follow-up reminders, a timeline for each application and a Stage
+                  column in the Google Sheet that follows the board. Off: approved jobs stay out of Saved, there are no
+                  reminders, the sheet&apos;s Stage column is left alone, and{' '}
+                  {multiUser ? `${loaded.user.name}'s applications stay off the board` : 'Applications and its badge are hidden'}.
+                </FieldDescription>
+              </div>
+            </Field>
+            <Field data-disabled={!applicationsOn || undefined}>
+              <FieldLabel htmlFor="followup">Follow up after (days)</FieldLabel>
+              <Input
+                id="followup"
+                inputMode="numeric"
+                className="w-24"
+                value={draft.followup_days}
+                onChange={(e) => set('followup_days')(e.target.value)}
+                disabled={!applicationsOn}
+              />
+              <FieldDescription>When a job is marked Applied, a follow-up reminder is set this many days later.</FieldDescription>
+            </Field>
+          </FieldGroup>
+        </SectionCard>
+      </div>
 
       <SectionCard
         title="Job analysis prompt"

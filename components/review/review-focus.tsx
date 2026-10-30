@@ -153,8 +153,8 @@ export function ReviewFocus({
         </CardFooter>
       </Card>
       <p className="text-center text-xs text-muted-foreground">
-        Good match → approved, saved to Applications and sent to the user&apos;s Google Sheet, if they have one. Your yes
-        and no answers become the truth set for AI → Evaluations; Keep leaves the AI verdict unrated.
+        Good match → approved, saved to Applications (while it is on) and sent to the user&apos;s Google Sheet, if they have
+        one. Your yes and no answers become the truth set for AI → Evaluations; Keep leaves the AI verdict unrated.
       </p>
     </div>
   );

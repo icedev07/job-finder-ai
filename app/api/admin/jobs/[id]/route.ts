@@ -1,15 +1,17 @@
 import { after, NextRequest, NextResponse } from "next/server";
-import { sendApprovedJobsNow } from "@/lib/googleSheetsSync";
+import { jobTimeline } from "@/lib/applicationEvents";
+import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
-import { parseJobPatch, updateJobs } from "@/lib/jobActions";
-import { adminScope, userWhere } from "@/lib/scope";
+import { parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
+import { adminActor, adminScope, userWhere } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// Full job for the detail panel: description, AI history, apply links, and
-// how often the same company has shown up (a ghost-job / spam signal).
+// Full job for the detail panel: description, AI history, apply links, its
+// application's timeline, and how often the same company has shown up (a
+// ghost-job / spam signal).
 export async function GET(req: NextRequest, { params }: Ctx) {
   const scope = await adminScope(req);
   if (scope instanceof NextResponse) return scope;
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60_000);
-  const [sameCompany, resume] = await Promise.all([
+  const [sameCompany, resume, events] = await Promise.all([
     prisma.scrapedJob.count({
       where: {
         userId: job.userId,
@@ -34,6 +36,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     job.resumeId
       ? prisma.resume.findUnique({ where: { id: job.resumeId }, select: { id: true, name: true, fileName: true } })
       : Promise.resolve(null),
+    jobTimeline(id),
   ]);
 
   let signals: Record<string, unknown> | null = null;
@@ -53,6 +56,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     job: { ...job, signals, applicationData: application },
     sameCompany90d: sameCompany,
     resume,
+    events,
   });
 }
 
@@ -69,9 +73,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   const patch = parseJobPatch(body);
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
-  const updated = await updateJobs([id], patch, userWhere(scope));
+  const updated = await updateJobs([id], patch, { scope: userWhere(scope), actor: adminActor(scope) });
   if (!updated) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  // Approved by hand: to the user's Google Sheet right after the response.
-  if (patch.status === "APPROVED") after(() => sendApprovedJobsNow([id], userWhere(scope)));
+  // Approved by hand: to the user's Google Sheet right after the response; moved: its Stage there.
+  if (touchesSheet(patch)) after(() => updateSheetsAfterChange([id], userWhere(scope)));
   return NextResponse.json({ ok: true });
 }

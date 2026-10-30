@@ -233,8 +233,8 @@ export function ReviewList({
         </span>
       </p>
       <p className="text-xs text-muted-foreground">
-        Approve: approved, saved to Applications and sent to the user&apos;s Google Sheet, if they have one. Approve and
-        Reject teach AI → Evaluations; Keep leaves the AI verdict as it is.
+        Approve: approved, saved to Applications (while it is on) and sent to the user&apos;s Google Sheet, if they have
+        one. Approve and Reject teach AI → Evaluations; Keep leaves the AI verdict as it is.
       </p>
 
       {chosen.length ? (
