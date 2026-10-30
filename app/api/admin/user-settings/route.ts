@@ -61,7 +61,8 @@ export async function PUT(req: NextRequest) {
   const values: Record<string, string> = {};
   const ignored: string[] = [];
   for (const [key, value] of Object.entries(body)) {
-    if (!isUserKey(key) || key === USER_KEYS.CANDIDATE_PROFILE || typeof value !== "string") {
+    // The profile and the extension settings have their own routes, which check them.
+    if (!isUserKey(key) || key === USER_KEYS.CANDIDATE_PROFILE || key === USER_KEYS.EXTENSION_SETTINGS || typeof value !== "string") {
       ignored.push(key);
       continue;
     }

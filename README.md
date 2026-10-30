@@ -2,7 +2,16 @@
 
 Automated job finder for software developers: it finds remote and on-site jobs, has AI judge each one against where the candidate is based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, profile, results and Google Sheet, and admins manage all of them from one dashboard.
 
-It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings.
+It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension.
+
+## Upgrading from 4.2
+
+Version 4.3 and extension 2.1 let everyone sign in to the Chrome extension with their own user ID and password, so the LinkedIn jobs they scan, their extension settings and the profile autofill uses are theirs. The extension is now called **Job Finder**, with the radar logo. After you deploy it:
+
+1. **Update the database**: open `https://your-app.vercel.app/api/setup` once. It adds the `ExtensionToken` table (one row per browser signed in to the extension). (Or run `npx prisma migrate deploy`.)
+2. **Update the extension** to 2.1.0: extract `job-finder-extension-v2.1.0.zip` from the [newest release](https://github.com/icedev07/job-finder-ai/releases/latest) over the old folder (or pull), then click the reload icon in `chrome://extensions`.
+3. **Sign in**: open the popup and enter the server URL, your user ID and your password. Each person signs in with their own user ID; admins can pick another user under **Scan for** to scan and fill forms for them without signing out.
+4. Once every browser has signed in, turn the **Old shared key** off at the bottom of **Admin → Extension**. Until then an extension 2.0 keeps working with it, saving its jobs as the first admin's. New installs have no shared key.
 
 ## Upgrading from 4.1
 
@@ -11,7 +20,7 @@ Version 4.2 gives each user their own data: jobs and verdicts, Review, Applicati
 1. **Update the database**: open `https://your-app.vercel.app/api/setup` once. Everything you have today becomes the first admin's (`admin`): every job, resume, saved answer, skip rule and log, plus the target market, location, analysis prompt, Google Sheet and profile from Settings. Nothing is deleted. (Or run `npx prisma migrate deploy`.)
 2. **Pick whose data to see** in the **Viewing** menu at the top right: one user, or **All users** (the Dashboard then lists every user, and Jobs, Review and Applications show whose each job is).
 3. **Set up each other user**: with them selected in Viewing, open **Settings** and fill in where they are based, their target market, their job boards and (optionally) their Google Sheet; add their profile and resumes under **Profile & resumes**. Or add new people with **Copy the set-up of** on the Users page.
-4. The extension keeps working with the shared API key; the LinkedIn jobs it scans are saved as the first admin's. Signing in to the extension per user comes with the next extension update.
+4. The extension keeps working with the shared API key, saving the LinkedIn jobs it scans as the first admin's, until you update it to 2.1 and sign in (see [Upgrading from 4.2](#upgrading-from-42)).
 
 Board scans now judge each new job once for every user who gets that board, with that user's location, target market and profile, so AI use grows with the number of users.
 
@@ -21,7 +30,7 @@ Version 4.1 replaces the single admin password with user accounts. After you dep
 
 1. **Update the database**: open `https://your-app.vercel.app/api/setup` once. It adds the `User` table and makes you the first admin, user ID `admin`, with your current admin password. Nothing else changes. (Or run `npx prisma migrate deploy`.)
 2. **Sign in again** at `/admin/login` with user ID `admin` and your current password. Sessions from 4.0 end, so everyone signs in once.
-3. **Add people** under **System → Users**: a user ID (no email), a name, a password and a role. **Admins** use this dashboard. **Users** sign in to the Chrome extension only; that sign-in comes with the next extension update.
+3. **Add people** under **System → Users**: a user ID (no email), a name, a password and a role. **Admins** use this dashboard. **Users** sign in to the Chrome extension only (extension 2.1 and newer).
 4. Change your own password under **Settings → Your password** (it asks for the current one). `ADMIN_PASSWORD`, when set, is now the first admin's password.
 
 ## Upgrading from 3.x
@@ -33,9 +42,7 @@ Version 4.0 locks the admin panel down and changes how the extension connects. A
    - `SESSION_SECRET` (recommended): signs admin sessions. Without it the signing key is derived from `DATABASE_URL`.
 2. **Update the database**: open `https://your-app.vercel.app/api/setup` once. It adds the new tables and columns and keeps your data. (Or run `npx prisma migrate deploy`.)
 3. **Sign in** at `/admin/login` with user ID `admin`. If you still use the default password `admin`, change it under **Settings → Your password** (at least 8 characters).
-4. **Reconnect the extension**. The extension API key is now required.
-   1. Reload the extension in `chrome://extensions` so Chrome picks up version 2.0.0, which adds the side panel and the application-form sites.
-   2. Open **Admin → Extension**, copy the server URL and the API key into the extension popup, and click **Save**.
+4. **Reconnect the extension**: install the newest extension (see [Install and sign in](#install-and-sign-in)) and sign in to its popup with user ID `admin` and your password.
 5. Optional: add your Anthropic API key under **Admin → AI → Providers & keys** and choose which tasks use Claude under **Routes**.
 
 Other changes to know about:
@@ -71,7 +78,7 @@ With more than one user, the **Viewing** menu at the top right picks whose data 
 | Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern, for one user or for everyone. Rules run before the AI, so they also save quota |
 | AI | `/admin/ai` | Providers & keys, per-task routes, usage & cost, playground, evaluations |
 | Profile & resumes | `/admin/profile` | Each user's candidate profile, resume files and the answer bank used by autofill |
-| Extension | `/admin/extension` | Server URL and API key for the popup, install steps, Easy Apply stats, supported form sites |
+| Extension | `/admin/extension` | Server URL and install steps, every browser signed in to the extension (sign one out), each user's extension settings, Easy Apply stats, supported form sites, the old shared key of extension 2.0 |
 | Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role, where they are based, target market, optionally a copy of another user's search options, skip rules or profile), rename, change the role, set a new password, disable or enable, sign out everywhere, delete (with all their data) |
 | Logs | `/admin/logs` | All jobs, AI analysis log, scan logs, extension logs |
 | Data | `/admin/data` | Storage use against the Supabase free 500 MB, safe clean-ups, exports, SQL console (read-only by default) |
@@ -143,13 +150,15 @@ The job drawer adds signals that help you spot ghost or stale postings:
 
 ## LinkedIn extension
 
-The `extension/` folder holds a Manifest V3 Chrome extension (Chrome 116 or newer) that scans LinkedIn job searches:
+The `extension/` folder holds **Job Finder**, a Manifest V3 Chrome extension (Chrome 116 or newer) that scans LinkedIn job searches:
 
 1. Open LinkedIn and search for jobs.
 2. Click the extension icon, then **Start Scan**.
-3. The extension opens each job and sends it to your server, where the **LinkedIn extension** route judges it.
+3. The extension opens each job and sends it to your server, where the **LinkedIn extension** route judges it against the location, target market and profile of the user it works for.
 4. Rejected jobs are hidden on LinkedIn (tick **Also hide approved jobs on LinkedIn** to hide those too).
-5. Approved jobs are saved and pushed to the "LinkedIn" tab in Google Sheets.
+5. Approved jobs are saved as that user's and pushed to the "LinkedIn" tab of their Google Sheet.
+
+Everyone signs in to the popup with their own user ID and password. Admins also get **Scan for**, to scan LinkedIn and fill forms for any user: that user's settings and profile are used and the jobs are saved as theirs. The popup's settings (Easy Apply jobs, scan limit, hide approved, AI search page, send logs) are kept on the server for each user, so every browser uses the same ones, and admins can change them under **Admin → Extension → Extension settings**.
 
 ### Easy Apply jobs
 
@@ -166,29 +175,31 @@ The extension supports both the classic `/jobs/search/` results and LinkedIn's n
 
 Use the **Job scan limit** field to cap how many jobs a run scans across all pages. It defaults to **100**; set it to **-1** to scan every job with no limit. The count includes every job the scanner opens (approved, rejected, skipped, or already processed). The limit is honored across pagination, including the full-page-reload fallback, so a run stops cleanly as soon as it is reached. The field works the same in classic and AI-search (beta) modes.
 
-### Install and connect
+### Install and sign in
 
 1. Download `job-finder-extension-v<version>.zip` from the [newest release](https://github.com/icedev07/job-finder-ai/releases/latest) and extract it to a folder you keep (or use the `extension/` folder of a clone).
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select that folder. The popup shows the version next to its title.
-3. Open **Admin → Extension**, then copy the **Server URL** and **API key** into the extension popup and click **Save**.
+3. Click the extension icon and enter the **Server URL** (shown on **Admin → Extension**), a **user ID** and **password** from **System → Users**, then click **Sign in**.
 
-To update, extract the new zip into the same folder, replacing the files, and click the reload icon on the extension card; your settings stay. (From a clone: pull, then click the reload icon.)
+To update, extract the new zip into the same folder, replacing the files, and click the reload icon on the extension card; you stay signed in. (From a clone: pull, then click the reload icon.)
 
-The key is required: without it the server refuses every extension request, and the popup says so. **New key** on the Extension page rotates it; paste the new key into the popup afterwards.
+A sign-in is required: without one the server refuses every extension request, and the popup says so. Each browser gets its own token; the server keeps only its hash, and the password is never stored in the browser. A sign-in ends when you click **Sign out** in the popup, when an admin signs that browser out under **Admin → Extension → Signed-in browsers**, and when the user is disabled, gets a new password or is signed out everywhere on the Users page.
+
+Extension 2.0 and older had no sign-in: they send the **old shared key** from **Admin → Extension** and save every job as the first admin's. Update them to 2.1, sign in, then turn the key off; new installs have no shared key.
 
 ### Publishing a new version
 
 The **Release extension** workflow (`.github/workflows/release-extension.yml`) publishes the extension as a GitHub release:
 
-1. Raise `"version"` in `extension/manifest.json`, for example from `2.0.1` to `2.0.2`.
+1. Raise `"version"` in `extension/manifest.json`, for example from `2.1.0` to `2.1.1`.
 2. Commit and push to `main`.
-3. The workflow checks the manifest, zips `extension/` as `job-finder-extension-v2.0.2.zip` and publishes the release `extension-v2.0.2`. The release notes have install and update steps, a link to the changes since the previous release, and the zip's SHA-256 checksum.
+3. The workflow checks the manifest, zips `extension/` as `job-finder-extension-v2.1.1.zip` and publishes the release `extension-v2.1.1`. The release notes have install and update steps, a link to the changes since the previous release, and the zip's SHA-256 checksum.
 
 A push that keeps the version publishes nothing; the run notes that the version is already released. **Actions → Release extension → Run workflow** starts it by hand.
 
 ## Autofill application forms
 
-The extension's side panel fills company application forms from your profile and resumes. It never submits anything: you review the form and click Submit yourself.
+The extension's side panel fills company application forms from the profile and resumes of the user it works for (the one signed in, or the one an admin picked under **Scan for**). It never submits anything: you review the form and click Submit yourself.
 
 1. Open a job's application form (for example from **Apply** in a job's drawer).
 2. Click the extension icon, then **Open autofill panel (application forms)**.
@@ -317,8 +328,8 @@ Each scan checks every job with AI as it runs, stores only the suitable / not-su
 - **Sign-in**: everyone signs in with a user ID and password; only users with the **Admin** role can open the dashboard. Every `/admin` page and `/api/admin` endpoint needs a session: an HttpOnly, SameSite=Lax cookie that lasts 7 days, signed with `SESSION_SECRET` (or a key derived from `DATABASE_URL`). Rotating `SESSION_SECRET` signs everyone out.
 - **Ending sessions**: disabling a user, setting their password, changing their role or **Sign out everywhere** on the Users page ends their sessions within seconds. Nobody can disable, demote or delete themselves, so the dashboard always keeps an admin.
 - **Passwords**: stored as scrypt hashes; a new password needs at least 8 characters, and changing your own asks for the current one. A failed sign-in says "Wrong user ID or password." without saying which. After 8 failed sign-ins from one client, further attempts are refused until 15 minutes after the first failure. The `ADMIN_PASSWORD` environment variable, when set, is the first admin's password and overrides the stored one; it can then not be changed in the panel.
-- **Secrets are write-only**: the AI provider keys, the Google service account and the extension key are never sent back to the browser; the panel only shows whether one is set and its last characters. Leaving a secret field blank keeps the stored value. Only the extension API key can be revealed, because you need to copy it into the popup.
-- **Extension API**: every `/api/extension/*` request needs the `X-API-Key` header with the extension key.
+- **Secrets are write-only**: the AI provider keys, the Google service account and the old shared extension key are never sent back to the browser; the panel only shows whether one is set and its last characters. Leaving a secret field blank keeps the stored value. Only the old shared extension key can be revealed, because an extension 2.0 needs it pasted into its popup.
+- **Extension API**: every `/api/extension/*` request needs a sign-in: the browser's own token (`Authorization: Bearer …`, from signing in to the popup with a user ID and password) or, for extension 2.0, the old shared key in `X-API-Key`. The server stores only a SHA-256 hash of each token, and a token stops working when its user is disabled, gets a new password or is signed out everywhere. Only admins may send `X-JF-For` ("Scan for") to work on another user's data. Extension sign-ins share the dashboard's throttle of 8 failures per 15 minutes.
 - **Cron**: the daily scan needs `CRON_SECRET` (see above).
 - **SQL console** (**Admin → Data**): queries run in a read-only transaction with a 15-second timeout. A write needs an explicit confirmation plus your own password.
 - **Clean-ups and exports**: clean-ups only delete rows older than a minimum age (rejected jobs: 7 days, logs: 1 day, AI usage: 35 days, so this month's budget stays correct). Wiping all jobs needs the typed phrase `DELETE ALL JOBS`. The settings export never contains secrets.
@@ -336,12 +347,12 @@ Each scan checks every job with AI as it runs, stores only the suitable / not-su
 | - Scanners (Vercel Cron, daily)       |      |  Gemini, Groq, Cerebras,       |
 | - AI analyzer, usage + cost tracking  |      |  OpenRouter, Cloudflare (free) |
 | - Review, applications, profile       |      +--------------------------------+
-| - Extension API (X-API-Key)           |----->+---------------+
+| - Extension API (per-browser sign-in) |----->+---------------+
 +---------------------------------------+      | Google Sheets |
                          |                     +---------------+
                          v
 +-------------------+       +---------------------------------------+
-| PostgreSQL        |       | Chrome extension 2.0                  |
+| PostgreSQL        |       | Chrome extension 2.1 (Job Finder)     |
 | (Supabase free)   |       |  - LinkedIn scanner (popup)           |
 +-------------------+       |  - Autofill side panel (ATS forms)    |
                             +---------------------------------------+
@@ -465,7 +476,8 @@ Default column config JSON:
 | Analyzer batch size | `5` jobs per AI call (max 12) | Sources |
 | Jobs / LinkedIn sheet tabs | `Jobs` / `LinkedIn` | Settings → Google Sheet |
 | Sheet columns | see JSON above | Settings → Google Sheet |
-| Extension API key | random `jf_…` key | Extension |
+| Extension settings per user | Easy Apply jobs skipped and hidden, scan limit `100`, nothing else on | Extension → Extension settings, or the popup |
+| Old shared extension key (extension 2.0) | none on new installs; an upgraded install keeps its key | Extension → Old shared key |
 | Job analysis prompt | built-in (`lib/defaultPrompt.ts`) | Settings → Job analysis prompt |
 
 ### Job analysis prompt

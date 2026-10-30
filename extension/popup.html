@@ -4,16 +4,32 @@
   <meta charset="utf-8">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    [hidden] { display: none !important; }
     body { width: 380px; font-family: system-ui, -apple-system, sans-serif; background: #f9fafb; padding: 16px; }
-    h1 { font-size: 15px; font-weight: 700; color: #111827; margin-bottom: 4px; }
+    .brand { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .brand img { width: 22px; height: 22px; border-radius: 5px; }
+    h1 { font-size: 15px; font-weight: 700; color: #111827; }
     h1 .version { font-size: 11px; font-weight: 500; color: #9ca3af; }
-    .subtitle { font-size: 11px; color: #6b7280; margin-bottom: 12px; }
     .config-section { margin-bottom: 12px; }
     .config-section label { font-size: 10px; font-weight: 600; color: #374151; display: block; margin-bottom: 3px; }
     .config-row { display: flex; gap: 6px; margin-bottom: 8px; }
     .config-row input { flex: 1; padding: 6px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 11px; font-family: monospace; }
-    .config-row button { padding: 6px 10px; background: #4b5563; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer; white-space: nowrap; }
-    .config-row button:hover { background: #374151; }
+
+    /* Sign-in form and the signed-in line */
+    #signInForm input { width: 100%; padding: 7px 8px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 12px; margin-bottom: 8px; }
+    #signInBtn { width: 100%; padding: 9px; background: #0284c7; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    #signInBtn:hover { background: #0369a1; }
+    #signInBtn:disabled { background: #9ca3af; cursor: not-allowed; }
+    .form-msg { font-size: 11px; color: #b91c1c; margin-top: 8px; min-height: 14px; word-break: break-word; }
+    .form-msg.info { color: #374151; }
+    .hint { font-size: 10px; color: #6b7280; margin-top: 6px; line-height: 1.4; }
+    .who { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; margin-bottom: 10px; }
+    #whoLine { font-size: 11px; color: #111827; font-weight: 600; word-break: break-word; }
+    #placeLine { font-size: 10px; color: #6b7280; margin-top: 2px; word-break: break-word; }
+    .link-btn { background: none; border: none; color: #0369a1; font-size: 11px; cursor: pointer; white-space: nowrap; padding: 0; }
+    .link-btn:hover { text-decoration: underline; }
+    #scanForRow { margin-bottom: 10px; }
+    #scanForRow select { flex: 1; min-width: 0; }
     #startBtn { width: 100%; padding: 10px; background: #059669; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
     #startBtn:hover { background: #047857; }
     #startBtn.running { background: #dc2626; }
@@ -69,22 +85,37 @@
   </style>
 </head>
 <body>
-  <h1>LinkedIn Job Scanner <span id="versionLabel" class="version"></span></h1>
-  <div class="subtitle">AI-powered job filter for Armenian developers</div>
-
-  <div class="config-section">
-    <label>Server URL</label>
-    <div class="config-row">
-      <input type="text" id="serverUrlInput" placeholder="https://your-app.vercel.app">
-    </div>
-    <label>API Key (from Admin → Extension)</label>
-    <div class="config-row">
-      <input type="text" id="apiKeyInput" placeholder="Extension API Key">
-      <button id="saveBtn">Save</button>
-    </div>
+  <div class="brand">
+    <img src="icons/icon32.png" alt="">
+    <h1>Job Finder <span id="versionLabel" class="version"></span></h1>
   </div>
 
-  <div id="mainContent">
+  <form id="signInForm" class="config-section" hidden>
+    <label for="serverUrlInput">Server URL</label>
+    <input type="url" id="serverUrlInput" placeholder="https://your-app.vercel.app" autocomplete="url" spellcheck="false">
+    <label for="usernameInput">User ID</label>
+    <input type="text" id="usernameInput" autocomplete="username" autocapitalize="none" spellcheck="false">
+    <label for="passwordInput">Password</label>
+    <input type="password" id="passwordInput" autocomplete="current-password">
+    <button id="signInBtn" type="submit">Sign in</button>
+    <div id="signInMsg" class="form-msg"></div>
+    <p class="hint">Use the user ID and password your admin set up in Job Finder (Admin → Users). The password is not kept in the browser.</p>
+  </form>
+
+  <div id="mainContent" hidden>
+    <div class="who">
+      <div style="min-width:0">
+        <div id="whoLine"></div>
+        <div id="placeLine"></div>
+      </div>
+      <button id="signOutBtn" type="button" class="link-btn">Sign out</button>
+    </div>
+    <div id="scanForRow" class="inline-setting" hidden>
+      <label for="scanForSelect" style="font-weight:600">Scan for</label>
+      <select id="scanForSelect"></select>
+      <span title="Admins can scan LinkedIn and fill forms for any user: their location, target market, settings and profile are used, and the jobs are saved as theirs." style="color:#9ca3af;cursor:help">(?)</span>
+    </div>
+
     <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
       <label style="font-size:10px;display:flex;align-items:center;gap:4px;color:#374151;cursor:pointer">
         <input type="checkbox" id="showResultsChk" checked> Show results list

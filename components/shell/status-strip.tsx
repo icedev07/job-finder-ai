@@ -96,14 +96,17 @@ export function statusChips(s: StatusSnapshot): Chip[] {
     });
   }
 
+  // Nobody signed in and no old shared key: no extension can reach the server.
+  const extensionLocked = s.extension.browsers === 0 && !s.extension.keySet;
   chips.push({
     key: 'extension',
     label: 'Extension',
-    value: !s.extension.keySet ? 'no key' : s.extension.lastSeen ? timeAgo(s.extension.lastSeen, now) : 'not seen',
-    tone: !s.extension.keySet ? 'warn' : s.extension.lastSeen ? 'ok' : 'idle',
+    value: extensionLocked ? 'not signed in' : s.extension.lastSeen ? timeAgo(s.extension.lastSeen, now) : 'not seen',
+    tone: extensionLocked ? 'warn' : s.extension.lastSeen ? 'ok' : 'idle',
     href: '/admin/extension',
     details: [
-      ['API key', s.extension.keySet ? 'set' : 'missing — the extension is locked out'],
+      ['Signed-in browsers', String(s.extension.browsers)],
+      ['Old shared key (2.0)', s.extension.keySet ? 'on' : 'off'],
       ['Last LinkedIn job', s.extension.lastSeen ? new Date(s.extension.lastSeen).toLocaleString() : 'never'],
     ],
   });

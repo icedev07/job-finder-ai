@@ -135,6 +135,16 @@ exports.Prisma.UserScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.ExtensionTokenScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  tokenHash: 'tokenHash',
+  label: 'label',
+  sessionVersion: 'sessionVersion',
+  createdAt: 'createdAt',
+  lastUsedAt: 'lastUsedAt'
+};
+
 exports.Prisma.UserConfigScalarFieldEnum = {
   userId: 'userId',
   key: 'key',
@@ -292,6 +302,7 @@ exports.SkipRuleType = exports.$Enums.SkipRuleType = {
 
 exports.Prisma.ModelName = {
   User: 'User',
+  ExtensionToken: 'ExtensionToken',
   UserConfig: 'UserConfig',
   ScrapedJob: 'ScrapedJob',
   AppConfig: 'AppConfig',

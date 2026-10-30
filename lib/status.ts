@@ -4,6 +4,7 @@ import { prisma } from "./prisma";
 import { getConfig } from "./config";
 import { claudeSpendThisMonth } from "./aiUsage";
 import { parseAiRoutes, type ProviderId } from "./aiRoutes";
+import { listExtensionBrowsers } from "./extensionTokens";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
 import type { AdminScope } from "./scope";
@@ -34,7 +35,8 @@ export type StatusSnapshot = {
   ai: { calls24h: number; failures24h: number };
   db: { sizeBytes: number | null; limitBytes: number };
   sheets: { configured: boolean; unsynced: number };
-  extension: { keySet: boolean; lastSeen: string | null };
+  /** browsers: signed in to the extension, any user; keySet: the old shared key (extension 2.0) is on. */
+  extension: { keySet: boolean; lastSeen: string | null; browsers: number };
   counts: { pending: number; review: number; followUpsDue: number; approved24h: number; applied: number };
   warnings: { defaultPassword: boolean; cronSecretMissing: boolean; sessionSecretMissing: boolean };
   setup: { done: number; total: number; steps: SetupStep[] };
@@ -116,6 +118,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     profiles,
     resumeGroups,
     tablesReady,
+    extensionBrowsers,
   ] = await Promise.all([
     soft(prisma.scanLog.findFirst({ where: mine, orderBy: { createdAt: "desc" } }), null),
     soft(claudeSpendThisMonth(), 0),
@@ -167,6 +170,8 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       [] as { userId: number; _count: { _all: number } }[],
     ),
     soft(prisma.$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Resume"') IS NOT NULL AS ok`.then((r) => !!r[0]?.ok), false),
+    // Any user's: an admin scanning for someone uses their own sign-in.
+    soft(listExtensionBrowsers(null).then((b) => b.length), 0),
   ]);
 
   const calls24h = aiGroups.reduce((s, g) => s + g._count._all, 0);
@@ -252,12 +257,12 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       hint: "Better verdicts, strict JSON, resume reading and form answers.",
     },
     {
-      key: "extension-key",
-      title: "Generate the extension API key",
-      done: !!config.extensionApiKey,
+      key: "extension-signin",
+      title: "Sign in to the Chrome extension",
+      done: extensionBrowsers > 0,
       optional: false,
       href: "/admin/extension",
-      hint: "The extension cannot talk to the server without it.",
+      hint: "Install extension 2.1 or newer, then sign in with a user ID and password from System → Users. Admins can scan for any user.",
     },
     {
       key: "extension-seen",
@@ -265,7 +270,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       done: !!extensionLastSeen,
       optional: true,
       href: "/admin/extension",
-      hint: "Load the extension/ folder in chrome://extensions, paste the server URL and key, scan a search.",
+      hint: "Open a LinkedIn job search and click Start Scan in the extension popup.",
     },
     {
       key: "search",
@@ -318,7 +323,11 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     ai: { calls24h, failures24h },
     db: { sizeBytes: dbSize, limitBytes: SUPABASE_FREE_DB_BYTES },
     sheets: { configured: sheetsConfigured, unsynced },
-    extension: { keySet: !!config.extensionApiKey, lastSeen: extensionLastSeen?.toISOString() ?? null },
+    extension: {
+      keySet: !!config.extensionApiKey,
+      lastSeen: extensionLastSeen?.toISOString() ?? null,
+      browsers: extensionBrowsers,
+    },
     counts: { pending, review, followUpsDue, approved24h, applied },
     warnings: { defaultPassword, cronSecretMissing, sessionSecretMissing },
     setup: { done: steps.filter((s) => s.done).length, total: steps.length, steps },

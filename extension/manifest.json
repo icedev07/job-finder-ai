@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "LinkedIn Job Scanner",
-  "version": "2.0.1",
-  "description": "Scans LinkedIn job searches with AI, and fills job application forms from your Job Finder profile (you always submit yourself).",
+  "name": "Job Finder",
+  "version": "2.1.0",
+  "description": "Scans LinkedIn job searches with AI and fills job application forms from your Job Finder profile (you always submit yourself). Sign in with your Job Finder user ID.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "storage", "scripting", "sidePanel"],
   "host_permissions": [
@@ -24,6 +24,7 @@
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
@@ -33,6 +34,7 @@
   },
   "icons": {
     "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },

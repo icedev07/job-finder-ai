@@ -7,7 +7,10 @@
   let stats = { checked: 0, approved: 0, hidden: 0, skipped: 0 };
   let currentStatus = "Idle";
   let serverUrl = "";
-  let apiKey = "";
+  // This browser's sign-in (from the popup) and, for an admin, the user the
+  // scan saves jobs for ("Scan for"; null = the signed-in user).
+  let token = "";
+  let scanFor = null;
   // When true, scan LinkedIn's new AI / natural-language jobs search
   // (pageKey d_flagship3_nlsearch_srp_jobs, path /jobs/search-results/) which
   // renders via Server-Driven UI instead of the classic Ember DOM. Toggled from
@@ -26,7 +29,7 @@
   // an optional stricter minimum score).
   let easyApplyMode = "skip";
   let easyApplyMinScore = 0;
-  // Set when the server rejects the API key — the scan stops with this message
+  // Set when the server refuses the sign-in — the scan stops with this message
   // instead of marking every remaining job as an error.
   let authFailure = "";
   const MIN_VALID_CARDS_THRESHOLD = 3;
@@ -80,7 +83,8 @@
       }
       scanning = true;
       serverUrl = msg.serverUrl;
-      apiKey = msg.apiKey || "";
+      token = msg.token || "";
+      scanFor = msg.scanFor || null;
       betaMode = !!msg.betaMode;
       jobLimit = normalizeJobLimit(msg.jobLimit);
       easyApplyMode = normalizeEasyApplyMode(msg.easyApplyMode);
@@ -1117,7 +1121,8 @@
   async function analyzeOnServer(jobData) {
     const url = `${serverUrl}/api/extension/analyze`;
     const headers = { "Content-Type": "application/json" };
-    if (apiKey) headers["X-API-Key"] = apiKey;
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (scanFor) headers["X-JF-For"] = String(scanFor);
 
     log(`POST ${url} - title="${jobData.title}", company="${jobData.company}", easyApply=${jobData.easyApply}, descLen=${jobData.description?.length || 0}`);
 
@@ -1132,9 +1137,15 @@
           body: JSON.stringify(jobData),
         });
 
-        if (res.status === 401) {
+        // Signed out, disabled, or not allowed to scan for that user (404: the
+        // user picked under "Scan for" was deleted). Every later job would fail
+        // the same way, so the scan stops with the server's message.
+        if (res.status === 401 || res.status === 403 || res.status === 404) {
           const body = await res.json().catch(() => ({}));
-          const err = new Error(body.error || "The server rejected the extension API key.");
+          if (res.status === 404 && !/^scan_for_/.test(body.code || "")) {
+            throw new Error(`Server 404: ${body.error || "not found"}`);
+          }
+          const err = new Error(body.error || "The server refused this browser's sign-in. Sign in again in the popup.");
           err.authError = true;
           throw err;
         }
@@ -1837,12 +1848,13 @@
   function maybeResumeAfterNavigation() {
     chrome.runtime.sendMessage({ type: "GET_BG_STATE" }, (state) => {
       if (chrome.runtime.lastError || !state?.scanning || !state.resumeAfterNavigation || !state.isScanTab) return;
-      chrome.storage.local.get(["extensionApiKey", "betaMode", "jobLimit", "easyApplyMode", "easyApplyMinScore"], (data) => {
+      chrome.storage.local.get(["extensionToken", "scanForUserId", "betaMode", "jobLimit", "easyApplyMode", "easyApplyMinScore"], (data) => {
         if (!state.scanning || scanning) return;
         scanning = true;
         stopRequested = false;
         serverUrl = state.serverUrl || "";
-        apiKey = data.extensionApiKey || "";
+        token = data.extensionToken || "";
+        scanFor = data.scanForUserId || null;
         betaMode = !!data.betaMode;
         // Restore the limit and the running count so a scan that paged via a
         // full reload keeps honoring the same job-limit budget.

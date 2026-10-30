@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing 3.x deployment? Follow [README → Upgrading from 3.x](README.md#upgrading-from-3x) first: it covers the new environment variables, the database update and reconnecting the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -181,7 +181,7 @@ DATABASE_URL="postgresql://..." npx prisma migrate deploy
 1. Open `https://your-project.vercel.app`. It redirects to the admin panel and asks you to sign in.
 2. Sign in with user ID `admin` and the default password `admin`.
 3. The Dashboard lists the setup steps still open, starting with the default password: open **Settings → Your password** and set one with at least 8 characters.
-4. To let other people in, open **System → Users** and click **Add user**: a user ID (no email needed), a name, a password and a role. **Admin** opens this dashboard; **User** signs in to the Chrome extension only (that sign-in comes with the next extension update).
+4. To let other people in, open **System → Users** and click **Add user**: a user ID (no email needed), a name, a password and a role. **Admin** opens this dashboard (and the extension); **User** signs in to the Chrome extension only.
 
 ---
 
@@ -250,24 +250,26 @@ Enable the job sources you want under **Sources** and run **Scrape all sources**
 3. Open `chrome://extensions` in Chrome (version 116 or newer)
 4. Enable **Developer mode** (toggle in top-right)
 5. Click **Load unpacked** and select that folder
-6. The extension icon appears in your toolbar; the popup shows its version next to the title
+6. The **Job Finder** icon (the blue radar) appears in your toolbar; the popup shows its version next to the title
 
-**Updating:** extract the new zip into the same folder, replacing the files, then click the reload icon on the extension's card. Your settings stay. Loading it from a different folder adds a second copy with empty settings, so remove the old one first in that case. (Using the project folder: pull, then click the reload icon.)
+**Updating:** extract the new zip into the same folder, replacing the files, then click the reload icon on the extension's card. You stay signed in, and the scan settings are kept on the server. Loading it from a different folder adds a second copy that is not signed in, so remove the old one first in that case. (Using the project folder: pull, then click the reload icon.)
 
 ### Publish a new extension version
 
-1. Raise `"version"` in `extension/manifest.json` (for example `2.0.1` → `2.0.2`), commit and push to `main`.
-2. On GitHub, **Actions → Release extension** runs by itself: it checks the manifest, zips the folder and publishes the release `extension-v2.0.2` with the file `job-finder-extension-v2.0.2.zip`, install steps and a SHA-256 checksum. It takes about a minute.
+1. Raise `"version"` in `extension/manifest.json` (for example `2.1.0` → `2.1.1`), commit and push to `main`.
+2. On GitHub, **Actions → Release extension** runs by itself: it checks the manifest, zips the folder and publishes the release `extension-v2.1.1` with the file `job-finder-extension-v2.1.1.zip`, install steps and a SHA-256 checksum. It takes about a minute.
 3. A push that keeps the version publishes nothing. **Run workflow** on the same Actions page starts it by hand.
 4. If a run fails with "Resource not accessible by integration", open **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, save, and re-run it.
 
-### Connect the extension
+### Sign in to the extension
 
-1. In the admin panel, open **Extension** (`/admin/extension`).
-2. Copy the **Server URL** and click **Reveal** to copy the **API key**.
-3. Click the extension icon, paste both into the popup and click **Save**.
+1. In the admin panel, open **Extension** (`/admin/extension`) and copy the **Server URL**.
+2. Click the extension icon, enter the server URL, your user ID and password (the same as the dashboard's; for other people, the ones you set under **System → Users**), and click **Sign in**.
+3. Admins see **Scan for** in the popup: pick a user there to scan LinkedIn and fill forms for them. Their location, target market, extension settings and profile are used, and the jobs are saved as theirs.
 
-The key is required: without it the server refuses every extension request and the popup shows why. **New key** on the Extension page rotates the key; paste the new one into the popup afterwards.
+A sign-in is required: without one the server refuses every extension request and the popup shows why. **Admin → Extension** lists every signed-in browser with **Sign out**, and each user's extension settings (Easy Apply jobs, scan limit, hide approved, AI search page, send logs), which the popup loads each time it opens. Disabling a user, giving them a new password or **Sign out everywhere** on the Users page also ends their extension sign-ins.
+
+Coming from extension 2.0: it used one shared API key and saved every job as the first admin's. That key keeps working until you turn it off under **Old shared key** at the bottom of **Admin → Extension**; do that once every browser runs 2.1 and has signed in. New installs have no shared key.
 
 ### Scan LinkedIn
 
@@ -407,7 +409,10 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 - After fixing, just run the scanners again; each scan re-fetches and checks any jobs missed earlier.
 
 **Chrome extension not connecting**
-- "Extension API key missing" or "invalid": open **Admin → Extension**, copy the key into the popup and click **Save**.
+- The popup shows the sign-in form again ("This browser is signed out" or "Your sign-in ended"): the browser was signed out on **Admin → Extension**, or the user was disabled, got a new password or was signed out everywhere. Sign in again with the current password.
+- "Wrong user ID or password": check them under **System → Users** (set a new password there if needed). After 8 failed tries in 15 minutes, wait before trying again.
+- "The shared extension key is wrong / turned off": that is an extension 2.0. Update it to 2.1 and sign in.
+- "Only admins can scan for another user": the account signed in is a User; sign in as an admin to use **Scan for**.
 - Make sure the **Server URL** in the popup is your deployment URL (`https://your-project.vercel.app`, no trailing path).
 - Reload the extension in `chrome://extensions` after every update.
 - Check that you're on a LinkedIn jobs search page.
@@ -422,7 +427,7 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 - Files are limited to 4 MB (Vercel's request limit is 4.5 MB). Export a smaller PDF.
 
 **Duplicate lines in the extension activity log**
-- Reload the extension after update: `chrome://extensions` then reload "LinkedIn Job Scanner" (background relay was removed).
+- Reload the extension after update: `chrome://extensions` then reload "Job Finder" (called "LinkedIn Job Scanner" before 2.1).
 
 **Google Sheets not updating**
 - Make sure the sheet tabs are named `Jobs` and `LinkedIn` (or the tab name set in Settings)

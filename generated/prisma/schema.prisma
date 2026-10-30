@@ -43,11 +43,32 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
 
-  settings  UserConfig[]
-  jobs      ScrapedJob[]
-  resumes   Resume[]
-  answers   SavedAnswer[]
-  skipRules SkipRule[]
+  settings        UserConfig[]
+  jobs            ScrapedJob[]
+  resumes         Resume[]
+  answers         SavedAnswer[]
+  skipRules       SkipRule[]
+  extensionTokens ExtensionToken[]
+}
+
+// A browser signed in to the Chrome extension. Only the browser has the token;
+// the server keeps its SHA-256 hash. It stops working when the user's
+// sessionVersion moves on (disabled, new password, signed out everywhere) and
+// when it is signed out in the popup or on Admin → Extension.
+model ExtensionToken {
+  id             Int       @id @default(autoincrement())
+  userId         Int
+  tokenHash      String    @unique @db.VarChar(64)
+  // e.g. "Chrome 155 on Windows", from the browser's User-Agent.
+  label          String    @db.VarChar(120)
+  // The user's sessionVersion when the token was issued.
+  sessionVersion Int
+  createdAt      DateTime  @default(now())
+  lastUsedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // A user's own settings (search options, Google Sheet, profile …), one row per

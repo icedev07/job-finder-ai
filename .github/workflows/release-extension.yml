@@ -125,10 +125,10 @@ jobs:
           ### Install
           1. Download the zip under **Assets** below and extract it to a folder you keep, for example `C:\JobFinder\extension`.
           2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked** and pick that folder.
-          3. Click the extension's icon, enter your server URL and the API key from **Admin → Extension**, and click **Save**.
+          3. Click the extension's icon, enter your server URL and the user ID and password from **Admin → Users**, and click **Sign in**.
 
           ### Update
-          Extract the new zip into the **same folder**, replacing the old files, then click the reload icon on the extension's card in `chrome://extensions`. Your settings stay. If you extract it somewhere else instead, remove the old copy first (its settings do not move over).
+          Extract the new zip into the **same folder**, replacing the old files, then click the reload icon on the extension's card in `chrome://extensions`. Your scan settings are kept on the server. Coming from 2.0, open the popup and sign in once with your user ID and password (the API key is no longer used). If you extract it somewhere else instead, remove the old copy first.
 
           ### Changes
           EOF

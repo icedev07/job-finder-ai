@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { describeDbError } from "@/lib/dbErrors";
@@ -121,6 +120,20 @@ const EVOLUTION_STATEMENTS = [
   `ALTER TABLE "ScanLog" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
   `ALTER TABLE "AiUsage" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
   `ALTER TABLE "ExtensionLog" ADD COLUMN IF NOT EXISTS "userId" INTEGER;`,
+  // Chrome extension sign-in: one row per signed-in browser (the token's hash).
+  `CREATE TABLE IF NOT EXISTS "ExtensionToken" (
+    "id" SERIAL NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "tokenHash" VARCHAR(64) NOT NULL,
+    "label" VARCHAR(120) NOT NULL,
+    "sessionVersion" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastUsedAt" TIMESTAMP(3),
+    CONSTRAINT "ExtensionToken_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ExtensionToken_tokenHash_key" ON "ExtensionToken"("tokenHash");`,
+  `CREATE INDEX IF NOT EXISTS "ExtensionToken_userId_idx" ON "ExtensionToken"("userId");`,
+  addForeignKey("ExtensionToken", "ExtensionToken_userId_fkey"),
 ];
 
 // After migrateUserData() gave every existing row an owner: the constraints
@@ -234,7 +247,10 @@ async function evolve(upgrading: boolean): Promise<{ appliedAlters: string[]; us
 }
 
 // App-wide defaults. Each user's own settings (location, target market, sheet,
-// prompt) start empty: the Add user dialog and Settings ask for them.
+// prompt) start empty: the Add user dialog and Settings ask for them. The
+// extension signs in with each user's ID and password, so a new install gets
+// no shared extension key (an upgraded one keeps its key until an admin turns
+// it off on Admin → Extension).
 async function seedDefaults() {
   const defaults: Record<string, string> = {
     // Default to rotating across the four free providers; keys can be filled in
@@ -246,9 +262,6 @@ async function seedDefaults() {
     openrouter_tier: "auto",
     openrouter_paid_model: "meta-llama/llama-3.1-8b-instruct",
     cloudflare_model: "@cf/meta/llama-3.1-8b-instruct",
-    // The extension must authenticate; a fresh install gets a random key the
-    // admin reveals in Settings and pastes into the popup.
-    extension_api_key: `jf_${randomBytes(24).toString("hex")}`,
   };
 
   for (const [key, value] of Object.entries(defaults)) {

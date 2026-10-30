@@ -26,6 +26,9 @@ export const USER_KEYS = {
   SHEET_COLUMNS: "sheet_columns",
   // JSON array of the board keys this user gets results from; missing = every board.
   SCAN_BOARDS: "scan_boards",
+  // JSON ExtensionSettings (lib/extensionSettings.ts): how the Chrome extension
+  // scans LinkedIn for this user. Written by the popup and Admin → Extension.
+  EXTENSION_SETTINGS: "extension_settings",
 } as const;
 
 export type UserKey = (typeof USER_KEYS)[keyof typeof USER_KEYS];
@@ -45,6 +48,7 @@ export const SEARCH_KEYS: UserKey[] = [
   USER_KEYS.REVIEW_BAND_MAX,
   USER_KEYS.FOLLOWUP_DAYS,
   USER_KEYS.SCAN_BOARDS,
+  USER_KEYS.EXTENSION_SETTINGS,
 ];
 
 export type UserSettings = {

@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/common/page-header";
 import { SectionCard } from "@/components/common/section-card";
-import { ExtensionKeyCard } from "@/components/extension/extension-key-card";
+import { ExtensionConnectCard } from "@/components/extension/extension-connect-card";
+import { ExtensionPanel } from "@/components/extension/extension-panel";
+import { SharedKeyCard } from "@/components/extension/shared-key-card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -53,10 +55,10 @@ export default async function ExtensionPage() {
     <div className="space-y-4">
       <PageHeader
         title="Extension"
-        description="The Chrome extension scans LinkedIn searches with your AI routes and fills application forms from your profile."
+        description="The Job Finder Chrome extension scans LinkedIn searches with your AI routes and fills application forms from a user's profile. Everyone signs in with their own user ID and password."
       />
       <div className="grid gap-4 xl:grid-cols-2">
-        <ExtensionKeyCard />
+        <ExtensionConnectCard />
         <SectionCard
           title="Install"
           description={
@@ -67,24 +69,28 @@ export default async function ExtensionPage() {
         >
           <ol className="list-decimal space-y-1.5 pl-5 text-sm">
             <li>
-              Open <code>chrome://extensions</code> and turn on <strong>Developer mode</strong>.
+              Download <code>job-finder-extension-v….zip</code> from the newest GitHub release of this project and extract it to a
+              folder you keep (or use the <code>extension/</code> folder of the project).
             </li>
             <li>
-              Click <strong>Load unpacked</strong> and pick the <code>extension/</code> folder of this project (after an update, click
-              the reload icon on the extension card).
+              Open <code>chrome://extensions</code>, turn on <strong>Developer mode</strong>, click <strong>Load unpacked</strong> and
+              pick that folder. To update, replace the files and click the reload icon on the extension&apos;s card.
             </li>
-            <li>Open the extension popup, paste the server URL and API key from the left, click Save.</li>
             <li>
-              Open a LinkedIn job search and click <strong>Start Scan</strong>. Turn on “Analyze AI search page (beta)” on LinkedIn&apos;s
-              chat-style search.
+              Click the extension&apos;s icon, enter the server URL, a user ID and password, and click <strong>Sign in</strong>.
+            </li>
+            <li>
+              Open a LinkedIn job search and click <strong>Start Scan</strong>. Admins pick whose jobs they are under “Scan for”.
             </li>
           </ol>
         </SectionCard>
       </div>
 
+      <ExtensionPanel />
+
       <SectionCard
         title="Easy Apply jobs"
-        description="Set in the extension popup → “Easy Apply jobs”. Skip and hide (default) rejects and hides them without using AI. Analyze with AI judges them like every other job and marks them “Easy Apply” here, in the popup and in the Google Sheet; an optional minimum score keeps only strong Easy Apply matches."
+        description="Set per user under Extension settings above, or in the popup. Skip and hide (the default) rejects and hides them without using AI. Analyze with AI judges them like every other job and marks them “Easy Apply” here, in the popup and in the Google Sheet; an optional minimum score keeps only strong Easy Apply matches."
       >
         {stats ? (
           <Table>
@@ -126,7 +132,7 @@ export default async function ExtensionPage() {
 
       <SectionCard
         title="Autofill application forms"
-        description="Open a company's application form, then the extension popup → Autofill panel. It fills the form from your profile, attaches the right resume, drafts free-text answers with your Answers route, and colours every field: green = from your profile, amber = drafted by AI (read it), red = needs you. It never submits — you review and click Submit yourself, then “Mark as applied”."
+        description="Open a company's application form, then the extension popup → Autofill panel. It fills the form from the profile of the user the extension works for (the one signed in, or the one picked under “Scan for”), attaches the right resume, drafts free-text answers with your Answers route, and colours every field: green = from the profile, amber = drafted by AI (read it), red = needs you. It never submits — you review and click Submit yourself, then “Mark as applied”."
         actions={
           <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/admin/profile" />}>
             Profile & resumes
@@ -153,6 +159,8 @@ export default async function ExtensionPage() {
           Workday and LinkedIn&apos;s own Easy Apply modal are not filled yet — they use multi-step custom widgets.
         </p>
       </SectionCard>
+
+      <SharedKeyCard />
     </div>
   );
 }

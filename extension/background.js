@@ -96,6 +96,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       return;
     }
+    if (msg.type === "CLEAR_BG_STATE") {
+      // Signing out: the next person to open the popup must not see the last
+      // scan's jobs. A scan still running keeps its state.
+      if (!state.scanning) state = createEmptyState();
+      saveStateSoon();
+      sendResponse({ ok: true });
+      return;
+    }
     if (msg.type === "SCAN_LOG") {
       pushLog(msg.level, msg.message);
       saveStateSoon();

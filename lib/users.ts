@@ -21,7 +21,7 @@ export type UserRow = {
   createdAt: Date;
 };
 
-const USER_SELECT = {
+export const USER_SELECT = {
   id: true,
   username: true,
   name: true,
@@ -36,9 +36,13 @@ export function isRole(v: unknown): v is Role {
   return v === "ADMIN" || v === "USER";
 }
 
-function toRow(r: { role: string } & Omit<UserRow, "role">): UserRow {
+/** A User row selected with USER_SELECT, with its role checked. */
+export function toRow(r: { role: string } & Omit<UserRow, "role">): UserRow {
   return { ...r, role: isRole(r.role) ? r.role : "USER" };
 }
+
+// The Chrome extension signs in with the same user ID and password, getting a
+// token per browser (lib/extensionTokens.ts).
 
 // Every request needs the user list (sign-in check, the Viewing menu), so it
 // is cached briefly per server instance, like the app config. A change made
@@ -136,8 +140,16 @@ export type LoginResult =
   | { ok: true; user: UserRow; usingDefaultPassword: boolean }
   | { ok: false; reason: "invalid" | "disabled" | "extension_only" };
 
-/** Check a user ID and password. Never says which of the two was wrong. */
-export async function verifyLogin(usernameRaw: unknown, password: string): Promise<LoginResult> {
+/**
+ * Check a user ID and password. Never says which of the two was wrong. The
+ * dashboard takes admins only; the Chrome extension (`extension: true`) takes
+ * every role.
+ */
+export async function verifyLogin(
+  usernameRaw: unknown,
+  password: string,
+  { extension = false }: { extension?: boolean } = {},
+): Promise<LoginResult> {
   const username = normalizeUsername(usernameRaw);
   const row = username
     ? await prisma.user.findUnique({ where: { username }, select: { ...USER_SELECT, passwordHash: true } })
@@ -150,7 +162,7 @@ export async function verifyLogin(usernameRaw: unknown, password: string): Promi
   const check = await checkPassword(password, row.passwordHash, owner);
   if (!check.ok) return { ok: false, reason: "invalid" };
   if (!row.active) return { ok: false, reason: "disabled" };
-  if (row.role !== "ADMIN") return { ok: false, reason: "extension_only" };
+  if (!extension && row.role !== "ADMIN") return { ok: false, reason: "extension_only" };
   await prisma.user
     .update({
       where: { id: row.id },
@@ -181,6 +193,13 @@ export async function usesDefaultPassword(userId: number): Promise<boolean> {
 }
 
 // ── Changes ─────────────────────────────────────────────────────────────────
+
+// A raised sessionVersion already refuses the user's extension tokens; deleting
+// them also takes them off Admin → Extension. Before /api/setup has added the
+// table there is nothing to delete.
+async function endExtensionSignIns(userId: number): Promise<void> {
+  await prisma.extensionToken.deleteMany({ where: { userId } }).catch(() => {});
+}
 
 export class UserError extends Error {
   status: number;
@@ -262,11 +281,12 @@ export async function updateUser(
     }
   }
   const row = await prisma.user.update({ where: { id }, data, select: USER_SELECT });
+  if (data.sessionVersion) await endExtensionSignIns(id);
   invalidateUserCache();
   return toRow(row);
 }
 
-/** Set a new password and sign the user out everywhere. */
+/** Set a new password and sign the user out everywhere, the extension included. */
 export async function setUserPassword(id: number, password: string): Promise<void> {
   const pw = passwordProblem(password);
   if (pw) throw new UserError(pw);
@@ -274,12 +294,14 @@ export async function setUserPassword(id: number, password: string): Promise<voi
     where: { id },
     data: { passwordHash: await hashPassword(password.trim()), sessionVersion: { increment: 1 } },
   });
+  await endExtensionSignIns(id);
   invalidateUserCache();
 }
 
-/** Sign a user out of every browser (their current sessions stop working). */
+/** Sign a user out of every browser and the extension (their current sessions stop working). */
 export async function signOutEverywhere(id: number): Promise<void> {
   await prisma.user.update({ where: { id }, data: { sessionVersion: { increment: 1 } } });
+  await endExtensionSignIns(id);
   invalidateUserCache();
 }
 

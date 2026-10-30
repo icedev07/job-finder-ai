@@ -2,7 +2,9 @@
 // profile on your Job Finder server, then "Mark as applied".
 const $ = (id) => document.getElementById(id);
 
-let settings = { serverUrl: "", apiKey: "" };
+// This browser's sign-in and, for an admin, whose profile to fill with ("Scan for"
+// in the popup; null = the signed-in user). The popup writes both.
+let settings = { serverUrl: "", token: "", scanFor: null };
 let profileData = null; // { profile, resumes, answers }
 let lastMatch = null; // { job, resume }
 let lastTop = null; // page context from the top frame's scan
@@ -16,15 +18,20 @@ function setStatus(text, isError) {
 }
 
 async function loadSettings() {
-  const d = await chrome.storage.local.get(["serverUrl", "extensionApiKey"]);
-  settings = { serverUrl: String(d.serverUrl || "").replace(/\/$/, ""), apiKey: d.extensionApiKey || "" };
+  const d = await chrome.storage.local.get(["serverUrl", "extensionToken", "scanForUserId"]);
+  settings = {
+    serverUrl: String(d.serverUrl || "").replace(/\/$/, ""),
+    token: d.extensionToken || "",
+    scanFor: d.scanForUserId || null,
+  };
 }
 
 async function apiFetch(path, init = {}) {
-  if (!settings.serverUrl || !settings.apiKey) {
-    throw new Error("Set the server URL and API key in the extension popup first (Save), then reopen this panel.");
+  if (!settings.serverUrl || !settings.token) {
+    throw new Error("Sign in in the extension popup first, then reopen this panel.");
   }
-  const headers = { "X-API-Key": settings.apiKey };
+  const headers = { Authorization: `Bearer ${settings.token}` };
+  if (settings.scanFor) headers["X-JF-For"] = String(settings.scanFor);
   if (init.json) headers["Content-Type"] = "application/json";
   const res = await fetch(settings.serverUrl + path, {
     method: init.method || (init.json ? "POST" : "GET"),
@@ -68,12 +75,31 @@ function renderResumes(selectedId) {
   if (pick != null) sel.value = String(pick);
 }
 
+function placeText(user) {
+  return [user.currentLocation, user.targetMarket].filter(Boolean).join(" → ");
+}
+
+// Whose profile fills the form, and who is signed in when that is someone else.
+function renderWho(me) {
+  const el = $("whoLine");
+  if (!me) {
+    el.textContent = "Not signed in.";
+    return;
+  }
+  const place = placeText(me.user);
+  el.textContent =
+    `${me.user.name}${place ? ` · ${place}` : ""}` +
+    (me.user.id === me.signedIn.id ? "" : ` (filled by ${me.signedIn.name}, picked under “Scan for”)`);
+}
+
 async function loadProfile() {
-  profileData = await apiFetch("/api/extension/profile");
+  const [me, data] = await Promise.all([apiFetch("/api/extension/me"), apiFetch("/api/extension/profile")]);
+  renderWho(me);
+  profileData = data;
   renderResumes();
   const p = profileData.profile || {};
   if (!p.email && !p.firstName) {
-    setStatus("Your profile is empty — fill it in Admin → Profile & resumes first.", true);
+    setStatus(`${me.user.name}'s profile is empty — fill it in Admin → Profile & resumes first.`, true);
   }
 }
 
@@ -345,12 +371,23 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
   if (currentTab && tabId === currentTab.id && info.status === "complete") void refreshTab();
 });
 
-(async () => {
+async function start() {
   await loadSettings();
+  profileData = null;
+  setStatus("");
+  if (!settings.token) renderWho(null);
   await refreshTab();
   try {
     await loadProfile();
   } catch (e) {
     setStatus(e.message || String(e), true);
   }
-})();
+}
+
+// Signing in or out, or picking another user under "Scan for" in the popup,
+// switches the profile this panel fills with.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && (changes.extensionToken || changes.scanForUserId || changes.serverUrl)) void start();
+});
+
+void start();

@@ -57,7 +57,7 @@ type UserItem = {
 
 const ROLE_INFO: Record<Role, { label: string; hint: string }> = {
   ADMIN: { label: 'Admin', hint: 'Signs in to this dashboard and manages everyone.' },
-  USER: { label: 'User', hint: 'Signs in to the Chrome extension only (sign-in arrives with the next extension update).' },
+  USER: { label: 'User', hint: 'Signs in to the Chrome extension only.' },
 };
 const ROLE_ITEMS = (Object.keys(ROLE_INFO) as Role[]).map((value) => ({ value, label: ROLE_INFO[value].label }));
 const MIN_PASSWORD = 8;
@@ -237,7 +237,7 @@ export function UsersView() {
       </Card>
       <p className="text-xs text-muted-foreground">
         Change your own password in Settings → Your password. Disabling someone, setting their password or signing them out
-        everywhere ends their sessions within seconds.
+        everywhere ends their sessions within seconds, in the dashboard and in the Chrome extension.
       </p>
 
       <AddUserDialog
@@ -473,7 +473,7 @@ function AddUserDialog({
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5 pt-1 text-sm">
                   {(
                     [
-                      ['search', 'Search options & job boards'],
+                      ['search', 'Search options, job boards & extension settings'],
                       ['rules', 'Skip rules'],
                       ['profile', 'Profile, resumes & answers'],
                     ] as const
