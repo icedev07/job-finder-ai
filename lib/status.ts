@@ -7,9 +7,13 @@ import { parseAiRoutes, type ProviderId } from "./aiRoutes";
 import { listExtensionBrowsers } from "./extensionTokens";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
+import { measureDbPlacement, type DbPlacement } from "./dbLatency";
+import { NEAR_DB_MS } from "./format";
 import { nextActionCounts } from "./nextActions";
+import type { CandidateProfile } from "./profileModel";
 import { hasReview, reviewQueueWhere } from "./review";
-import { scopedUsers, type AdminScope } from "./scope";
+import { scopedUsers, type AdminScope, type ScopedUser } from "./scope";
+import { markStatusStale, slowStore } from "./statusCache";
 import { usesDefaultPassword } from "./users";
 
 // Live status for the admin shell: the top status strip, the sidebar badges
@@ -34,7 +38,8 @@ export type StatusSnapshot = {
   lastScan: { at: string; board: string; error: string | null } | null;
   claude: { keySet: boolean; spendUsd: number; budgetUsd: number };
   ai: { calls24h: number; failures24h: number };
-  db: { sizeBytes: number | null; limitBytes: number };
+  /** latencyMs: one query's round trip; the regions when known (lib/dbLatency.ts). */
+  db: { sizeBytes: number | null; limitBytes: number } & DbPlacement;
   sheets: { configured: boolean; unsynced: number };
   /** browsers: signed in to the extension, any user; keySet: the old shared key (extension 2.0) is on. */
   extension: { keySet: boolean; lastSeen: string | null; browsers: number };
@@ -71,41 +76,53 @@ function providerHasKey(id: ProviderId, c: Awaited<ReturnType<typeof getConfig>>
   }
 }
 
-async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
-  const now = new Date();
-  const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
-  const config = await getConfig();
-  const routes = parseAiRoutes(config.aiRoutesRaw, config.aiProviders);
-  const users = await scopedUsers(scope);
-  // Only users whose searches run count for "every user has …" steps.
-  const activeScoped = users.filter((u) => u.user.active);
-  const mine = scope.viewing === "all" ? {} : { userId: scope.viewing };
-  const reviewOn = hasReview(users);
-  const reviewWhere = reviewQueueWhere(users, now);
-  // Next actions count only for users with Applications on.
-  const pipelineUsers = users.filter((u) => u.settings.applicationsEnabled);
-  const applicationsOn = pipelineUsers.length > 0;
+// The parts that rarely change (the setup checks, the database's size and
+// distance, the last scan, AI use in the last day, the extension's last call):
+// kept for a minute for each admin and view, so the 30 s polls and page loads
+// don't ask again. Any change drops them (markStatusStale: a write through the
+// admin or extension API, /api/setup), so the strip and checklist follow what
+// was just done. The counts behind the badges are read every time.
+const SLOW_TTL_MS = 60_000;
 
+type SlowPart = {
+  lastScan: { createdAt: Date; board: string; errors: string | null } | null;
+  spendUsd: number;
+  calls24h: number;
+  failures24h: number;
+  dbSize: number | null;
+  placement: DbPlacement;
+  extensionLastSeen: Date | null;
+  defaultPassword: boolean;
+  profiles: CandidateProfile[];
+  resumeUsers: Set<number>;
+  tablesReady: boolean;
+  extensionBrowsers: number;
+};
+
+const store = slowStore<SlowPart>();
+
+async function loadSlowPart(scope: AdminScope, activeScoped: ScopedUser[], now: Date): Promise<SlowPart> {
+  const key = `${scope.admin.id}:${scope.viewing}`;
+  const hit = store.entries.get(key);
+  if (hit && hit.expiresAt > now.getTime()) return hit.value;
+  const generation = store.generation;
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
+  const mine = scope.viewing === "all" ? {} : { userId: scope.viewing };
   const [
     lastScan,
     spendUsd,
     aiGroups,
     dbSize,
-    unsynced,
+    placement,
     lastExtensionCall,
     lastLinkedInJob,
-    pending,
-    review,
-    nextActions,
-    approved24h,
-    applied,
     defaultPassword,
     profiles,
     resumeGroups,
     tablesReady,
     extensionBrowsers,
   ] = await Promise.all([
-    soft(prisma.scanLog.findFirst({ where: mine, orderBy: { createdAt: "desc" } }), null),
+    soft(prisma.scanLog.findFirst({ where: mine, orderBy: { createdAt: "desc" }, select: { createdAt: true, board: true, errors: true } }), null),
     soft(claudeSpendThisMonth(), 0),
     soft(
       prisma.aiUsage.groupBy({ by: ["ok"], where: { ...mine, createdAt: { gte: dayAgo } }, _count: { _all: true } }),
@@ -117,7 +134,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
         .then((r) => Number(r[0]?.size ?? 0)),
       null as number | null,
     ),
-    soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", sheetSynced: false } }), 0),
+    measureDbPlacement(),
     soft(
       prisma.aiUsage.findFirst({
         where: { ...mine, task: "extension" },
@@ -134,16 +151,8 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       }),
       null,
     ),
-    soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
-    soft(reviewOn ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
-    soft(
-      nextActionCounts(pipelineUsers, now).then((c) => [...c.values()].reduce((s, n) => s + n, 0)),
-      0,
-    ),
-    soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
-    soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
     soft(scope.degraded ? Promise.resolve(false) : usesDefaultPassword(scope.admin.id), false),
-    soft(Promise.all(activeScoped.map((u) => getProfile(u.id))), []),
+    soft(Promise.all(activeScoped.map((u) => getProfile(u.id))), [] as CandidateProfile[]),
     soft(
       prisma.resume.groupBy({ by: ["userId"], where: mine, _count: { _all: true } }),
       [] as { userId: number; _count: { _all: number } }[],
@@ -159,11 +168,87 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     // Any user's: an admin scanning for someone uses their own sign-in.
     soft(listExtensionBrowsers(null).then((b) => b.length), 0),
   ]);
-
-  const calls24h = aiGroups.reduce((s, g) => s + g._count._all, 0);
-  const failures24h = aiGroups.filter((g) => !g.ok).reduce((s, g) => s + g._count._all, 0);
   const seen = [lastExtensionCall?.createdAt, lastLinkedInJob?.createdAt].filter(Boolean) as Date[];
-  const extensionLastSeen = seen.length ? new Date(Math.max(...seen.map((d) => d.getTime()))) : null;
+  const value: SlowPart = {
+    lastScan,
+    spendUsd,
+    calls24h: aiGroups.reduce((s, g) => s + g._count._all, 0),
+    failures24h: aiGroups.filter((g) => !g.ok).reduce((s, g) => s + g._count._all, 0),
+    dbSize,
+    placement,
+    extensionLastSeen: seen.length ? new Date(Math.max(...seen.map((d) => d.getTime()))) : null,
+    defaultPassword,
+    profiles,
+    resumeUsers: new Set(resumeGroups.filter((g) => g._count._all > 0).map((g) => g.userId)),
+    tablesReady,
+    extensionBrowsers,
+  };
+  // Not when something changed while it was being read.
+  if (store.generation === generation) store.entries.set(key, { value, expiresAt: now.getTime() + SLOW_TTL_MS });
+  return value;
+}
+
+type JobCounts = { pending: number; unsynced: number; approved24h: number; applied: number };
+
+// The jobs' counts in one pass; an older database (before /api/setup) one at a time, each failing on its own.
+async function jobCounts(userId: number | null, dayAgo: Date): Promise<JobCounts> {
+  try {
+    const rows = await prisma.$queryRaw<{ pending: bigint; unsynced: bigint; approved24h: bigint; applied: bigint }[]>`
+      SELECT COUNT(*) FILTER (WHERE status = 'PENDING') AS pending,
+             COUNT(*) FILTER (WHERE status = 'APPROVED' AND NOT "sheetSynced") AS unsynced,
+             COUNT(*) FILTER (WHERE status = 'APPROVED' AND "createdAt" >= ${dayAgo}) AS approved24h,
+             COUNT(*) FILTER (WHERE stage IN ('APPLIED', 'INTERVIEW', 'OFFER')) AS applied
+      FROM "ScrapedJob" WHERE ${userId}::int IS NULL OR "userId" = ${userId}::int`;
+    const r = rows[0];
+    return { pending: Number(r?.pending ?? 0), unsynced: Number(r?.unsynced ?? 0), approved24h: Number(r?.approved24h ?? 0), applied: Number(r?.applied ?? 0) };
+  } catch {
+    const mine = userId == null ? {} : { userId };
+    const [pending, unsynced, approved24h, applied] = await Promise.all([
+      soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
+      soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", sheetSynced: false } }), 0),
+      soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
+      soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
+    ]);
+    return { pending, unsynced, approved24h, applied };
+  }
+}
+
+// What to do about a far database: the exact region when the database's is known.
+function regionHint(p: DbPlacement): string {
+  if (p.latencyMs == null) return "The database did not answer the timing check.";
+  const each = `Each database query takes about ${p.latencyMs} ms`;
+  if (p.latencyMs < NEAR_DB_MS) return `${each}: the app and its database are close.`;
+  if (p.suggest) {
+    return `${each}: the app runs in ${p.functionRegion} and the database in ${p.databaseRegion}. In Vercel → your project → Settings → Functions, set the Function Region to ${p.suggest.city} (${p.suggest.id}) and redeploy: every page gets faster.`;
+  }
+  return `${each}. Run the app in the region of your database (Vercel → your project → Settings → Functions → Function Region, the one closest to your Supabase project's region), then redeploy: every page gets faster.`;
+}
+
+async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
+  const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
+  const config = await getConfig();
+  const routes = parseAiRoutes(config.aiRoutesRaw, config.aiProviders);
+  const users = await scopedUsers(scope);
+  // Only users whose searches run count for "every user has …" steps.
+  const activeScoped = users.filter((u) => u.user.active);
+  const reviewOn = hasReview(users);
+  const reviewWhere = reviewQueueWhere(users, now);
+  // Next actions count only for users with Applications on.
+  const pipelineUsers = users.filter((u) => u.settings.applicationsEnabled);
+  const applicationsOn = pipelineUsers.length > 0;
+
+  const [slow, counts, review, nextActions] = await Promise.all([
+    loadSlowPart(scope, activeScoped, now),
+    jobCounts(scope.viewing === "all" ? null : scope.viewing, dayAgo),
+    soft(reviewOn ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
+    soft(
+      nextActionCounts(pipelineUsers, now).then((c) => [...c.values()].reduce((s, n) => s + n, 0)),
+      0,
+    ),
+  ]);
+  const { lastScan, spendUsd, calls24h, failures24h, dbSize, placement, extensionLastSeen, defaultPassword, profiles, resumeUsers, tablesReady, extensionBrowsers } = slow;
+  const { pending, unsynced, approved24h, applied } = counts;
   const cronSecretMissing = !process.env.CRON_SECRET?.trim();
   const sessionSecretMissing = !process.env.SESSION_SECRET?.trim();
 
@@ -180,7 +265,6 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     const c = profiles[i] ? profileCompleteness(profiles[i]) : { filled: 0, total: 1 };
     return c.filled >= Math.ceil(c.total * 0.6);
   });
-  const resumeUsers = new Set(resumeGroups.filter((g) => g._count._all > 0).map((g) => g.userId));
   const noResume = missing((u) => resumeUsers.has(u.id));
   const noSheet = missing((u) => !!(config.googleSheetsCredentials && u.settings.googleSheetId));
   const sheetsConfigured = !!config.googleSheetsCredentials && users.some((u) => !!u.settings.googleSheetId);
@@ -193,6 +277,14 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       optional: false,
       href: "/api/setup",
       hint: "Open /api/setup once after every upgrade — it adds new tables and columns safely.",
+    },
+    {
+      key: "region",
+      title: "Run the app next to its database",
+      done: placement.latencyMs != null && placement.latencyMs < NEAR_DB_MS,
+      optional: true,
+      href: "/admin/setup#region",
+      hint: regionHint(placement),
     },
     {
       key: "password",
@@ -307,7 +399,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       : null,
     claude: { keySet: !!config.anthropicApiKey, spendUsd, budgetUsd: config.claudeMonthlyBudgetUsd },
     ai: { calls24h, failures24h },
-    db: { sizeBytes: dbSize, limitBytes: SUPABASE_FREE_DB_BYTES },
+    db: { sizeBytes: dbSize, limitBytes: SUPABASE_FREE_DB_BYTES, ...placement },
     sheets: { configured: sheetsConfigured, unsynced },
     extension: {
       keySet: !!config.extensionApiKey,
@@ -327,3 +419,9 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
 // scope object, which pageScope() returns once per render). Outside a render
 // (the status API) every call runs fresh.
 export const getStatusSnapshot = cache(loadStatusSnapshot);
+
+/** Everything read again (the Setup page: people come back to it to see what they just fixed). */
+export async function freshStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
+  markStatusStale();
+  return loadStatusSnapshot(scope);
+}

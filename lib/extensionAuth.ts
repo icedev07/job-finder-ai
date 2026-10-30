@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getConfig } from "./config";
+import { isWrite, markStatusStale } from "./statusCache";
 import { safeEqual } from "./adminAuth";
 import { describeDbError } from "./dbErrors";
 import { checkExtensionToken } from "./extensionTokens";
@@ -62,6 +63,8 @@ export async function requireExtensionUser(
   req: NextRequest,
   cors: Record<string, string> = extensionCorsHeaders(),
 ): Promise<ExtensionAuth | NextResponse> {
+  // A scan saves jobs: the status strip (the extension's last call) reads everything again.
+  if (isWrite(req.method)) markStatusStale();
   const bearer = /^Bearer\s+(\S+)$/i.exec(req.headers.get("authorization") || "")?.[1];
   const key = (req.headers.get("x-api-key") || "").trim();
   let signedIn: UserRow;

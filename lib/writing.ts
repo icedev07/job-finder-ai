@@ -76,20 +76,16 @@ type JobForResume = { userId: number; resumeId: number | null; title: string; de
  */
 export async function writingResumes(job: JobForResume): Promise<{ resumes: WritingResume[]; suggested: number | null }> {
   try {
-    const [all, read] = await Promise.all([
-      prisma.resume.findMany({
-        where: { userId: job.userId },
-        orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
-        select: { id: true, name: true, tags: true, isDefault: true },
-      }),
-      prisma.resume.findMany({ where: { userId: job.userId, textContent: { not: null } }, select: { id: true } }),
-    ]);
-    const readable = new Set(read.map((r) => r.id));
-    const candidates = all.filter((r) => readable.has(r.id));
-    const sent = job.resumeId != null && readable.has(job.resumeId) ? job.resumeId : null;
+    // Whether each one has text, without reading the text: one query.
+    const all = await prisma.$queryRaw<{ id: number; name: string; tags: string | null; isDefault: boolean; readable: boolean }[]>`
+      SELECT id, name, tags, "isDefault", ("textContent" IS NOT NULL) AS readable FROM "Resume"
+      WHERE "userId" = ${job.userId}
+      ORDER BY "isDefault" DESC, "updatedAt" DESC`;
+    const candidates = all.filter((r) => r.readable);
+    const sent = job.resumeId != null && candidates.some((r) => r.id === job.resumeId) ? job.resumeId : null;
     const text = [job.title, job.techStack, job.description].filter(Boolean).join("\n");
     return {
-      resumes: all.map((r) => ({ id: r.id, name: r.name, readable: readable.has(r.id) })),
+      resumes: all.map((r) => ({ id: r.id, name: r.name, readable: r.readable })),
       suggested: sent ?? bestResume(candidates, text)?.id ?? null,
     };
   } catch (err) {

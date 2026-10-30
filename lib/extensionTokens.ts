@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { prisma } from "./prisma";
-import { USER_SELECT, toRow, type UserRow } from "./users";
+import { markStatusStale } from "./statusCache";
+import { toRow, type UserRow } from "./users";
 
 // Chrome extension sign-ins. Signing in to the popup with a user ID and
 // password gives that browser a random token; the server keeps only its
@@ -54,6 +55,8 @@ export async function createExtensionToken(user: UserRow, label: string): Promis
   await prisma.extensionToken.create({
     data: { userId: user.id, tokenHash: hashToken(token), label: label.slice(0, 120), sessionVersion: user.sessionVersion },
   });
+  // The Setup step and the status strip count signed-in browsers.
+  markStatusStale();
   return token;
 }
 
@@ -64,21 +67,27 @@ export type TokenCheck =
 /** Whose token this is, read fresh from the database (no cache: a sign-out must count at once). */
 export async function checkExtensionToken(token: string, now = new Date()): Promise<TokenCheck> {
   if (!TOKEN_RE.test(token)) return { ok: false, reason: "unknown" };
-  const row = await prisma.extensionToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-    select: { id: true, sessionVersion: true, lastUsedAt: true, user: { select: USER_SELECT } },
-  });
+  // The token and its user in one query: the extension sends one for every LinkedIn job.
+  const [row] = await prisma.$queryRaw<
+    ({ tokenId: number; tokenVersion: number; lastUsedAt: Date | null } & Omit<UserRow, "role"> & { role: string })[]
+  >`
+    SELECT t.id AS "tokenId", t."sessionVersion" AS "tokenVersion", t."lastUsedAt",
+           u.id, u.username, u.name, u.role, u.active, u."sessionVersion", u."lastLoginAt", u."createdAt"
+    FROM "ExtensionToken" t JOIN "User" u ON u.id = t."userId"
+    WHERE t."tokenHash" = ${hashToken(token)}
+    LIMIT 1`;
   if (!row) return { ok: false, reason: "unknown" };
-  const user = toRow(row.user);
-  if (row.sessionVersion !== user.sessionVersion) {
-    await prisma.extensionToken.delete({ where: { id: row.id } }).catch(() => {});
+  const { tokenId, tokenVersion, lastUsedAt, ...fields } = row;
+  const user = toRow(fields);
+  if (tokenVersion !== user.sessionVersion) {
+    await prisma.extensionToken.delete({ where: { id: tokenId } }).catch(() => {});
     return { ok: false, reason: "ended", user };
   }
   if (!user.active) return { ok: false, reason: "disabled", user };
-  if (!row.lastUsedAt || now.getTime() - row.lastUsedAt.getTime() > TOUCH_EVERY_MS) {
-    await prisma.extensionToken.update({ where: { id: row.id }, data: { lastUsedAt: now } }).catch(() => {});
+  if (!lastUsedAt || now.getTime() - lastUsedAt.getTime() > TOUCH_EVERY_MS) {
+    await prisma.extensionToken.update({ where: { id: tokenId }, data: { lastUsedAt: now } }).catch(() => {});
   }
-  return { ok: true, tokenId: row.id, user };
+  return { ok: true, tokenId, user };
 }
 
 /** Sign one browser out. Returns whether it was signed in. */

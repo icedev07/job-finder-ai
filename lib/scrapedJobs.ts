@@ -49,6 +49,34 @@ type UpsertOptions = {
   rescanAfterDays?: number;
 };
 
+/** The job as saved, with its verdict (so the caller need not read it again). */
+export type SavedJob = {
+  id: number;
+  title: string;
+  company: string;
+  created: boolean;
+  refreshed: boolean;
+  rescanned: boolean;
+  status: string;
+  aiScore: number | null;
+  aiReason: string | null;
+  platform: string;
+  applyMethod: string | null;
+};
+
+type FoundRow = {
+  id: number;
+  title: string;
+  company: string;
+  createdAt: Date;
+  description: string | null;
+  status: string;
+  aiScore: number | null;
+  aiReason: string | null;
+  platform: string;
+  applyMethod: string | null;
+};
+
 // Every lookup below is within one user's jobs: the same posting found for two
 // users is two rows, each with its own verdict.
 export async function upsertScrapedJob(params: {
@@ -61,14 +89,7 @@ export async function upsertScrapedJob(params: {
   description?: string | null;
   salary?: string | null;
   manualApplyUrl?: string | null;
-} & UpsertOptions): Promise<{
-  id: number;
-  title: string;
-  company: string;
-  created: boolean;
-  refreshed: boolean;
-  rescanned: boolean;
-} | null> {
+} & UpsertOptions): Promise<SavedJob | null> {
   const {
     userId, platform, title, company, url, location, description, salary, manualApplyUrl,
     rescanAfterDays = 0,
@@ -86,7 +107,7 @@ export async function upsertScrapedJob(params: {
       ? normalizeUrl(manualApplyUrl.trim())
       : null;
 
-  async function refreshRow(row: { id: number; createdAt: Date; description: string | null }): Promise<{ refreshed: boolean; rescanned: boolean }> {
+  async function refreshRow(row: FoundRow): Promise<SavedJob> {
     const data: Record<string, unknown> = {};
 
     // Refresh data fields when the new payload has values. Description is
@@ -112,48 +133,46 @@ export async function upsertScrapedJob(params: {
       }
     }
 
-    if (Object.keys(data).length === 0) {
-      return { refreshed: false, rescanned: false };
-    }
+    const saved: SavedJob = {
+      id: row.id,
+      title: row.title,
+      company: row.company,
+      created: false,
+      refreshed: false,
+      rescanned,
+      status: rescanned ? "PENDING" : row.status,
+      aiScore: rescanned ? null : row.aiScore,
+      aiReason: rescanned ? null : row.aiReason,
+      platform: row.platform,
+      applyMethod: row.applyMethod,
+    };
+    if (Object.keys(data).length === 0) return saved;
     await prisma.scrapedJob.update({ where: { id: row.id }, data });
-    return { refreshed: true, rescanned };
+    return { ...saved, refreshed: true };
   }
 
-  // same-platform URL dedup
-  const byUrl = await prisma.scrapedJob.findFirst({
-    where: { userId, platform, url: normUrl },
-    select: { id: true, title: true, company: true, createdAt: true, description: true },
-  });
-  if (byUrl) {
-    const { refreshed, rescanned } = await refreshRow(byUrl);
-    return { id: byUrl.id, title: byUrl.title, company: byUrl.company, created: false, refreshed, rescanned };
-  }
-
-  // same-platform title+company dedup
-  const byTitle = await prisma.scrapedJob.findFirst({
-    where: { userId, platform, title, company },
-    select: { id: true, title: true, company: true, createdAt: true, description: true },
-  });
-  if (byTitle) {
-    const { refreshed, rescanned } = await refreshRow(byTitle);
-    return { id: byTitle.id, title: byTitle.title, company: byTitle.company, created: false, refreshed, rescanned };
-  }
-
-  // cross-platform dedup: same normalized title+company on any platform
-  const crossPlatform = await prisma.$queryRaw<{ id: number; title: string; company: string; createdAt: Date; description: string | null }[]>`
-    SELECT id, title, company, "createdAt", description FROM "ScrapedJob"
-    WHERE "userId" = ${userId}
-      AND LOWER(TRIM(title)) = ${normTitle}
-      AND LOWER(TRIM(
-        REGEXP_REPLACE(company, ',?\s*(inc\.?|llc|ltd\.?|corp\.?|co\.?|gmbh|s\.?a\.?)$', '', 'i')
-      )) = ${normCompany}
+  // The same job saved before, in one query, the closest match first: the same
+  // link on this platform, then the same title and company on this platform,
+  // then the same normalized title and company on any platform.
+  const [found] = await prisma.$queryRaw<FoundRow[]>`
+    SELECT id, title, company, "createdAt", description, status::text AS status, "aiScore", "aiReason", platform, "applyMethod"
+    FROM "ScrapedJob"
+    WHERE "userId" = ${userId} AND (
+      (platform = ${platform} AND url = ${normUrl})
+      OR (platform = ${platform} AND title = ${title} AND company = ${company})
+      OR (LOWER(TRIM(title)) = ${normTitle}
+          AND LOWER(TRIM(
+            REGEXP_REPLACE(company, ',?\s*(inc\.?|llc|ltd\.?|corp\.?|co\.?|gmbh|s\.?a\.?)$', '', 'i')
+          )) = ${normCompany})
+    )
+    ORDER BY CASE
+      WHEN platform = ${platform} AND url = ${normUrl} THEN 0
+      WHEN platform = ${platform} AND title = ${title} AND company = ${company} THEN 1
+      ELSE 2
+    END, id
     LIMIT 1
   `;
-  if (crossPlatform.length > 0) {
-    const row = crossPlatform[0];
-    const { refreshed, rescanned } = await refreshRow(row);
-    return { id: row.id, title: row.title, company: row.company, created: false, refreshed, rescanned };
-  }
+  if (found) return refreshRow(found);
 
   const job = await prisma.scrapedJob.create({
     data: {
@@ -169,7 +188,19 @@ export async function upsertScrapedJob(params: {
     },
   });
 
-  return { id: job.id, title: job.title, company: job.company, created: true, refreshed: false, rescanned: false };
+  return {
+    id: job.id,
+    title: job.title,
+    company: job.company,
+    created: true,
+    refreshed: false,
+    rescanned: false,
+    status: job.status,
+    aiScore: job.aiScore,
+    aiReason: job.aiReason,
+    platform: job.platform,
+    applyMethod: job.applyMethod,
+  };
 }
 
 // ── Analyze-before-store path (feed scanners) ───────────────────────────────

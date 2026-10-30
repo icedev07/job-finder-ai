@@ -544,6 +544,13 @@ function renderResultCard(r) {
     card.appendChild(reason);
   }
 
+  if (r.model) {
+    const model = document.createElement("div");
+    model.className = "result-model";
+    model.textContent = `Judged by ${r.model}`;
+    card.appendChild(model);
+  }
+
   return card;
 }
 

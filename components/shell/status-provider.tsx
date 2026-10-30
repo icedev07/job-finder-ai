@@ -3,7 +3,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useViewing } from '@/components/shell/viewing';
-import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import type { StatusSnapshot } from '@/lib/status';
 
 const POLL_MS = 30_000;
@@ -12,18 +11,22 @@ type StatusContextValue = {
   snapshot: StatusSnapshot | null;
   error: string | null;
   refresh: () => void;
+  /** The first snapshot, from the server render (StatusSeed). */
+  seed: (value: StatusSnapshot | null) => void;
 };
 
-const StatusContext = createContext<StatusContextValue>({ snapshot: null, error: null, refresh: () => {} });
+const StatusContext = createContext<StatusContextValue>({ snapshot: null, error: null, refresh: () => {}, seed: () => {} });
 
 /**
- * Live status for the shell (strip, badges, checklist) of the user being viewed: first value from the server,
- * then polled every 30 s, and loaded again when the Viewing menu changes.
+ * Live status for the shell (strip, badges, checklist) of the user being viewed: the first value streamed in from
+ * the server render (StatusSeed, so no page waits for it), then polled every 30 s, and loaded again when the
+ * Viewing menu changes.
  */
-export function StatusProvider({ initial, children }: { initial: StatusSnapshot | null; children: ReactNode }) {
-  const [snapshot, setSnapshot] = useState<StatusSnapshot | null>(initial);
+export function StatusProvider({ children }: { children: ReactNode }) {
+  const [snapshot, setSnapshot] = useState<StatusSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef(false);
+  const seeded = useRef(false);
   const { viewing } = useViewing();
 
   const refresh = useCallback(async () => {
@@ -34,6 +37,7 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
       if (res.status === 401) return;
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+      seeded.current = true;
       setSnapshot(data);
       setError(null);
     } catch (e) {
@@ -43,6 +47,18 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
     }
   }, [viewing]);
 
+  // The server render's snapshot, unless a newer one came first; none (usually the database is down): ask right
+  // away so the strip says why instead of waiting for the first poll.
+  const seed = useCallback(
+    (value: StatusSnapshot | null) => {
+      if (seeded.current) return;
+      seeded.current = true;
+      if (value) setSnapshot(value);
+      else void refresh();
+    },
+    [refresh],
+  );
+
   // Another user picked in the Viewing menu: their numbers, right away.
   const shown = useRef(viewing);
   useEffect(() => {
@@ -51,12 +67,6 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
     inflight.current = false;
     void refresh();
   }, [viewing, refresh]);
-
-  // The server could not build a snapshot (usually the database is down): ask
-  // right away so the strip says why instead of waiting for the first poll.
-  const missingInitial = initial === null;
-  const loadIfMissing = useCallback(() => (missingInitial ? refresh() : undefined), [missingInitial, refresh]);
-  useLoadOnMount(loadIfMissing);
 
   useEffect(() => {
     const tick = () => {
@@ -70,7 +80,16 @@ export function StatusProvider({ initial, children }: { initial: StatusSnapshot 
     };
   }, [refresh]);
 
-  return <StatusContext.Provider value={{ snapshot, error, refresh }}>{children}</StatusContext.Provider>;
+  return <StatusContext.Provider value={{ snapshot, error, refresh, seed }}>{children}</StatusContext.Provider>;
+}
+
+/** Hands the server render's snapshot to the StatusProvider above, once it has streamed in. */
+export function StatusSeed({ value }: { value: StatusSnapshot | null }) {
+  const { seed } = useContext(StatusContext);
+  useEffect(() => {
+    seed(value);
+  }, [seed, value]);
+  return null;
 }
 
 export function useStatus(): StatusContextValue {

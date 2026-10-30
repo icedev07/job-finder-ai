@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import { claudeModelInfo, PROVIDER_INFO, type ProviderId } from '@/lib/aiRoutes';
+import { modelLabel } from '@/lib/aiRoutes';
 import { api, errorMessage } from '@/lib/clientApi';
 import { DRAFT_KIND_INFO, DRAFT_KINDS, formatUsd, timeAgo, type DraftKind } from '@/lib/format';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
@@ -46,14 +46,6 @@ function kindFor(stage: string | null): DraftKind {
   return 'match';
 }
 
-/** "Claude Opus 5.5", "Gemini (gemini-2.5-flash)": who wrote a draft, from the route's "provider:model". */
-function writer(model: string): string {
-  const [provider, ...rest] = model.split(':');
-  const id = rest.join(':');
-  if (provider === 'claude') return claudeModelInfo(id)?.label ?? id;
-  const label = PROVIDER_INFO[provider as ProviderId]?.label ?? provider;
-  return id ? `${label} (${id})` : label;
-}
 
 type Snapshot = { text: string; instructions: string | null; resumeId: number | null; model: string | null; edited: boolean };
 
@@ -262,7 +254,7 @@ export function Writing({
       />
       {draft ? (
         <p className="text-xs text-muted-foreground" data-testid="draft-meta">
-          {draft.model ? `Written by ${writer(draft.model)}` : 'Written by hand'} · {timeAgo(draft.updatedAt)}
+          {draft.model ? `Written by ${modelLabel(draft.model)}` : 'Written by hand'} · {timeAgo(draft.updatedAt)}
           {draft.model ? (draft.resumeId != null ? ` · from the resume “${resumeName(draft.resumeId)}”` : ' · from the profile') : ''}
           {draft.model && draft.edited ? ' · edited' : ''}
         </p>

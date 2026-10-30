@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Job Finder",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Scans LinkedIn job searches with AI and fills job application forms from your Job Finder profile (you always submit yourself). Sign in with your Job Finder user ID.",
   "minimum_chrome_version": "116",
   "permissions": ["activeTab", "storage", "scripting", "sidePanel"],

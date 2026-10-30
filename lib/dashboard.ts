@@ -63,7 +63,7 @@ export async function getDashboardData(windowDays = 30, userId: number | null = 
   // Nested in whole Prisma.sql queries (see lib/prisma.ts).
   const andMine = userId == null ? Prisma.empty : Prisma.sql`AND "userId" = ${userId}`;
 
-  const [jobDays, aiDays, funnelRows, sourceRows, recent, applied, interviews] = await Promise.all([
+  const [jobDays, aiDays, funnelRows, sourceRows, recent, pipeline] = await Promise.all([
     soft(
       prisma.$queryRaw<{ day: string; found: bigint; approved: bigint; rejected: bigint }[]>(Prisma.sql`
         SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS day,
@@ -116,9 +116,17 @@ export async function getDashboardData(windowDays = 30, userId: number | null = 
       }),
       [],
     ),
-    soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
-    soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["INTERVIEW", "OFFER"] } } }), 0),
+    // Applications so far and those at an interview or offer, in one query.
+    soft(
+      prisma.$queryRaw<{ applied: bigint; interviews: bigint }[]>(Prisma.sql`
+        SELECT COUNT(*) FILTER (WHERE stage IN ('APPLIED','INTERVIEW','OFFER')) AS applied,
+               COUNT(*) FILTER (WHERE stage IN ('INTERVIEW','OFFER')) AS interviews
+        FROM "ScrapedJob" WHERE stage IS NOT NULL ${andMine}`),
+      [],
+    ),
   ]);
+  const applied = Number(pipeline[0]?.applied ?? 0);
+  const interviews = Number(pipeline[0]?.interviews ?? 0);
   const perUser = userId == null ? await perUserSummary(now) : null;
 
   const jobMap = new Map(jobDays.map((r) => [r.day, r]));
@@ -159,55 +167,39 @@ export async function getDashboardData(windowDays = 30, userId: number | null = 
 }
 
 // The "All users" table: the last 7 days of jobs, applications so far, the
-// last LinkedIn job and AI use per user.
+// last LinkedIn job and AI use per user, in one query.
 async function perUserSummary(now: Date): Promise<UserSummary[]> {
   const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
-  const [jobs, applied, linkedIn, aiWeek, aiMonth] = await Promise.all([
-    soft(
-      prisma.$queryRaw<{ userId: number; found: bigint; approved: bigint }[]>`
-        SELECT "userId", COUNT(*) AS found, COUNT(*) FILTER (WHERE status = 'APPROVED') AS approved
-        FROM "ScrapedJob" WHERE "createdAt" >= ${weekAgo}
-        GROUP BY "userId"`,
-      [],
-    ),
-    soft(
-      prisma.scrapedJob.groupBy({
-        by: ["userId"],
-        where: { stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } },
-        _count: { _all: true },
-      }),
-      [] as { userId: number; _count: { _all: number } }[],
-    ),
-    soft(
-      prisma.scrapedJob.groupBy({ by: ["userId"], where: { platform: "linkedin" }, _max: { createdAt: true } }),
-      [] as { userId: number; _max: { createdAt: Date | null } }[],
-    ),
-    soft(
-      prisma.aiUsage.groupBy({ by: ["userId"], where: { createdAt: { gte: weekAgo } }, _count: { _all: true } }),
-      [] as { userId: number | null; _count: { _all: number } }[],
-    ),
-    soft(
-      prisma.aiUsage.groupBy({ by: ["userId"], where: { createdAt: { gte: startOfUtcMonth(now) } }, _sum: { costUsd: true } }),
-      [] as { userId: number | null; _sum: { costUsd: number | null } }[],
-    ),
-  ]);
-  const ids = new Set<number>([
-    ...jobs.map((r) => r.userId),
-    ...applied.map((r) => r.userId),
-    ...linkedIn.map((r) => r.userId),
-    ...aiWeek.flatMap((r) => (r.userId == null ? [] : [r.userId])),
-    ...aiMonth.flatMap((r) => (r.userId == null ? [] : [r.userId])),
-  ]);
-  return [...ids].map((userId) => {
-    const j = jobs.find((r) => r.userId === userId);
-    return {
-      userId,
-      found7: Number(j?.found ?? 0),
-      approved7: Number(j?.approved ?? 0),
-      applied: applied.find((r) => r.userId === userId)?._count._all ?? 0,
-      lastLinkedInAt: linkedIn.find((r) => r.userId === userId)?._max.createdAt ?? null,
-      aiCalls7: aiWeek.find((r) => r.userId === userId)?._count._all ?? 0,
-      aiCostMonthUsd: aiMonth.find((r) => r.userId === userId)?._sum.costUsd ?? 0,
-    };
-  });
+  const monthStart = startOfUtcMonth(now);
+  const rows = await soft(
+    prisma.$queryRaw<
+      {
+        userId: number;
+        found7: bigint;
+        approved7: bigint;
+        applied: bigint;
+        lastLinkedInAt: Date | null;
+        aiCalls7: bigint;
+        aiCostMonthUsd: number | null;
+      }[]
+    >`
+      SELECT u.id AS "userId",
+             (SELECT COUNT(*) FROM "ScrapedJob" j WHERE j."userId" = u.id AND j."createdAt" >= ${weekAgo}) AS found7,
+             (SELECT COUNT(*) FROM "ScrapedJob" j WHERE j."userId" = u.id AND j."createdAt" >= ${weekAgo} AND j.status = 'APPROVED') AS approved7,
+             (SELECT COUNT(*) FROM "ScrapedJob" j WHERE j."userId" = u.id AND j.stage IN ('APPLIED','INTERVIEW','OFFER')) AS applied,
+             (SELECT MAX(j."createdAt") FROM "ScrapedJob" j WHERE j."userId" = u.id AND j.platform = 'linkedin') AS "lastLinkedInAt",
+             (SELECT COUNT(*) FROM "AiUsage" a WHERE a."userId" = u.id AND a."createdAt" >= ${weekAgo}) AS "aiCalls7",
+             (SELECT SUM(a."costUsd") FROM "AiUsage" a WHERE a."userId" = u.id AND a."createdAt" >= ${monthStart}) AS "aiCostMonthUsd"
+      FROM "User" u`,
+    [],
+  );
+  return rows.map((r) => ({
+    userId: r.userId,
+    found7: Number(r.found7),
+    approved7: Number(r.approved7),
+    applied: Number(r.applied),
+    lastLinkedInAt: r.lastLinkedInAt,
+    aiCalls7: Number(r.aiCalls7),
+    aiCostMonthUsd: Number(r.aiCostMonthUsd ?? 0),
+  }));
 }

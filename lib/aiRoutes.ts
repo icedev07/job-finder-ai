@@ -111,6 +111,15 @@ export function claudeModelInfo(id: string): ClaudeModelInfo | undefined {
   return CLAUDE_MODELS.find((m) => m.id === id);
 }
 
+/** "Claude Haiku 5.5", "Cerebras (llama-3.3-70b)": who answered, from a route's "provider:model". */
+export function modelLabel(model: string): string {
+  const [provider, ...rest] = model.split(":");
+  const id = rest.join(":");
+  if (provider === "claude") return claudeModelInfo(id)?.label ?? id;
+  const label = (PROVIDER_INFO as Record<string, { label: string }>)[provider]?.label ?? provider;
+  return id ? `${label} (${id})` : label;
+}
+
 export type TokenUsage = {
   inputTokens: number;
   outputTokens: number;

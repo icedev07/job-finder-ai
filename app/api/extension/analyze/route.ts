@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
+import { modelLabel } from "@/lib/aiRoutes";
 import { upsertScrapedJob } from "@/lib/scrapedJobs";
 import { analyzeJob } from "@/lib/jobAnalyzer";
 import { LLMRateLimitedError } from "@/lib/llmClient";
@@ -92,25 +93,20 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const existing = await prisma.scrapedJob.findUnique({
-      where: { id: saved.id },
-      select: { status: true, aiScore: true, aiReason: true, platform: true, applyMethod: true },
-    });
-    if (!existing) {
-      return json({ error: "Job record not found", action: "error", linkedInDismiss: false }, 500);
-    }
+    // The save returns the job's verdict: no need to read it again.
+    const existing = saved;
     // Dedup can match the same job stored from another board. Only LinkedIn
     // rows get LinkedIn's apply method.
     const isLinkedInRow = existing.platform === "linkedin";
     const autoRejectedAsEasyApply = (existing.aiReason || "").startsWith("Easy Apply - auto rejected");
-    const signals = cleanSignals(body.signals);
-    if (signals && isLinkedInRow) {
-      await prisma.scrapedJob.update({ where: { id: saved.id }, data: { signals } }).catch(() => {});
-    }
+    // The ghost-job signals go with the job's next write (one query, not two).
+    const signals = isLinkedInRow ? cleanSignals(body.signals) : null;
+    const withSignals = signals ? { signals } : {};
 
     // ── Easy Apply, "Skip and hide" mode (the default) ─────────────────────
     if (easyApply && easyApplyMode === "skip") {
       if (existing.status !== "PENDING") {
+        if (signals) await prisma.scrapedJob.update({ where: { id: saved.id }, data: withSignals }).catch(() => {});
         // Never overwrite a verdict that already exists — e.g. the same job
         // approved from a job board.
         return json({
@@ -128,6 +124,7 @@ export async function POST(req: NextRequest) {
           aiScore: 0,
           aiReason: EASY_APPLY_AUTO_REASON,
           manualApplyUrl: null,
+          ...withSignals,
           ...(isLinkedInRow ? { applyMethod } : {}),
         },
       });
@@ -150,8 +147,11 @@ export async function POST(req: NextRequest) {
     // ── Normal AI analysis (external apply, or Easy Apply in "Analyze" mode) ─
     const reanalyzeEasyApply = easyApply && autoRejectedAsEasyApply;
     if (existing.status !== "PENDING" && !reanalyzeEasyApply) {
-      if (isLinkedInRow && !existing.applyMethod) {
-        await prisma.scrapedJob.update({ where: { id: saved.id }, data: { applyMethod } });
+      const missingMethod = isLinkedInRow && !existing.applyMethod;
+      if (missingMethod || signals) {
+        await prisma.scrapedJob
+          .update({ where: { id: saved.id }, data: { ...withSignals, ...(missingMethod ? { applyMethod } : {}) } })
+          .catch(() => {});
       }
       return json({
         action: existing.status === "APPROVED" ? "approved" : "rejected",
@@ -162,17 +162,19 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const prep = await prisma.scrapedJob.updateMany({
-      where: { id: saved.id },
-      data: {
-        ...(typeof desc === "string" && desc.length > 0 ? { description: desc } : {}),
-        ...(isLinkedInRow ? { applyMethod } : {}),
-        // An Easy Apply job auto-rejected by an earlier scan goes back to
-        // PENDING so the AI judges it this time.
-        ...(reanalyzeEasyApply ? { status: "PENDING" as const, aiScore: null, aiReason: null } : {}),
-      },
-    });
-    if (prep.count === 0) {
+    try {
+      await prisma.scrapedJob.update({
+        where: { id: saved.id },
+        data: {
+          ...(typeof desc === "string" && desc.length > 0 ? { description: desc } : {}),
+          ...withSignals,
+          ...(isLinkedInRow ? { applyMethod } : {}),
+          // An Easy Apply job auto-rejected by an earlier scan goes back to
+          // PENDING so the AI judges it this time.
+          ...(reanalyzeEasyApply ? { status: "PENDING" as const, aiScore: null, aiReason: null } : {}),
+        },
+      });
+    } catch {
       return json({ error: "Job record not found for description update", action: "error", linkedInDismiss: false }, 500);
     }
 
@@ -194,16 +196,8 @@ export async function POST(req: NextRequest) {
       `[Extension] AI result for "${title}": approved=${result.approved}, score=${result.score}, reason="${result.reason}"`,
     );
 
-    if (result.approved) {
-      const job = await prisma.scrapedJob.findUnique({ where: { id: saved.id } });
-      if (job) {
-        try {
-          await syncJobToLinkedInTab(job);
-        } catch (err: any) {
-          console.error(`LinkedIn sheet sync failed: ${err.message}`);
-        }
-      }
-    }
+    // To its user's Google Sheet after the answer: the extension moves on to the next job meanwhile.
+    if (result.approved) after(() => syncJobToLinkedInTab({ id: saved.id, userId }));
 
     return json({
       action: result.approved ? "approved" : "rejected",
@@ -212,6 +206,8 @@ export async function POST(req: NextRequest) {
       score: result.score,
       applyMethod,
       ...(!result.approved && result.linkedInDismiss === false ? { linkedInDismiss: false } : {}),
+      // Who judged it, for the popup ("Claude Haiku 5.5").
+      ...(result.model ? { model: modelLabel(result.model) } : {}),
     });
   } catch (error: any) {
     // Every AI provider is rate-limited / out of quota (or the deadline hit).

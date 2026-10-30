@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { prisma } from "./prisma";
 import { DEFAULT_ANALYSIS_PROMPT } from "./defaultPrompt";
 
@@ -90,6 +91,20 @@ export type UserSettings = {
 };
 
 // Read on every analysis and scan, so cached briefly per user (like AppConfig).
+// A saved copy of a prompt this app shipped as its default (this one or an
+// earlier version) still means "the built-in prompt", so it follows the
+// current default instead of keeping an old one.
+const SHIPPED_PROMPT_HASHES = new Set([
+  "1fee734a90b8d97772c8ace6300605792d3758ec3bbc21234b6960dd3dc3d692", // 4.0–4.7
+  "e40c268f2bc1794570e69905c9e4ae8eed668fc1d25f28f4f3dc2677ae278e65", // before 4.0
+]);
+
+function isShippedPrompt(prompt: string): boolean {
+  const text = prompt.replace(/\r\n/g, "\n").trim();
+  if (!text || text === DEFAULT_ANALYSIS_PROMPT.trim()) return true;
+  return SHIPPED_PROMPT_HASHES.has(createHash("sha256").update(text).digest("hex"));
+}
+
 const cache = new Map<number, { values: Record<string, string>; expiresAt: number }>();
 const TTL_MS = 10_000;
 
@@ -133,7 +148,7 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     currentLocation: (v[USER_KEYS.CURRENT_LOCATION] || "").trim(),
     // A saved copy of the built-in prompt is the built-in prompt: it keeps
     // getting improvements.
-    jobAnalysisPrompt: prompt.trim() === DEFAULT_ANALYSIS_PROMPT.trim() ? "" : prompt,
+    jobAnalysisPrompt: isShippedPrompt(prompt) ? "" : prompt,
     profileInMatching: v[USER_KEYS.PROFILE_IN_MATCHING] !== "false",
     reviewEnabled: v[USER_KEYS.REVIEW_ENABLED] !== "false",
     // Verdicts scored inside this band go to the Review queue: close to the
@@ -175,11 +190,11 @@ export function wantsBoard(settings: UserSettings, board: string): boolean {
 // What the AI is told when a user has not filled these in yet. New users get
 // them in the Add user dialog, so these are a last resort.
 export function promptLocation(settings: UserSettings): string {
-  return settings.currentLocation || "an unspecified country";
+  return settings.currentLocation || "a place they have not set";
 }
 
 export function promptMarket(settings: UserSettings): string {
-  return settings.targetMarket || "remote roles open worldwide";
+  return settings.targetMarket || "remote jobs open worldwide";
 }
 
 /** Copy one user's set-up to another (Add user → "Copy from"). Never their jobs. */

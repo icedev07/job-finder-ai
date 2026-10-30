@@ -74,16 +74,10 @@ export async function GET(req: NextRequest) {
   }
 
   const stages: JobStage[] = params.get("archived") === "1" ? [...OPEN, "ARCHIVED"] : OPEN;
-  const [columns, perStage, todo, sources] = await Promise.all([
-    Promise.all(
-      stages.map(async (stage) => {
-        const [cards, total] = await Promise.all([
-          prisma.scrapedJob.findMany({ where: where(stage), orderBy: ORDER, take: PAGE, select: CARD_SELECT }),
-          prisma.scrapedJob.count({ where: where(stage) }),
-        ]);
-        return { stage, total, cards: await withNextInterviews(cards) };
-      }),
-    ),
+  const [lists, totals, perStage, todo, sources] = await Promise.all([
+    Promise.all(stages.map((stage) => prisma.scrapedJob.findMany({ where: where(stage), orderBy: ORDER, take: PAGE, select: CARD_SELECT }))),
+    // Every column's total in one query.
+    prisma.scrapedJob.groupBy({ by: ["stage"], where: { AND: [...and, { stage: { in: stages } }] }, _count: { _all: true } }),
     // Each user's whole pipeline, for the strip (filters don't apply).
     prisma.scrapedJob.groupBy({ by: ["userId", "stage"], where: { userId: { in: on }, stage: { not: null } }, _count: { _all: true } }),
     // The board works without them (before /api/setup added interviews).
@@ -94,6 +88,13 @@ export async function GET(req: NextRequest) {
     prisma.scrapedJob.groupBy({ by: ["platform"], where: { userId: { in: on }, stage: { not: null } }, _count: { _all: true } }),
   ]);
 
+  // Every card's next interview in one query.
+  const next = new Map((await withNextInterviews(lists.flat())).map((c) => [c.id, c.nextInterviewAt]));
+  const columns = stages.map((stage, i) => ({
+    stage,
+    total: totals.find((t) => t.stage === stage)?._count._all ?? 0,
+    cards: lists[i].map((c) => ({ ...c, nextInterviewAt: next.get(c.id) ?? null })),
+  }));
   const count = (userId: number, stage: string) =>
     perStage.find((r) => r.userId === userId && r.stage === stage)?._count._all ?? 0;
   return NextResponse.json({

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { describeDbError } from "@/lib/dbErrors";
 import { LEGACY_ADMIN_PASSWORD_KEY } from "@/lib/config";
 import { LEGACY_DEFAULT_RULES } from "@/lib/jobSkipRules";
+import { markStatusStale } from "@/lib/statusCache";
 import { invalidateUserCache } from "@/lib/users";
 import { USER_KEY_LIST, invalidateUserSettings } from "@/lib/userSettings";
 
@@ -358,6 +359,15 @@ async function seedDefaults() {
 }
 
 export async function GET() {
+  try {
+    return await runSetup();
+  } finally {
+    // The checklist and status strip read the tables again.
+    markStatusStale();
+  }
+}
+
+async function runSetup() {
   try {
     const hasTable = await prisma.$queryRaw<{ exists: boolean }[]>`
       SELECT EXISTS (

@@ -290,6 +290,45 @@
     await sleep(400);
   }
 
+  // Classic layout: wait until the detail panel shows the clicked job instead
+  // of a fixed pause: its title is the card's (or, a moment later, the URL's
+  // currentJobId is its id), its description differs from the previous job's,
+  // so that job's text is never read for this one, and has stopped changing
+  // for 300 ms (it streams in). Bounded: an odd page can't stall the scan.
+  let lastDescription = "";
+  function quietText(selectors) {
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      const t = el?.innerText?.trim();
+      if (t) return t;
+    }
+    return "";
+  }
+  async function waitForClassicDetail(jobId, cardTitle) {
+    const started = Date.now();
+    const deadline = started + 8000;
+    const norm = (t) => (t || "").replace(/\s+/g, " ").trim().toLowerCase();
+    const want = norm(cardTitle);
+    let seen = null;
+    let steadySince = started;
+    while (Date.now() < deadline && !stopRequested) {
+      const desc = quietText(DESCRIPTION_SELECTORS);
+      if (desc !== seen) {
+        seen = desc;
+        steadySince = Date.now();
+      }
+      const urlId =
+        new URLSearchParams(window.location.search).get("currentJobId") || (window.location.href.match(/\/jobs\/view\/(\d+)/) || [])[1];
+      const titleOk = !want || norm(quietText(TITLE_SELECTORS)) === want;
+      const idOk = !!jobId && urlId === String(jobId) && Date.now() - started > 600;
+      const fresh = desc !== lastDescription || !lastDescription;
+      if (desc.length > 50 && fresh && (titleOk || idOk) && Date.now() - steadySince >= 300) return true;
+      await sleep(150);
+    }
+    await sleep(400);
+    return false;
+  }
+
   function extractBetaTitle() {
     const d = getBetaDetailContainer();
     if (!d) return "";
@@ -975,21 +1014,28 @@
     return "";
   }
 
+  const TITLE_SELECTORS = [
+    ".job-details-jobs-unified-top-card__job-title h1 a",
+    ".job-details-jobs-unified-top-card__job-title h1",
+    ".job-details-jobs-unified-top-card__job-title a",
+    ".job-details-jobs-unified-top-card__job-title",
+    ".jobs-unified-top-card__job-title a",
+    ".jobs-unified-top-card__job-title",
+    "h1.t-24.t-bold",
+    "h1.t-24",
+  ];
+  const DESCRIPTION_SELECTORS = [
+    "#job-details",
+    ".jobs-description-content__text",
+    ".jobs-description__content",
+    ".jobs-box__html-content",
+  ];
+
   function extractTitle() {
     if (betaMode) return extractBetaTitle();
     const detail = getDetailContainer();
     const scope = detail || document;
-    const selectors = [
-      ".job-details-jobs-unified-top-card__job-title h1 a",
-      ".job-details-jobs-unified-top-card__job-title h1",
-      ".job-details-jobs-unified-top-card__job-title a",
-      ".job-details-jobs-unified-top-card__job-title",
-      ".jobs-unified-top-card__job-title a",
-      ".jobs-unified-top-card__job-title",
-      "h1.t-24.t-bold",
-      "h1.t-24",
-    ];
-    for (const sel of selectors) {
+    for (const sel of TITLE_SELECTORS) {
       const el = scope.querySelector(sel);
       if (el) {
         const t = el.textContent.trim();
@@ -1057,52 +1103,74 @@
     return Object.keys(signals).length ? signals : null;
   }
 
+  // "Remote", "Hybrid" or "On-site" in a piece of LinkedIn's top card ("" when it says none).
+  function workplaceIn(text) {
+    const m = (text || "").match(/\b(remote|hybrid|on-site|on site|onsite)\b/i);
+    if (!m) return "";
+    const w = m[1].toLowerCase();
+    return w === "remote" ? "Remote" : w === "hybrid" ? "Hybrid" : "On-site";
+  }
+
+  // The posting's workplace type from the detail panel's pills (classic layout)
+  // or its subtitle line (AI search layout).
+  function extractWorkplace() {
+    const detail = getDetailContainer();
+    if (!detail) return "";
+    if (betaMode) {
+      for (const p of detail.querySelectorAll("p")) {
+        for (const part of (p.textContent || "").split("·")) {
+          const t = part.trim();
+          if (t.length < 30) {
+            const w = workplaceIn(t);
+            if (w) return w;
+          }
+        }
+      }
+      return "";
+    }
+    for (const el of detail.querySelectorAll(".job-details-fit-level-preferences button, .job-details-fit-level-preferences span")) {
+      const w = workplaceIn(el.textContent);
+      if (w) return w;
+    }
+    return "";
+  }
+
+  // The place, with the workplace type when LinkedIn shows it apart:
+  // "Berlin, Germany · Remote". The AI needs both to judge where the job is.
   function extractLocation() {
+    const place = extractPlace();
+    const workplace = extractWorkplace();
+    if (place && workplace && !workplaceIn(place)) return `${place} · ${workplace}`;
+    return place || workplace;
+  }
+
+  function extractPlace() {
     if (betaMode) return extractBetaLocation();
     const detail = getDetailContainer();
     const scope = detail || document;
-    // Look for tvm__text spans in the tertiary description
+    // The tertiary description's spans: the place first, then when it was
+    // posted and how many applied ("Over 100 applicants", "Reposted 2 weeks
+    // ago"), which are never the place even when it is missing.
     const tertiaryContainer = scope.querySelector(".job-details-jobs-unified-top-card__tertiary-description-container") ||
                                scope.querySelector(".job-details-jobs-unified-top-card__primary-description-container");
     if (tertiaryContainer) {
       const spans = tertiaryContainer.querySelectorAll("span.tvm__text");
       for (const span of spans) {
         const t = span.textContent.trim();
-        // Skip time/applicant text, keep location-like text
         if (t && t.length > 2 && t.length < 100 &&
             !t.match(/^\d+ (applicant|people|hour|day|week|month|minute|second)/i) &&
-            !t.match(/^(promoted|responses|viewed)/i) &&
-            !t.match(/ago$/i)) {
+            !t.match(/applicant|clicked apply|\bpeople\b|reposted|promoted|responses|viewed|\bago\b/i)) {
           log(`Location: "${t}"`);
           return t;
         }
       }
     }
-
-    // Fallback: look for workspace type buttons
-    const buttons = (scope).querySelectorAll(".job-details-fit-level-preferences button");
-    const types = [];
-    for (const btn of buttons) {
-      const t = btn.textContent.trim();
-      if (t.match(/remote|hybrid|on-site/i)) types.push(t);
-    }
-    if (types.length > 0) {
-      log(`Location from preferences: "${types.join(", ")}"`);
-      return types.join(", ");
-    }
-
     return "";
   }
 
   function extractDescription() {
     if (betaMode) return extractBetaDescription();
-    const selectors = [
-      "#job-details",
-      ".jobs-description-content__text",
-      ".jobs-description__content",
-      ".jobs-box__html-content",
-    ];
-    for (const sel of selectors) {
+    for (const sel of DESCRIPTION_SELECTORS) {
       const el = document.querySelector(sel);
       if (el) {
         const t = el.innerText.trim();
@@ -1303,19 +1371,20 @@
 
     log(`Card ${index + 1}: title="${cardTitleText}", company="${cardCompanyText}", easyApply=${easyApply}, jobId=${cardJobId}`);
 
-    // Click the card to load the detail panel
+    // The real apply link comes from LinkedIn's job API by the job's id: ask
+    // while the detail panel loads.
+    const applyUrlLookup = !easyApply && cardJobId ? fetchApplyUrlFromVoyager(cardJobId).catch(() => "") : Promise.resolve("");
+
+    // Click the card to load the detail panel, and wait until it shows this job.
     const clickTarget = betaMode
       ? getBetaCardClickTarget(card)
       : (cardLink || quick.titleEl || card);
     clickTarget.click();
-    await sleep(2000);
-
-    // Wait for detail panel to load
     if (betaMode) {
+      await sleep(300);
       await waitForBetaDetail(cardJobId);
     } else {
-      await waitForSelector("#job-details, .job-details-jobs-unified-top-card__job-title", document, 8000);
-      await sleep(800);
+      await waitForClassicDetail(cardJobId, cardTitleText);
     }
 
     // Extract from detail panel
@@ -1334,9 +1403,10 @@
     // have no external page, so applyUrl stays empty for them.
     let applyUrl = "";
     if (!easyApply) {
-      if (cardJobId) applyUrl = await fetchApplyUrlFromVoyager(cardJobId);
+      applyUrl = await applyUrlLookup;
       if (!applyUrl) applyUrl = extractApplyUrl(cardJobId);
     }
+    lastDescription = description;
 
     log(`Extracted: title="${title}", company="${company}", location="${location}", desc=${description.length}chars, url=${jobUrl}, applyUrl=${applyUrl || "n/a"}`);
 
@@ -1406,6 +1476,7 @@
         score: result.score || 0,
         reason: result.reason || "",
         applyMethod: result.applyMethod || (easyApply ? "EASY_APPLY" : "EXTERNAL"),
+        model: result.model || "",
         timestamp: new Date().toISOString(),
       };
 
@@ -1731,7 +1802,9 @@
           log(`Reached job scan limit (${jobLimit}); stopping after ${processedJobs} jobs.`);
           break;
         }
-        await sleep(1200);
+        // A short pause between jobs keeps the pace a person's; the panel load,
+        // the verdict and the dismiss already space them out.
+        await sleep(400);
       }
 
       // Stop paging through this list once the global limit is hit.

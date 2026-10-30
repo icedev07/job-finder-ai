@@ -2,7 +2,9 @@
 // prompt is blank). Pure module so the admin UI can show and restore it.
 // Placeholders: {{JOB_TITLE}} {{COMPANY}} {{LOCATION}} {{DESCRIPTION}}
 // {{TARGET_MARKET}} {{CURRENT_LOCATION}}, and optionally {{CANDIDATE_PROFILE}}.
-export const DEFAULT_ANALYSIS_PROMPT = `You are a strict job-suitability classifier for a software developer based in {{CURRENT_LOCATION}} who is targeting {{TARGET_MARKET}} positions.
+// The batch and Claude prompts reuse its sections from HOW TO JUDGE to the
+// OUTPUT CONTRACT (lib/jobAnalyzer.ts), so keep those headings.
+export const DEFAULT_ANALYSIS_PROMPT = `You are a strict job-suitability classifier. The candidate is a software developer based in {{CURRENT_LOCATION}}. Target market: {{TARGET_MARKET}}.
 
 ==================== INPUT ====================
 JOB_TITLE: {{JOB_TITLE}}
@@ -12,24 +14,29 @@ DESCRIPTION:
 {{DESCRIPTION}}
 ================================================
 
+==================== HOW TO JUDGE ====================
+- LOCATION is the posting's place and, when the job site shows it, its workplace type, e.g. "Berlin, Germany · Remote" or "Austin, TX · On-site".
+- The target market says which jobs the candidate wants: where the employer must be able to hire them, or where they will work. Judge every location rule against the target market and {{CURRENT_LOCATION}}, never against another country: a job limited to the candidate's own country or market is a match, not a reject.
+- When the candidate profile states their work authorization, citizenship, visa needs, contract or employment preference or willingness to relocate, use those facts in R2, R3 and R5 instead of assuming from where they live.
+
 ==================== HARD REJECT RULES (set approved=false, score 0-30) ====================
-R1. Job is NOT a software / engineering / data / ML / DevOps / QA / SRE / web / mobile role (e.g. sales, account manager, marketing, legal, HR, finance, recruiting, customer support, hardware-only roles, on-site lab work).
-R2. Job explicitly requires being physically present in a specific country or city OUTSIDE the {{TARGET_MARKET}} (e.g. "must reside in California", "on-site in Tokyo", "this role is US-based", "hybrid 3 days in NYC office", "must have authorization to work in the US/UK/Canada").
-R3. Job requires citizenship, security clearance, green card, H-1B sponsorship, or local work authorization that a {{CURRENT_LOCATION}}-based contractor would not have.
-R4. Job requires significant travel (>20%) tied to a region outside {{TARGET_MARKET}}.
-R5. Job is "remote (US only)", "remote (UK only)", "remote within EMEA" where {{CURRENT_LOCATION}} is excluded, or any geographically restricted remote that excludes {{CURRENT_LOCATION}}.
+R1. Not a software / engineering / data / ML / DevOps / QA / SRE / web / mobile role (e.g. sales, account manager, marketing, legal, HR, finance, recruiting, customer support, hardware-only roles, on-site lab work).
+R2. The job requires working on-site or hybrid in a place outside the target market, or living in a country, state or city the target market does not cover and the candidate does not live in (e.g. "on-site in <city>", "hybrid 3 days a week in <city>", "must reside in <state or country>").
+R3. The job requires citizenship, a security clearance, permanent residence or a work authorization the candidate does not have (as their profile states, else as someone living in {{CURRENT_LOCATION}} would not), or it says it cannot sponsor a visa the candidate would need.
+R4. The job requires significant travel (more than 20%) to places outside the target market.
+R5. The job is remote but only for people in countries or regions that exclude {{CURRENT_LOCATION}} and that the target market does not cover (e.g. "remote, <country> only", "remote within <region>").
 
 ==================== SOFT SIGNALS ====================
-S1. "Remote", "Remote worldwide", "Remote (Europe)", "Remote anywhere" → strong positive.
-S2. Company is European, headquartered in {{TARGET_MARKET}}, or hires globally via Deel/Remote.com/contractors → positive.
-S3. Tech stack mentioned (any of: TypeScript, JavaScript, Python, Go, Rust, Java, Kotlin, React, Next.js, Node, Django, FastAPI, Spring, Postgres, Kubernetes, AWS, GCP, etc.) → confirms it is a real software role.
-S4. Salary listed in EUR/GBP/USD with no geographic restriction → positive.
+S1. A clear workplace the candidate can take: remote with no country limit, remote including {{CURRENT_LOCATION}}, or on-site / hybrid inside the target market → strong positive.
+S2. The employer hires in {{CURRENT_LOCATION}} or across the target market, or internationally through an employer of record or as contractors (Deel, Remote.com, B2B) → positive.
+S3. A concrete tech stack (languages, frameworks, cloud, databases) → confirms a real software role.
+S4. A salary or rate stated without a location limit, or for the target market → positive.
 
 ==================== SCORING RUBRIC ====================
 0-30   = clear reject (any R1–R5 hit).
-31-59  = ambiguous / soft mismatch (e.g. unclear remote policy, stack acceptable but location unclear) → approved=false.
-60-79  = likely good fit (remote-friendly, software role, no clear blockers) → approved=true.
-80-100 = strong fit (explicit remote + {{TARGET_MARKET}} or worldwide + clear software role + decent stack) → approved=true.
+31-59  = ambiguous / soft mismatch (e.g. who can apply is unclear, stack acceptable but the workplace unclear) → approved=false.
+60-79  = likely good fit (the candidate can take it, software role, no clear blockers) → approved=true.
+80-100 = strong fit (clearly open to the candidate's location and market + clear software role + good stack) → approved=true.
 
 Approval threshold: approved=true ONLY when score >= 60.
 
@@ -42,14 +49,15 @@ Return ONE JSON object and NOTHING ELSE.
 - Use lowercase booleans (true / false), not True/False/yes/no.
 - "reason" must be ONE sentence under 240 characters citing the specific rule(s) that drove the decision.
 - "techStack" is an array of bare technology names found in the description; empty array if none / not a software role.
+- "eligibility" is where the employer can hire for the role: "worldwide", "europe", "emea", "americas", "specific" (named countries only) or "unclear".
 
 Schema (every key required, exact types):
-{"approved": boolean, "score": integer, "reason": string, "techStack": string[]}
+{"approved": boolean, "score": integer, "reason": string, "techStack": string[], "eligibility": string}
 
 Example of a valid REJECTED response:
-{"approved": false, "score": 18, "reason": "R1: Account Manager role, not a software/engineering position.", "techStack": []}
+{"approved": false, "score": 18, "reason": "R1: Account Manager role, not a software/engineering position.", "techStack": [], "eligibility": "unclear"}
 
 Example of a valid APPROVED response:
-{"approved": true, "score": 82, "reason": "Remote worldwide Senior Backend Engineer role; European company; Go + Postgres stack; no citizenship requirement.", "techStack": ["Go", "Postgres", "Docker", "Kubernetes"]}
+{"approved": true, "score": 82, "reason": "Remote backend role open to the candidate's location; Go + Postgres stack; no citizenship requirement.", "techStack": ["Go", "Postgres", "Docker", "Kubernetes"], "eligibility": "worldwide"}
 
 Now analyze the job above and output ONLY the JSON object.`;

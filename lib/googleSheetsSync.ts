@@ -315,7 +315,7 @@ async function syncStages(ids: number[], scope: { userId?: number }): Promise<nu
     try {
       const target = await sheetTargetFor(userId);
       if (!target?.settings.applicationsEnabled) continue;
-      // LinkedIn jobs have their row in the LinkedIn tab, and one in the Jobs tab after Sync Sheets.
+      // LinkedIn jobs have their row in the LinkedIn tab (and, in a sheet synced before 4.8, one in the Jobs tab too).
       const linkedin = list.filter((j) => j.platform === "linkedin");
       written += await writeStages(target, target.settings.jobsSheetTab, list, jobsTabRow(target.settings));
       if (linkedin.length) written += await writeStages(target, target.settings.linkedinSheetTab, linkedin, linkedInTabRow);
@@ -497,9 +497,40 @@ async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]
   await appendRows(target, a1(tab, ALL_COLUMNS), rows, jobs.map((j) => j.id));
 }
 
-/** Rewrite one user's "Jobs" tab with all of their approved jobs, newest first. */
+/**
+ * Sync Sheets: rewrite one user's Jobs tab with their approved board jobs,
+ * newest first, and add to their LinkedIn tab every approved LinkedIn job it
+ * does not have yet (each job has one row, in its own tab).
+ */
 export function fullSyncToSheet(userId: number): Promise<{ synced: number }> {
-  return oneAtATime(() => rewriteJobsTab(userId));
+  return oneAtATime(async () => {
+    const boards = await rewriteJobsTab(userId);
+    const linkedin = await completeLinkedInTab(userId);
+    return { synced: boards.synced + linkedin };
+  });
+}
+
+/** Add the approved LinkedIn jobs missing from the user's LinkedIn tab (found by their link); returns how many. */
+async function completeLinkedInTab(userId: number): Promise<number> {
+  const target = await sheetTargetFor(userId);
+  if (!target) throw new Error(NOT_CONFIGURED);
+  const jobs = await prisma.scrapedJob.findMany({
+    where: { userId, status: "APPROVED", platform: "linkedin" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (jobs.length === 0) return 0;
+  const tab = target.settings.linkedinSheetTab;
+  await ensureTab(target, tab);
+  const res = await target.sheets.spreadsheets.values.get({ spreadsheetId: target.spreadsheetId, range: a1(tab, ALL_COLUMNS) });
+  const rows = res.data.values ?? [];
+  const header = (rows[0] ?? []).map((v) => String(v ?? ""));
+  const urlCol = header.findIndex((h) => h.trim().toLowerCase() === "job url");
+  const have = new Set(rows.slice(1).map((r) => String(r[urlCol >= 0 ? urlCol : 3] ?? "").trim()).filter(Boolean));
+  const missing = jobs.filter((j) => !have.has(j.url.trim()));
+  if (missing.length) await appendToLinkedInTab(target, missing);
+  const present = jobs.filter((j) => !j.sheetSynced && have.has(j.url.trim())).map((j) => j.id);
+  if (present.length) await prisma.scrapedJob.updateMany({ where: { id: { in: present } }, data: { sheetSynced: true } });
+  return missing.length;
 }
 
 async function rewriteJobsTab(userId: number): Promise<{ synced: number }> {
@@ -510,8 +541,9 @@ async function rewriteJobsTab(userId: number): Promise<{ synced: number }> {
   const columns: SheetColumn[] = getSheetColumns(settings.sheetColumns);
   await ensureTab(target, tab);
 
+  // Board jobs only: LinkedIn jobs have their rows in the LinkedIn tab.
   const jobs = await prisma.scrapedJob.findMany({
-    where: { userId, status: "APPROVED" },
+    where: { userId, status: "APPROVED", platform: { not: "linkedin" } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -529,7 +561,7 @@ async function rewriteJobsTab(userId: number): Promise<{ synced: number }> {
   });
 
   await prisma.scrapedJob.updateMany({
-    where: { userId, status: "APPROVED" },
+    where: { userId, status: "APPROVED", platform: { not: "linkedin" } },
     data: { sheetSynced: true },
   });
   // The rewrite dropped the rows of board jobs no longer approved: approved

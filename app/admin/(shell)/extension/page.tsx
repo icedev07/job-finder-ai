@@ -5,12 +5,13 @@ import { PageHeader } from "@/components/common/page-header";
 import { SectionCard } from "@/components/common/section-card";
 import { ExtensionConnectCard } from "@/components/extension/extension-connect-card";
 import { ExtensionPanel } from "@/components/extension/extension-panel";
+import { LinkedInAiCard } from "@/components/extension/linkedin-ai-card";
 import { SharedKeyCard } from "@/components/extension/shared-key-card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { pageScope, userWhere } from "@/lib/scope";
+import { pageScope, userWhere, viewingUserId } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Extension" };
@@ -85,6 +86,8 @@ export default async function ExtensionPage() {
           </ol>
         </SectionCard>
       </div>
+
+      <LinkedInAiCard userId={viewingUserId(scope)} />
 
       <ExtensionPanel />
 

@@ -15,6 +15,8 @@ export type AnalysisResult = {
   eligibility?: string | null;
   /** When false, extension should not click "Not interested" (e.g. AI provider outage). */
   linkedInDismiss?: boolean;
+  /** Who answered, "provider:model" (a fresh verdict only). */
+  model?: string;
 };
 
 // The default prompt lives in lib/defaultPrompt.ts (shared with the admin UI and /api/setup).
@@ -53,17 +55,32 @@ export async function promptConfigFor(userId: number): Promise<PromptConfig> {
   };
 }
 
-// The profile only nudges the score; the hard reject rules always win.
+// The profile's skills only nudge the score; its facts about work
+// authorization, visas and where the candidate will work decide the location
+// rules (R2, R3, R5) as they say.
 function profileBlock(profile: CandidateProfile | null | undefined): string {
   if (!profile) return "";
   return `==================== CANDIDATE PROFILE ====================
 ${profileSummary(profile)}
 
-Use the profile as SOFT signals only — never to override a hard reject rule:
+Its work authorization, visa, contract and relocation facts decide R2, R3 and R5. Its skills and experience are SOFT signals only, never a reason to override a hard reject rule:
 S5. Strong overlap between the job's core stack / seniority and the candidate's skills and experience → positive.
 S6. Role clearly far more senior than the candidate's experience, or a core required technology the candidate lacks → negative.
 
 `;
+}
+
+// Long postings keep their start and their end: where the job is and who can
+// apply are often in the last lines.
+export function clip(text: string, limit: number): string {
+  if (text.length <= limit) return text;
+  const tail = Math.floor(limit * 0.3);
+  return `${text.slice(0, limit - tail - 3)}\n…\n${text.slice(-tail)}`;
+}
+
+/** Who the candidate is, the first line of every analysis prompt. */
+function candidateLine(config: PromptConfig): string {
+  return `You are a strict job-suitability classifier. The candidate is a software developer based in ${config.currentLocation}. Target market: ${config.targetMarket}.`;
 }
 
 // Insert the profile block into a single-job template: at {{CANDIDATE_PROFILE}}
@@ -85,7 +102,7 @@ function buildPrompt(
     .replace(/\{\{JOB_TITLE\}\}/g, job.title)
     .replace(/\{\{COMPANY\}\}/g, job.company)
     .replace(/\{\{LOCATION\}\}/g, job.location || "Not specified")
-    .replace(/\{\{DESCRIPTION\}\}/g, (job.description || "No description available").substring(0, 6000))
+    .replace(/\{\{DESCRIPTION\}\}/g, clip(job.description || "No description available", 6000))
     .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
     .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
 }
@@ -140,11 +157,14 @@ type PendingJobRow = {
 const BATCH_DESCRIPTION_LIMIT = 3000;
 
 // Pull the rules + rubric out of an analysis-prompt template so the batch
-// prompt reuses the exact criteria the single-job path uses. Falls back to the
-// default template if a customised prompt dropped the section markers.
+// prompt reuses the exact criteria the single-job path uses: from HOW TO JUDGE
+// (or, in an older custom prompt, HARD REJECT RULES) to the OUTPUT CONTRACT.
+// Falls back to the default template if a customised prompt dropped the
+// section markers.
 function extractRulesCore(template: string): string {
   const slice = (t: string): string | null => {
-    const start = t.search(/={3,}\s*HARD REJECT RULES/i);
+    const guide = t.search(/={3,}\s*HOW TO JUDGE/i);
+    const start = guide !== -1 ? guide : t.search(/={3,}\s*HARD REJECT RULES/i);
     const end = t.search(/={3,}\s*OUTPUT CONTRACT/i);
     if (start !== -1 && end !== -1 && end > start) return t.slice(start, end).trim();
     return null;
@@ -159,12 +179,12 @@ function buildBatchPrompt(jobs: PendingJobRow[], config: PromptConfig): string {
 
   const jobBlocks = jobs
     .map((j) => {
-      const desc = (j.description || "No description available").substring(0, BATCH_DESCRIPTION_LIMIT);
+      const desc = clip(j.description || "No description available", BATCH_DESCRIPTION_LIMIT);
       return `### JOB id=${j.id}\nJOB_TITLE: ${j.title}\nCOMPANY: ${j.company}\nLOCATION: ${j.location || "Not specified"}\nDESCRIPTION:\n${desc}`;
     })
     .join("\n\n");
 
-  return `You are a strict job-suitability classifier for a software developer based in ${config.currentLocation} who is targeting ${config.targetMarket} positions.
+  return `${candidateLine(config)}
 
 You will be given ${jobs.length} job postings. Analyze EACH ONE INDEPENDENTLY against the rules below — a verdict on one job must never influence another.
 
@@ -244,7 +264,7 @@ export function buildClaudeSystemPrompt(config: PromptConfig): string {
   const rules = extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT)
     .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
     .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
-  return `You are a strict job-suitability classifier for a software developer based in ${config.currentLocation} who is targeting ${config.targetMarket} positions.
+  return `${candidateLine(config)}
 
 You are given one or more job postings. Judge each one independently against the rules below — a verdict on one job must never influence another.
 
@@ -258,7 +278,7 @@ ${profileBlock(config.profile)}==================== OUTPUT ====================
 }
 
 function jobBlock(job: { title: string; company: string; location: string | null; description: string | null }, limit: number): string {
-  const desc = (job.description || "No description available").substring(0, limit);
+  const desc = clip(job.description || "No description available", limit);
   return `JOB_TITLE: ${job.title}\nCOMPANY: ${job.company}\nLOCATION: ${job.location || "Not specified"}\nDESCRIPTION:\n${desc}`;
 }
 
@@ -402,24 +422,17 @@ export async function analyzeJob(
   signal?: AbortSignal,
   options: AnalyzeJobOptions = {},
 ): Promise<AnalysisResult> {
-  // atomic check: only analyze if still PENDING (prevents double-analysis race condition)
-  const updated = await prisma.scrapedJob.updateMany({
-    where: { id: jobId, status: "PENDING" },
-    data: { status: "PENDING" },
-  });
-  if (updated.count === 0) {
-    const existing = await prisma.scrapedJob.findUnique({ where: { id: jobId } });
-    if (!existing) throw new Error(`Job ${jobId} not found`);
-    return {
-      approved: existing.status === "APPROVED",
-      score: existing.aiScore || 0,
-      reason: existing.aiReason || "Already analyzed",
-      techStack: existing.techStack?.split(", ") || [],
-    };
-  }
-
+  // Only a job still waiting for its verdict is analyzed; one already judged returns its verdict.
   const job = await prisma.scrapedJob.findUnique({ where: { id: jobId } });
   if (!job) throw new Error(`Job ${jobId} not found`);
+  if (job.status !== "PENDING") {
+    return {
+      approved: job.status === "APPROVED",
+      score: job.aiScore || 0,
+      reason: job.aiReason || "Already analyzed",
+      techStack: job.techStack?.split(", ") || [],
+    };
+  }
 
   // skip jobs with no useful description (waste of tokens)
   if (!job.description || job.description.trim().length < 50) {
@@ -506,30 +519,32 @@ export async function analyzeJob(
   }
   const durationMs = Date.now() - startTime;
 
-  await prisma.scrapedJob.update({
-    where: { id: jobId },
-    data: {
-      status: result.approved ? "APPROVED" : "REJECTED",
-      aiScore: result.score,
-      aiReason: result.reason,
-      techStack: result.techStack.length > 0 ? result.techStack.join(", ") : null,
-      eligibility: result.eligibility ?? null,
-    },
-  });
+  // The verdict and its log entry together.
+  await Promise.all([
+    prisma.scrapedJob.update({
+      where: { id: jobId },
+      data: {
+        status: result.approved ? "APPROVED" : "REJECTED",
+        aiScore: result.score,
+        aiReason: result.reason,
+        techStack: result.techStack.length > 0 ? result.techStack.join(", ") : null,
+        eligibility: result.eligibility ?? null,
+      },
+    }),
+    prisma.analysisLog.create({
+      data: {
+        scrapedJobId: jobId,
+        model: llmResult.model,
+        approved: result.approved,
+        score: result.score,
+        reason: result.reason,
+        tokensUsed: llmResult.tokensUsed,
+        durationMs,
+      },
+    }),
+  ]);
 
-  await prisma.analysisLog.create({
-    data: {
-      scrapedJobId: jobId,
-      model: llmResult.model,
-      approved: result.approved,
-      score: result.score,
-      reason: result.reason,
-      tokensUsed: llmResult.tokensUsed,
-      durationMs,
-    },
-  });
-
-  return result;
+  return { ...result, model: llmResult.model };
 }
 
 export type AnalyzeBatchOptions = {

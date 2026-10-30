@@ -59,6 +59,7 @@ type JobDetail = {
   salary: string | null;
   techStack: string | null;
   status: JobStatus;
+  sheetSynced: boolean;
   aiScore: number | null;
   aiReason: string | null;
   stage: JobStage | null;
@@ -83,6 +84,8 @@ type DetailResponse = {
   interviews: Interview[];
   drafts: Draft[];
   writing: WritingSetup;
+  /** Its user's Google Sheet: set up or not, and the tab the job goes to. */
+  sheet?: { configured: boolean; tab: string };
 };
 
 // The reasons an archived application can have (Rejected is its own stage).
@@ -249,6 +252,15 @@ export function JobDetailSheet({
                   {typeof signals.postedText === 'string' ? <li>Posted: {signals.postedText}</li> : null}
                   {signals.reposted === true ? <li className="text-tier-maybe-ink">LinkedIn marks this posting as reposted.</li> : null}
                   {typeof signals.applicants === 'string' ? <li>Applicants: {signals.applicants}</li> : null}
+                  {data.sheet && (job.sheetSynced || job.status === 'APPROVED') ? (
+                    <li data-testid="sheet-line">
+                      {job.sheetSynced
+                        ? `In the Google Sheet (${data.sheet.tab} tab).`
+                        : data.sheet.configured
+                          ? `Approved, not in the Google Sheet yet: it goes to the ${data.sheet.tab} tab with the next sync.`
+                          : 'Approved, not in a Google Sheet: this user has none set up (Settings → Google Sheet).'}
+                    </li>
+                  ) : null}
                 </ul>
               </section>
 

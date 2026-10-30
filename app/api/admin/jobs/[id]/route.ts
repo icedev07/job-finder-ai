@@ -1,11 +1,13 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { jobTimeline } from "@/lib/applicationEvents";
 import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
+import { getConfig } from "@/lib/config";
 import { jobInterviews } from "@/lib/interviews";
 import { prisma } from "@/lib/prisma";
 import { parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
 import { setSentResume } from "@/lib/resumes";
 import { adminActor, adminScope, userWhere } from "@/lib/scope";
+import { getUserSettings } from "@/lib/userSettings";
 import { jobDrafts, writingResumes } from "@/lib/writing";
 
 export const dynamic = "force-dynamic";
@@ -21,14 +23,20 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (scope instanceof NextResponse) return scope;
   const id = Number((await params).id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
-  const job = await prisma.scrapedJob.findFirst({
-    where: { id, ...userWhere(scope) },
-    include: { analysisLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
-  });
+  // The job, and what needs only its id, at once (a job out of view returns 404 and the rest is dropped).
+  const [job, events, interviews, drafts] = await Promise.all([
+    prisma.scrapedJob.findFirst({
+      where: { id, ...userWhere(scope) },
+      include: { analysisLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
+    }),
+    jobTimeline(id),
+    jobInterviews(id),
+    jobDrafts(id),
+  ]);
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60_000);
-  const [sameCompany, resume, events, interviews, drafts, writing] = await Promise.all([
+  const [sameCompany, resume, writing, settings, config] = await Promise.all([
     prisma.scrapedJob.count({
       where: {
         userId: job.userId,
@@ -40,11 +48,15 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     job.resumeId
       ? prisma.resume.findUnique({ where: { id: job.resumeId }, select: { id: true, name: true, fileName: true } })
       : Promise.resolve(null),
-    jobTimeline(id),
-    jobInterviews(id),
-    jobDrafts(id),
     writingResumes(job),
+    getUserSettings(job.userId),
+    getConfig(),
   ]);
+  // Its user's Google Sheet: whether there is one, and the tab the job goes to.
+  const sheet = {
+    configured: !!(config.googleSheetsCredentials && settings.googleSheetId),
+    tab: job.platform === "linkedin" ? settings.linkedinSheetTab : settings.jobsSheetTab,
+  };
 
   let signals: Record<string, unknown> | null = null;
   try {
@@ -67,6 +79,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     interviews,
     drafts,
     writing,
+    sheet,
   });
 }
 

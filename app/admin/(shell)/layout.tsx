@@ -1,7 +1,8 @@
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 
 import { AppSidebar } from "@/components/shell/app-sidebar";
-import { StatusProvider } from "@/components/shell/status-provider";
+import { StatusProvider, StatusSeed } from "@/components/shell/status-provider";
 import { TopBar } from "@/components/shell/top-bar";
 import { ViewingBanner, ViewingContent, ViewingProvider } from "@/components/shell/viewing";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -19,19 +20,26 @@ async function initialStatus(scope: AdminScope): Promise<StatusSnapshot | null> 
   }
 }
 
+// The status strip and badges fill in when their numbers arrive: no page waits for them.
+async function InitialStatus({ scope }: { scope: AdminScope }) {
+  return <StatusSeed value={await initialStatus(scope)} />;
+}
+
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {
   const jar = await cookies();
   // proxy.ts already redirects signed-out visitors; this also checks the user
   // (disabled, signed out everywhere) and redirects to the login page.
   const scope = await pageScope();
   const { admin } = scope;
-  const status = await initialStatus(scope);
   const sidebarOpen = jar.get("sidebar_state")?.value !== "false";
   const users = scope.users.map((u) => ({ id: u.id, username: u.username, name: u.name, role: u.role, active: u.active }));
 
   return (
     <ViewingProvider initial={scope.viewing} users={users} me={admin.id}>
-    <StatusProvider initial={status}>
+    <StatusProvider>
+      <Suspense fallback={null}>
+        <InitialStatus scope={scope} />
+      </Suspense>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <a
           href="#content"

@@ -6,6 +6,7 @@ import { cache } from "react";
 import type { Actor } from "./applicationEvents";
 import { describeDbError } from "./dbErrors";
 import { PATH_HEADER, SESSION_COOKIE, readSessionToken, type SessionPayload } from "./session";
+import { isWrite, markStatusStale } from "./statusCache";
 import { getUserFresh, invalidateUserCache, listUsers, type UserRow } from "./users";
 import { getUserSettings, type UserSettings } from "./userSettings";
 
@@ -73,6 +74,8 @@ const UNAUTHENTICATED = { error: "Not signed in. Open /admin and log in again.",
 export async function requireAdmin(req: NextRequest): Promise<UserRow | NextResponse> {
   const payload = await readSessionToken(req.cookies.get(SESSION_COOKIE)?.value);
   if (!payload) return NextResponse.json(UNAUTHENTICATED, { status: 401 });
+  // A change is coming: the status strip and checklist read everything again.
+  if (isWrite(req.method)) markStatusStale();
   let admin: UserRow | null;
   try {
     admin = await signedInAdmin(payload, await listUsers());

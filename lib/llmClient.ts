@@ -917,8 +917,19 @@ const ROTATION_PROVIDERS: Record<ProviderId, RotationProvider> = {
 };
 
 // A transient (non-rate-limit) failure parks the provider briefly so the next
-// call in the same run reaches a healthy provider first.
+// call in the same run reaches a healthy provider first. Failing again right
+// after doubles the pause (up to 10 minutes): a provider that keeps hanging
+// would otherwise cost a LinkedIn job its full attempt timeout every time it
+// is tried. A success clears it.
 const TRANSIENT_COOLDOWN_MS = 45_000;
+const MAX_TRANSIENT_COOLDOWN_MS = 10 * 60_000;
+const providerStrikes = new Map<ProviderId, number>();
+
+function transientCooldownMs(id: ProviderId): number {
+  const strikes = (providerStrikes.get(id) ?? 0) + 1;
+  providerStrikes.set(id, strikes);
+  return Math.min(MAX_TRANSIENT_COOLDOWN_MS, TRANSIENT_COOLDOWN_MS * 2 ** (strikes - 1));
+}
 // Upper bound on one provider attempt, so a hung provider cannot eat the whole
 // serverless budget before the next provider in the route gets a turn.
 const DEFAULT_CALL_TIMEOUT_MS = 40_000;
@@ -1015,6 +1026,7 @@ export async function generateForTask(
     const startedAt = Date.now();
     try {
       const result = await p.run(request, config, route, attemptSignal(signal, timeoutMs), timeoutMs);
+      providerStrikes.delete(p.id);
       await recordAiUsage({
         userId: options.userId,
         task: usageTask,
@@ -1048,7 +1060,7 @@ export async function generateForTask(
       });
       // A refusal is about this one prompt, not the provider — don't park it.
       const cooldown =
-        e instanceof LLMRateLimitedError ? e.retryAfterMs : e instanceof ClaudeRefusalError ? 0 : TRANSIENT_COOLDOWN_MS;
+        e instanceof LLMRateLimitedError ? e.retryAfterMs : e instanceof ClaudeRefusalError ? 0 : transientCooldownMs(p.id);
       if (cooldown > 0) providerCooldownUntil.set(p.id, { until: Date.now() + cooldown, reason: message.slice(0, 120) });
       soonestRetryMs = Math.min(soonestRetryMs, cooldown || TRANSIENT_COOLDOWN_MS);
       attempts.push(`${p.label}: ${message}`);

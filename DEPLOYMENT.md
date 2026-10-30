@@ -150,6 +150,7 @@ What it costs depends on the model you pick for each route; see [README → Clau
    - `CRON_SECRET`: a long random string (see below). Vercel Cron sends it with the daily scan; without it the scan is refused.
    - `SESSION_SECRET`: another long random string. It signs admin sessions.
 7. Click **Deploy**
+8. Run the app next to its database: open **Settings → Functions → Function Region** and pick the region of your Supabase project from Step 1 (for example **Frankfurt, `fra1`** for `eu-central-1`, **Washington, D.C., `iad1`** for `us-east-1`), then redeploy. Every database query waits one round trip between the two, so this makes every page and the extension faster. **Setup → Speed** in the admin panel shows the round trip and names the region.
 
 To generate a random string, run one of these locally:
 
@@ -260,8 +261,8 @@ Enable the job sources you want under **Sources** and run **Scrape all sources**
 
 ### Publish a new extension version
 
-1. Raise `"version"` in `extension/manifest.json` (for example `2.1.0` → `2.1.1`), commit and push to `main`.
-2. On GitHub, **Actions → Release extension** runs by itself: it checks the manifest, zips the folder and publishes the release `extension-v2.1.1` with the file `job-finder-extension-v2.1.1.zip`, install steps and a SHA-256 checksum. It takes about a minute.
+1. Raise `"version"` in `extension/manifest.json` (for example `2.2.0` → `2.2.1`), commit and push to `main`.
+2. On GitHub, **Actions → Release extension** runs by itself: it checks the manifest, zips the folder and publishes the release `extension-v2.2.1` with the file `job-finder-extension-v2.2.1.zip`, install steps and a SHA-256 checksum. It takes about a minute.
 3. A push that keeps the version publishes nothing. **Run workflow** on the same Actions page starts it by hand.
 4. If a run fails with "Resource not accessible by integration", open **Settings → Actions → General → Workflow permissions**, choose **Read and write permissions**, save, and re-run it.
 
@@ -361,6 +362,10 @@ The AI's approvals are sent at the end of each scan, LinkedIn ones as the extens
 ---
 
 ## Troubleshooting
+
+**Pages or the extension are slow**
+- Open **Setup → Speed** (or hover the status bar's DB chip). A round trip above about 25 ms means the app runs far from the database: set Vercel's Function Region to the one it names (see Step 4) and redeploy.
+- **Admin → Extension → AI for LinkedIn jobs** shows which models judge LinkedIn jobs and how often they failed in the last 7 days. A free provider that keeps failing slows every job until it rests; put a fast one (Cerebras, Groq) or Claude Haiku first on the LinkedIn extension route.
 
 **Cannot sign in**
 - The first admin's user ID is `admin`. On a new install the password is `admin`; after an upgrade from 4.0 it is your old admin password.

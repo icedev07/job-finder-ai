@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { StatusDot, type StatusTone } from '@/components/common/status-dot';
 import { useStatus } from '@/components/shell/status-provider';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { formatBytes, formatPercent, formatUsd, timeAgo } from '@/lib/format';
+import { formatBytes, formatPercent, formatUsd, NEAR_DB_MS, timeAgo } from '@/lib/format';
 import type { StatusSnapshot } from '@/lib/status';
 import { cn } from '@/lib/utils';
 
@@ -82,16 +82,23 @@ export function statusChips(s: StatusSnapshot): Chip[] {
 
   if (s.db.sizeBytes != null) {
     const pct = (s.db.sizeBytes / s.db.limitBytes) * 100;
+    // A far database slows every page: its round trip shows next to the size.
+    const far = s.db.latencyMs != null && s.db.latencyMs >= NEAR_DB_MS;
+    const sizeTone: StatusTone = pct >= 90 ? 'error' : pct >= 75 ? 'warn' : 'ok';
     chips.push({
       key: 'db',
       label: 'DB',
-      value: formatBytes(s.db.sizeBytes),
-      tone: pct >= 90 ? 'error' : pct >= 75 ? 'warn' : 'ok',
-      href: '/admin/data',
+      value: far ? `${formatBytes(s.db.sizeBytes)} · ${s.db.latencyMs} ms` : formatBytes(s.db.sizeBytes),
+      tone: sizeTone === 'error' ? 'error' : far || sizeTone === 'warn' ? 'warn' : 'ok',
+      href: far ? '/admin/setup#region' : '/admin/data',
       meter: Math.min(100, pct),
       details: [
         ['Size', formatBytes(s.db.sizeBytes)],
         ['Supabase free limit', formatBytes(s.db.limitBytes)],
+        ['Query round trip', s.db.latencyMs != null ? `${s.db.latencyMs} ms` : 'unknown'],
+        ...(s.db.databaseRegion ? ([['Database region', s.db.databaseRegion]] as [string, string][]) : []),
+        ...(s.db.functionRegion ? ([['App region', s.db.functionRegion]] as [string, string][]) : []),
+        ...(s.db.suggest ? ([['Faster', `Function Region ${s.db.suggest.city} (${s.db.suggest.id})`]] as [string, string][]) : []),
       ],
     });
   }

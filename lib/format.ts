@@ -9,6 +9,9 @@ function isNum(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n);
 }
 
+/** Under this a database query's round trip means the app runs next to its database (lib/dbLatency.ts). */
+export const NEAR_DB_MS = 25;
+
 /** 1284 → "1.3K", null → "—". */
 export function formatCompact(n: number | null | undefined): string {
   return isNum(n) ? compactFmt.format(n) : EMPTY;

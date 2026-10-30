@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { describeDbError } from "@/lib/dbErrors";
 import { pageScope, type AdminScope } from "@/lib/scope";
-import { getStatusSnapshot, type StatusSnapshot } from "@/lib/status";
+import { freshStatusSnapshot, type StatusSnapshot } from "@/lib/status";
+import { NEAR_DB_MS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Setup" };
@@ -22,11 +23,47 @@ export const dynamic = "force-dynamic";
 // failing: this is where people come to fix exactly that.
 async function loadStatus(scope: AdminScope): Promise<{ status: StatusSnapshot | null; dbError: string | null }> {
   try {
-    return { status: await getStatusSnapshot(scope), dbError: null };
+    return { status: await freshStatusSnapshot(scope), dbError: null };
   } catch (e) {
     console.error("[setup] status unavailable:", (e as Error)?.message);
     return { status: null, dbError: describeDbError(e) };
   }
+}
+
+// Every database query waits one round trip: a database in another region slows every page.
+function RegionCard({ db }: { db: StatusSnapshot["db"] }) {
+  const far = db.latencyMs != null && db.latencyMs >= NEAR_DB_MS;
+  return (
+    <div id="region" className="scroll-mt-20">
+      <SectionCard
+        title="Speed — run the app next to its database"
+        description={
+          db.latencyMs == null
+            ? "The database did not answer the timing check."
+            : `Each database query takes about ${db.latencyMs} ms${far ? ": the app and its database are far apart, and every page waits for that many times over." : ": the app runs next to its database."}`
+        }
+      >
+        {far ? (
+          <ol className="list-decimal space-y-1 pl-5 text-sm">
+            <li>Vercel → your project → Settings → Functions → Function Region.</li>
+            <li>
+              {db.suggest ? (
+                <>
+                  Pick <strong>{db.suggest.city}</strong> (<code>{db.suggest.id}</code>), where your Supabase database is (
+                  <code>{db.databaseRegion}</code>); the app now runs in <code>{db.functionRegion}</code>.
+                </>
+              ) : (
+                <>Pick the region closest to your Supabase project (Supabase → Project Settings → General shows its region).</>
+              )}
+            </li>
+            <li>Redeploy. Pages, the extension and the Google Sheet all get faster.</li>
+          </ol>
+        ) : (
+          <p className="text-sm text-muted-foreground">Nothing to do.</p>
+        )}
+      </SectionCard>
+    </div>
+  );
 }
 
 function Checklist({ setup }: { setup: StatusSnapshot["setup"] }) {
@@ -103,6 +140,8 @@ export default async function SetupPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      {status ? <RegionCard db={status.db} /> : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div id="cron" className="scroll-mt-20">

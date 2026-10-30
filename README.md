@@ -2,7 +2,21 @@
 
 Automated job finder for software developers: it finds remote and on-site jobs, has AI judge each one against where the candidate is based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, profile, results and Google Sheet, and admins manage all of them from one dashboard.
 
-It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews. Version 4.7 adds **Writing**, AI drafts for each application (resume match, cover letter, intro, follow-up and interview prep), and insights into every application on the Dashboard.
+It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews. Version 4.7 adds **Writing**, AI drafts for each application (resume match, cover letter, intro, follow-up and interview prep), and insights into every application on the Dashboard. Version 4.8, with extension 2.2, makes the pages and the extension faster, judges LinkedIn jobs with their Remote / Hybrid / On-site label against each user's own market, and keeps each job in one row of its Google Sheet tab.
+
+## Upgrading from 4.7
+
+Version 4.8 needs no database change. Deploy it, update the Chrome extension to 2.2.0 (below), and that's it.
+
+- **Faster pages.** No page waits for the status bar any more, and the Dashboard shows its tiles and charts first; Next actions, interviews and insights follow as they arrive. The status bar, the Applications board, a job's panel and the Dashboard make far fewer database round trips, and the parts of the status that rarely change are kept for a minute (any change reads them again).
+- **Run the app next to its database.** Every database query waits one round trip between Vercel and Supabase. The status bar's DB chip now shows that time when it is high, and **Setup → Speed** names the Vercel Function Region next to your Supabase project (for example Frankfurt, `fra1`, for `eu-central-1`). Changing it (Vercel → your project → Settings → Functions → Function Region, then redeploy) is the biggest speed-up when the two are far apart.
+- **A faster extension.** The extension's call answers sooner: one query where there were three, and the job goes to the Google Sheet after the extension has its answer. Extension 2.2.0 moves on as soon as LinkedIn shows the job it clicked, instead of always waiting almost 3 seconds, and asks LinkedIn for the job's apply link while the page loads.
+- **Better LinkedIn verdicts.** Extension 2.2.0 sends LinkedIn's Remote / Hybrid / On-site label with the location ("Berlin, Germany · Remote"). The built-in analysis prompt judges every location rule against the user's own location and market (its examples no longer assume someone outside the US who wants Europe), uses the work authorization, visa and relocation facts of the profile when it is used for matching, keeps the start and the end of long postings, and asks every model where the employer can hire. Users on the built-in prompt get the new one; a prompt you edited stays as it is.
+- **Which AI judges LinkedIn jobs.** **Admin → Extension → AI for LinkedIn jobs** lists the LinkedIn extension route's providers with their models and keys, and which models answered in the last 7 days. The popup shows the model under each job.
+- **One row per job in the Google Sheet.** **Sync Sheets** now writes only board jobs to the Jobs tab and adds every approved LinkedIn job missing from the LinkedIn tab (before, it copied LinkedIn jobs into the Jobs tab and marked them as sent, so some never reached the LinkedIn tab). A job's panel says whether it is in its user's sheet, and which tab, or why not.
+- **Steadier AI failover.** A provider that fails again right after a rest rests longer each time (45 seconds, then 1.5, 3 and 6 minutes, up to 10), so a hanging provider stops holding up every LinkedIn job.
+
+To update the extension: extract `job-finder-extension-v2.2.0.zip` from the [newest release](https://github.com/icedev07/job-finder-ai/releases/latest) over the old folder (or pull), then click the reload icon in `chrome://extensions`.
 
 ## Upgrading from 4.6
 
@@ -124,12 +138,12 @@ With more than one user, the **Viewing** menu at the top right picks whose data 
 | Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern, for one user or for everyone. Rules run before the AI, so they also save quota |
 | AI | `/admin/ai` | Providers & keys, per-task routes, usage & cost, playground, evaluations |
 | Profile & resumes | `/admin/profile` | Each user's candidate profile, resume files and the answer bank used by autofill |
-| Extension | `/admin/extension` | Server URL and install steps, every browser signed in to the extension (sign one out), each user's extension settings, Easy Apply stats, supported form sites, the old shared key of extension 2.0 |
+| Extension | `/admin/extension` | Server URL and install steps, which AI judges LinkedIn jobs (and which models answered in the last 7 days), every browser signed in to the extension (sign one out), each user's extension settings, Easy Apply stats, supported form sites, the old shared key of extension 2.0 |
 | Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role, where they are based, target market, optionally a copy of another user's search options, skip rules or profile), rename, change the role, set a new password, disable or enable, sign out everywhere, delete (with all their data) |
 | Logs | `/admin/logs` | All jobs, AI analysis log, scan logs, extension logs |
 | Data | `/admin/data` | Storage use against the Supabase free 500 MB, safe clean-ups, exports, SQL console (read-only by default) |
 | Settings | `/admin/settings` | Each user's target market and location, profile in matching, Review on or off and its score band, Applications on or off with the follow-up days and when a saved or unanswered application shows in Next actions, analysis prompt, job boards and Google Sheet; the app-wide Google service account; your password |
-| Setup | `/admin/setup` | 14-step checklist from database to first scan; per-user steps name who is missing what |
+| Setup | `/admin/setup` | 15-step checklist from database to first scan; per-user steps name who is missing what; **Speed** shows how far the database is and the Vercel Function Region next to it |
 
 The top bar shows the last scan, AI calls in the last 24 hours, Claude spend against the budget, database size, and when the extension last reported in.
 
@@ -204,7 +218,7 @@ The `extension/` folder holds **Job Finder**, a Manifest V3 Chrome extension (Ch
 
 1. Open LinkedIn and search for jobs.
 2. Click the extension icon, then **Start Scan**.
-3. The extension opens each job and sends it to your server, where the **LinkedIn extension** route judges it against the location, target market and profile of the user it works for.
+3. The extension opens each job and sends it, with LinkedIn's Remote / Hybrid / On-site label next to the location, to your server, where the **LinkedIn extension** route judges it against the location, target market and profile of the user it works for. The popup shows the verdict and which model gave it.
 4. Rejected jobs are hidden on LinkedIn (tick **Also hide approved jobs on LinkedIn** to hide those too).
 5. Approved jobs are saved as that user's and pushed to the "LinkedIn" tab of their Google Sheet.
 
@@ -241,7 +255,7 @@ Extension 2.0 and older had no sign-in: they send the **old shared key** from **
 
 The **Release extension** workflow (`.github/workflows/release-extension.yml`) publishes the extension as a GitHub release:
 
-1. Raise `"version"` in `extension/manifest.json`, for example from `2.1.0` to `2.1.1`.
+1. Raise `"version"` in `extension/manifest.json`, for example from `2.2.0` to `2.2.1`.
 2. Commit and push to `main`.
 3. The workflow checks the manifest, zips `extension/` as `job-finder-extension-v2.1.1.zip` and publishes the release `extension-v2.1.1`. The release notes have install and update steps, a link to the changes since the previous release, and the zip's SHA-256 checksum.
 
@@ -402,7 +416,7 @@ Each scan checks every job with AI as it runs, stores only the suitable / not-su
                          |                     +---------------+
                          v
 +-------------------+       +---------------------------------------+
-| PostgreSQL        |       | Chrome extension 2.1 (Job Finder)     |
+| PostgreSQL        |       | Chrome extension 2.2 (Job Finder)     |
 | (Supabase free)   |       |  - LinkedIn scanner (popup)           |
 +-------------------+       |  - Autofill side panel (ATS forms)    |
                             +---------------------------------------+
@@ -453,7 +467,7 @@ Other scripts: `npm run build`, `npm run lint`, `npm run typecheck`, `npm run pr
 3. Add the environment variables `DATABASE_URL` (Supabase session pooler URI, port `5432`), `CRON_SECRET` and `SESSION_SECRET`.
 4. Deploy.
 5. Visit `https://your-app.vercel.app/api/setup` once to create the database tables.
-6. Sign in at `/admin` and work through **Setup**.
+6. Sign in at `/admin` and work through **Setup**. Its **Speed** step names the Vercel Function Region next to your database.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed step-by-step instructions.
 
@@ -467,13 +481,15 @@ postgresql://postgres.[ref]:[PASSWORD]@aws-[n]-[region].pooler.supabase.com:5432
 
 Important: use port `5432` (session pooler), not `6543` (transaction pooler).
 
+Run the app in the same region as the database: every query waits one round trip between them. In Vercel → your project → Settings → Functions, set the **Function Region** to the one next to your Supabase project's region (`eu-central-1` → Frankfurt `fra1`, `us-east-1` → Washington `iad1`, …) and redeploy. **Setup → Speed** shows the round trip and names the region.
+
 The session pooler allows about 15 connections for the whole project (free plan), and on Vercel every running function instance keeps its own. The app therefore limits each Vercel instance to 2 connections unless `DATABASE_URL` sets `connection_limit` itself. If **Admin → Setup** or the status bar ever reports "max clients reached", add `connection_limit=1` to the URL (`…/postgres?connection_limit=1`) and redeploy.
 
 ## Google Sheet output
 
 Each user's approved jobs go to their own spreadsheet (**Settings → Google Sheet**, with that user selected). One Google service account writes every sheet (**Settings → Google service account**); share each spreadsheet with its `client_email` as Editor. Several users can share one spreadsheet by giving each their own tab names; a missing tab is created on the first export.
 
-The AI's approvals are sent at the end of each scan (LinkedIn ones as the extension finds them). A job you approve by hand, in Review, Jobs or a job's panel, is sent right away. Board jobs go to the Jobs tab and LinkedIn jobs to the LinkedIn tab. Each job gets one row: rows are never deleted, so a job you reject later keeps its row, and approving it again does not add another. **Sync Sheets** rewrites the Jobs tab with the approved jobs only.
+The AI's approvals are sent at the end of each scan (LinkedIn ones as the extension finds them). A job you approve by hand, in Review, Jobs or a job's panel, is sent right away. Board jobs go to the Jobs tab and LinkedIn jobs to the LinkedIn tab. Each job gets one row: rows are never deleted, so a job you reject later keeps its row, and approving it again does not add another. **Sync Sheets** rewrites the Jobs tab with the approved board jobs only, and adds to the LinkedIn tab every approved LinkedIn job it does not have yet (found by its link). A job's panel says whether it is in the sheet, or why not.
 
 For users with Applications on, both tabs have a **Stage** column that follows the board: Saved, Applied, Interview, Offer, Rejected, or Archived with its reason, for example "Archived (no response)". A new row is written with the job's stage, and moving the job (on the board, in Jobs, in a job's panel, by approving it in Review, or with **Mark as applied** in the extension) updates its cell right away. The column is found by its header, so you can move it; a tab without one gets it next to its last column. The row is found by the job's link (the URL column), or by its title and company when the tab has no URL column. With Applications off, the column is left alone.
 
