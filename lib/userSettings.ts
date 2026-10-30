@@ -23,8 +23,12 @@ export const USER_KEYS = {
   // "false" turns Applications off: jobs approved by hand stay out of Saved,
   // no follow-up reminders, and the board and its sheet Stage column are left alone.
   APPLICATIONS_ENABLED: "applications_enabled",
-  // Days after "Applied" before a follow-up is due.
+  // Days after "Applied" (or an interview) before a follow-up is due.
   FOLLOWUP_DAYS: "followup_days",
+  // Next actions: days a job can sit in Saved before "apply or archive it", and
+  // days without an answer after applying before "close it?" (0 = never).
+  SAVED_REMINDER_DAYS: "saved_reminder_days",
+  NO_ANSWER_DAYS: "no_answer_days",
   GOOGLE_SHEET_ID: "google_sheet_id",
   JOBS_SHEET_TAB: "jobs_sheet_tab",
   LINKEDIN_SHEET_TAB: "linkedin_sheet_tab",
@@ -54,6 +58,8 @@ export const SEARCH_KEYS: UserKey[] = [
   USER_KEYS.REVIEW_BAND_MAX,
   USER_KEYS.APPLICATIONS_ENABLED,
   USER_KEYS.FOLLOWUP_DAYS,
+  USER_KEYS.SAVED_REMINDER_DAYS,
+  USER_KEYS.NO_ANSWER_DAYS,
   USER_KEYS.SCAN_BOARDS,
   USER_KEYS.EXTENSION_SETTINGS,
 ];
@@ -71,6 +77,10 @@ export type UserSettings = {
   /** The Applications board: off, jobs approved by hand stay out of Saved and there are no reminders. */
   applicationsEnabled: boolean;
   followUpDays: number;
+  /** Next actions: a job saved this many days ago is due to be applied to or archived (0 = never). */
+  savedReminderDays: number;
+  /** Next actions: an application with no answer this many days after applying is due to be closed (0 = never). */
+  noAnswerDays: number;
   googleSheetId: string;
   jobsSheetTab: string;
   linkedinSheetTab: string;
@@ -132,6 +142,8 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     reviewBandMax: clampInt(v[USER_KEYS.REVIEW_BAND_MAX], 0, 100, 70),
     applicationsEnabled: v[USER_KEYS.APPLICATIONS_ENABLED] !== "false",
     followUpDays: clampInt(v[USER_KEYS.FOLLOWUP_DAYS], 1, 60, 7),
+    savedReminderDays: clampInt(v[USER_KEYS.SAVED_REMINDER_DAYS], 0, 90, 7),
+    noAnswerDays: clampInt(v[USER_KEYS.NO_ANSWER_DAYS], 0, 180, 21),
     googleSheetId: (v[USER_KEYS.GOOGLE_SHEET_ID] || "").trim(),
     jobsSheetTab: (v[USER_KEYS.JOBS_SHEET_TAB] || "").trim() || "Jobs",
     linkedinSheetTab: (v[USER_KEYS.LINKEDIN_SHEET_TAB] || "").trim() || "LinkedIn",

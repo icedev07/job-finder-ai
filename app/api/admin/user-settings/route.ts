@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
     review_band_max: String(s.reviewBandMax),
     applications_enabled: s.applicationsEnabled ? "true" : "false",
     followup_days: String(s.followUpDays),
+    saved_reminder_days: String(s.savedReminderDays),
+    no_answer_days: String(s.noAnswerDays),
     google_sheet_id: s.googleSheetId,
     // Blank tab names mean the defaults ("Jobs", "LinkedIn").
     jobs_sheet_tab: (raw[USER_KEYS.JOBS_SHEET_TAB] || "").trim(),
@@ -84,6 +86,12 @@ export async function PUT(req: NextRequest) {
   }
   if (values.followup_days !== undefined && !intIn(values.followup_days, 1, 60)) {
     return badRequest("Follow-up days must be a whole number from 1 to 60.");
+  }
+  if (values.saved_reminder_days !== undefined && !intIn(values.saved_reminder_days, 0, 90)) {
+    return badRequest("Days in Saved must be a whole number from 0 (never) to 90.");
+  }
+  if (values.no_answer_days !== undefined && !intIn(values.no_answer_days, 0, 180)) {
+    return badRequest("Days without an answer must be a whole number from 0 (never) to 180.");
   }
   for (const key of ["profile_in_matching", "review_enabled", "applications_enabled"] as const) {
     if (values[key] !== undefined && !["true", "false"].includes(values[key])) {

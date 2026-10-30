@@ -3,7 +3,8 @@ import { prisma } from "./prisma";
 // An application's timeline (ApplicationEvent): what happened, when, and who
 // did it. lib/jobActions.ts records stage changes, follow-up dates, notes and
 // close reasons; lib/applications.ts records the extension's "Mark as
-// applied". Recording never fails the change it describes: a write that fails
+// applied"; lib/interviews.ts the interviews; lib/nextActions.ts "Followed
+// up". Recording never fails the change it describes: a write that fails
 // (say, before /api/setup added the table) is logged and dropped.
 
 export type EventVia = "dashboard" | "extension" | "app";
@@ -13,7 +14,7 @@ export type Actor = { id: number | null; via: EventVia };
 
 export const APP_ACTOR: Actor = { id: null, via: "app" };
 
-export type EventKind = "stage" | "reason" | "follow_up" | "note" | "applied";
+export type EventKind = "stage" | "reason" | "follow_up" | "followed_up" | "note" | "applied" | "interview";
 
 export type NewEvent = {
   jobId: number;

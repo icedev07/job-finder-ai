@@ -224,7 +224,9 @@ The first sections belong to the user selected in the **Viewing** menu (with one
 | | Review queue (off: close calls keep the AI verdict) | on |
 | | Review band | `45` – `70` |
 | Applications | Applications board (off: approved jobs stay out of Saved, no reminders) | on |
-| | Follow-up days | `7` |
+| | Follow-up days (after applying or an interview) | `7` |
+| | Days in Saved before Next actions asks to apply (`0` = never) | `7` |
+| | Days without an answer before Next actions suggests closing (`0` = never) | `21` |
 | Job analysis prompt | (blank = built-in prompt) | |
 | Job boards | which boards' new jobs are judged for this user | all |
 | Google Sheet | Spreadsheet ID | the spreadsheet ID from Step 2 |

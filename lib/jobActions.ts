@@ -8,6 +8,8 @@ import { getUserSettings, type UserSettings } from "./userSettings";
 // board, extension "Mark as applied"). One place for the rules:
 //   - moving to APPLIED stamps appliedAt (once) and schedules a follow-up;
 //   - INTERVIEW keeps / sets a follow-up; OFFER, REJECTED and ARCHIVED clear it;
+//     a Saved job's date is a reminder to apply (Next actions, lib/nextActions.ts)
+//     that ends when the job moves on;
 //   - REJECTED closes an application as rejected by the company, ARCHIVED with
 //     the reason given (or none); back in an open stage it has no reason;
 //   - a manual approve/reject overrides the AI status (the routes send a job
@@ -136,7 +138,13 @@ export async function updateJobs(ids: number[], patch: JobPatch, opts: UpdateOpt
   if (followUp !== undefined) {
     for (const r of rows) {
       if (!sameTime(r.followUpAt, followUp)) {
-        events.push({ jobId: r.id, userId: r.userId, kind: "follow_up", detail: { at: followUp?.toISOString() ?? null } });
+        const saved = (patch.stage !== undefined ? patch.stage : r.stage) === "SAVED";
+        events.push({
+          jobId: r.id,
+          userId: r.userId,
+          kind: "follow_up",
+          detail: { at: followUp?.toISOString() ?? null, ...(saved ? { saved: true } : {}) },
+        });
       }
     }
   }
@@ -158,6 +166,12 @@ export async function updateJobs(ids: number[], patch: JobPatch, opts: UpdateOpt
     // Only the jobs it moves: one already there keeps its dates.
     const moving = rows.filter((r) => r.stage !== to);
     const reason: CloseReason | null = to === "REJECTED" ? "REJECTED" : to === "ARCHIVED" ? (patch.closeReason ?? null) : null;
+    // A saved job's date was a reminder to apply: it ends when the job moves on.
+    const reminders = followUp === undefined ? moving.filter((r) => r.stage === "SAVED" && r.followUpAt != null) : [];
+    if (reminders.length && !NO_FOLLOW_UP.includes(to)) {
+      await prisma.scrapedJob.updateMany({ where: { id: { in: reminders.map((r) => r.id) } }, data: { followUpAt: null } });
+    }
+    for (const r of reminders) r.followUpAt = null;
     if (moving.length) {
       const ids = moving.map((r) => r.id);
       await prisma.scrapedJob.updateMany({

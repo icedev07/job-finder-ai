@@ -59,6 +59,13 @@ const dateTimeFmt = new Intl.DateTimeFormat("en", {
   minute: "2-digit",
 });
 const dateFmt = new Intl.DateTimeFormat("en", { year: "numeric", month: "short", day: "numeric" });
+const whenFmt = new Intl.DateTimeFormat("en", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
 /** "2026-10-29" → "Oct 29". */
 export function formatDayKey(key: string): string {
@@ -76,6 +83,13 @@ export function formatDate(v: string | Date | null | undefined): string {
   if (!v) return EMPTY;
   const d = typeof v === "string" ? new Date(v) : v;
   return Number.isNaN(d.getTime()) ? EMPTY : dateFmt.format(d);
+}
+
+/** "Tue, Nov 3, 02:00 PM": an interview's time, in the time zone of whoever runs it (render it in the browser). */
+export function formatWhen(v: string | Date | null | undefined): string {
+  if (!v) return EMPTY;
+  const d = typeof v === "string" ? new Date(v) : v;
+  return Number.isNaN(d.getTime()) ? EMPTY : whenFmt.format(d);
 }
 
 /** "3m ago", "2h ago", "5d ago", "in 2d". */
@@ -144,6 +158,27 @@ export const CLOSE_REASON_LABEL: Record<CloseReason, string> = {
 
 export function isCloseReason(v: unknown): v is CloseReason {
   return typeof v === "string" && (CLOSE_REASONS as readonly string[]).includes(v);
+}
+
+export const INTERVIEW_KINDS = ["HR", "TECHNICAL", "FINAL", "OTHER"] as const;
+export type InterviewKind = (typeof INTERVIEW_KINDS)[number];
+
+export const INTERVIEW_KIND_LABEL: Record<InterviewKind, string> = {
+  HR: "HR / recruiter",
+  TECHNICAL: "Technical",
+  FINAL: "Final",
+  OTHER: "Other",
+};
+
+export function isInterviewKind(v: unknown): v is InterviewKind {
+  return typeof v === "string" && (INTERVIEW_KINDS as readonly string[]).includes(v);
+}
+
+/** "Technical interview", "HR interview", … ("Interview" for Other or an unknown kind). */
+export function interviewName(kind: unknown): string {
+  if (kind === "HR") return "HR interview";
+  if (kind === "TECHNICAL" || kind === "FINAL") return `${INTERVIEW_KIND_LABEL[kind]} interview`;
+  return "Interview";
 }
 
 /** The stage as the Google Sheet shows it: "Applied", "Archived (no response)", "" outside the pipeline. */

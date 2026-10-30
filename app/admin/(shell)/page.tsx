@@ -10,6 +10,7 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { LocalTime } from "@/components/common/local-time";
 import { PageHeader } from "@/components/common/page-header";
 import { SectionCard } from "@/components/common/section-card";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
@@ -23,18 +24,52 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getDashboardData } from "@/lib/dashboard";
-import { formatDayKey, formatNumber, formatPercent, formatUsd, platformLabel, ratio, timeAgo } from "@/lib/format";
-import { pageScope, viewingUserId } from "@/lib/scope";
+import {
+  formatDayKey,
+  formatNumber,
+  formatPercent,
+  formatUsd,
+  INTERVIEW_KIND_LABEL,
+  isInterviewKind,
+  platformLabel,
+  ratio,
+  timeAgo,
+} from "@/lib/format";
+import { upcomingInterviews } from "@/lib/interviews";
+import { listNextActions, type NextActionKind } from "@/lib/nextActions";
+import { pageScope, scopedUsers, viewingUserId, type AdminScope } from "@/lib/scope";
 import { getStatusSnapshot } from "@/lib/status";
 
 export const metadata: Metadata = { title: "Dashboard" };
 export const dynamic = "force-dynamic";
 
+const ACTION_LABEL: Record<NextActionKind, string> = {
+  interview: "Interview",
+  follow_up: "Follow up",
+  no_answer: "No answer",
+  apply: "Apply or archive",
+};
+
+// Next actions and interviews of the users with Applications on (null: off for everyone in view, or unreadable).
+async function applicationsOverview(scope: AdminScope) {
+  try {
+    const users = (await scopedUsers(scope)).filter((u) => u.settings.applicationsEnabled);
+    if (!users.length) return null;
+    const ids = users.map((u) => u.id);
+    const [actions, interviews] = await Promise.all([listNextActions(users, new Date(), 6), upcomingInterviews(ids, 14, 6)]);
+    return { actions, interviews };
+  } catch (err) {
+    console.error(`[dashboard] could not read next actions and interviews: ${(err as Error)?.message || err}`);
+    return null;
+  }
+}
+
 export default async function DashboardPage() {
   const scope = await pageScope();
-  const [data, status] = await Promise.all([
+  const [data, status, overview] = await Promise.all([
     getDashboardData(30, viewingUserId(scope)),
     getStatusSnapshot(scope).catch(() => null),
+    applicationsOverview(scope),
   ]);
   // All users: one row per user, quiet ones included.
   const userRows: UserSummaryRow[] | null =
@@ -133,7 +168,7 @@ export default async function DashboardPage() {
           <KpiTile
             label="Applications"
             value={formatNumber(data.applied)}
-            sub={`${formatNumber(data.interviews)} interviewing · ${formatNumber(status?.counts.followUpsDue ?? 0)} follow-ups due`}
+            sub={`${formatNumber(data.interviews)} interviewing · ${formatNumber(status?.counts.nextActions ?? 0)} next actions`}
             icon={<KanbanIcon />}
             href="/admin/applications"
           />
@@ -179,6 +214,74 @@ export default async function DashboardPage() {
         >
           <UsersTable rows={userRows} />
         </SectionCard>
+      ) : null}
+
+      {overview ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <SectionCard
+            title="Next actions"
+            description="Follow-ups due, interviews in the next two days and reminders, oldest first."
+            actions={
+              <Button size="sm" variant="ghost" nativeButton={false} render={<Link href="/admin/next-actions" />}>
+                {overview.actions.total > overview.actions.items.length ? `See all ${formatNumber(overview.actions.total)}` : "See all"}
+              </Button>
+            }
+          >
+            {overview.actions.items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nothing to do right now.</p>
+            ) : (
+              <ul className="divide-y">
+                {overview.actions.items.map((a) => (
+                  <li key={`${a.kind}-${a.interview?.id ?? a.job.id}`}>
+                    <Link
+                      href={`/admin/applications?job=${a.job.id}`}
+                      className="flex items-center gap-3 rounded-md px-1 py-2 hover:bg-muted/50"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{a.job.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {a.job.company} · {ACTION_LABEL[a.kind]}
+                        </span>
+                      </span>
+                      <UserChip userId={a.job.userId} />
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {a.kind === "interview" ? timeAgo(a.dueAt) : `due ${timeAgo(a.dueAt)}`}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+          <SectionCard title="Upcoming interviews" description="The next 14 days, in your time zone.">
+            {overview.interviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No interviews scheduled. Add them in a job&apos;s panel.</p>
+            ) : (
+              <ul className="divide-y">
+                {overview.interviews.map((i) => (
+                  <li key={i.id}>
+                    <Link
+                      href={`/admin/applications?job=${i.job.id}`}
+                      className="flex items-center gap-3 rounded-md px-1 py-2 hover:bg-muted/50"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{i.job.title}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {i.job.company} · {isInterviewKind(i.kind) ? INTERVIEW_KIND_LABEL[i.kind] : i.kind}
+                        </span>
+                      </span>
+                      <UserChip userId={i.job.userId} />
+                      <span className="shrink-0 text-right text-xs">
+                        <LocalTime value={i.at.toISOString()} className="block" />
+                        <span className="block text-muted-foreground">{timeAgo(i.at)}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </SectionCard>
+        </div>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">

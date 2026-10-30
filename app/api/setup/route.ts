@@ -158,6 +158,26 @@ const EVOLUTION_STATEMENTS = [
       ALTER TABLE "ApplicationEvent" ADD CONSTRAINT "ApplicationEvent_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
   END $$;`,
+  // Interviews: when each application's interviews are, what kind, where to join.
+  `CREATE TABLE IF NOT EXISTS "Interview" (
+    "id" SERIAL NOT NULL,
+    "jobId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "at" TIMESTAMP(3) NOT NULL,
+    "kind" VARCHAR(20) NOT NULL,
+    "link" VARCHAR(2048),
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Interview_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE INDEX IF NOT EXISTS "Interview_jobId_at_idx" ON "Interview"("jobId", "at");`,
+  `CREATE INDEX IF NOT EXISTS "Interview_userId_at_idx" ON "Interview"("userId", "at");`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Interview_jobId_fkey') THEN
+      ALTER TABLE "Interview" ADD CONSTRAINT "Interview_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $$;`,
 ];
 
 // Once every job has its user: close reasons and timelines for the

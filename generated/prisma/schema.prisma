@@ -141,6 +141,7 @@ model ScrapedJob {
 
   analysisLogs AnalysisLog[]
   events       ApplicationEvent[]
+  interviews   Interview[]
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platform, url])
@@ -158,7 +159,7 @@ model ApplicationEvent {
   jobId     Int
   // The job's user: whose application it is.
   userId    Int
-  // stage, follow_up, note or applied.
+  // stage, reason, follow_up, followed_up, note, applied or interview.
   kind      String   @db.VarChar(20)
   fromStage String?  @db.VarChar(20)
   toStage   String?  @db.VarChar(20)
@@ -177,6 +178,28 @@ model ApplicationEvent {
 
   @@index([jobId, createdAt])
   @@index([userId, createdAt])
+}
+
+// An interview of an application: when, what kind, where to join, notes.
+model Interview {
+  id        Int      @id @default(autoincrement())
+  jobId     Int
+  // The job's user: whose interview it is.
+  userId    Int
+  // When it starts.
+  at        DateTime
+  // HR, TECHNICAL, FINAL or OTHER.
+  kind      String   @db.VarChar(20)
+  // The video call link or the address.
+  link      String?  @db.VarChar(2048)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  job ScrapedJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, at])
+  @@index([userId, at])
 }
 
 // ── Admin configuration ─────────────────────────────────────────────────────

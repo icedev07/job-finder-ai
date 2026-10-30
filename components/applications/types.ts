@@ -17,11 +17,13 @@ export type BoardCard = {
   manualApplyUrl: string | null;
   applyMethod: string | null;
   createdAt: string;
+  /** When its next interview starts (one that started in the last hour counts). */
+  nextInterviewAt: string | null;
 };
 
 export type BoardColumn = { stage: JobStage; total: number; cards: BoardCard[] };
 
-/** A user in view: Applications on or off, and their whole pipeline's numbers. */
+/** A user in view: Applications on or off, their whole pipeline's numbers and their next actions. */
 export type BoardUser = {
   id: number;
   on: boolean;
@@ -29,7 +31,7 @@ export type BoardUser = {
   applied: number;
   interview: number;
   offer: number;
-  followUpsDue: number;
+  todo: number;
 };
 
 export type Board = { columns: BoardColumn[]; users: BoardUser[]; sources: { platform: string; count: number }[] };

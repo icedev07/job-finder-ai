@@ -1,5 +1,6 @@
 import {
   BanIcon,
+  BellRingIcon,
   BriefcaseIcon,
   DatabaseIcon,
   FileUserIcon,
@@ -16,7 +17,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-export type NavBadge = 'review' | 'followUps' | 'setup';
+export type NavBadge = 'review' | 'nextActions' | 'setup';
 /** A page each user can have off (Settings); hidden while it is off for everyone in view. */
 export type NavFeature = 'review' | 'applications';
 
@@ -53,10 +54,17 @@ export const NAV_GROUPS: NavGroup[] = [
         keywords: 'queue feedback unsure close calls mark reviewed',
       },
       {
+        title: 'Next actions',
+        href: '/admin/next-actions',
+        icon: BellRingIcon,
+        badge: 'nextActions',
+        feature: 'applications',
+        keywords: 'to do follow-up followed up interview snooze reminder no answer apply',
+      },
+      {
         title: 'Applications',
         href: '/admin/applications',
         icon: KanbanIcon,
-        badge: 'followUps',
         feature: 'applications',
         keywords: 'pipeline board applied interview offer follow-up timeline archive close reason',
       },

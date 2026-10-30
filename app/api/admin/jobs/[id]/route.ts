@@ -1,6 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { jobTimeline } from "@/lib/applicationEvents";
 import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
+import { jobInterviews } from "@/lib/interviews";
 import { prisma } from "@/lib/prisma";
 import { parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
 import { adminActor, adminScope, userWhere } from "@/lib/scope";
@@ -10,8 +11,8 @@ export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
 
 // Full job for the detail panel: description, AI history, apply links, its
-// application's timeline, and how often the same company has shown up (a
-// ghost-job / spam signal).
+// application's interviews and timeline, and how often the same company has
+// shown up (a ghost-job / spam signal).
 export async function GET(req: NextRequest, { params }: Ctx) {
   const scope = await adminScope(req);
   if (scope instanceof NextResponse) return scope;
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60_000);
-  const [sameCompany, resume, events] = await Promise.all([
+  const [sameCompany, resume, events, interviews] = await Promise.all([
     prisma.scrapedJob.count({
       where: {
         userId: job.userId,
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       ? prisma.resume.findUnique({ where: { id: job.resumeId }, select: { id: true, name: true, fileName: true } })
       : Promise.resolve(null),
     jobTimeline(id),
+    jobInterviews(id),
   ]);
 
   let signals: Record<string, unknown> | null = null;
@@ -57,6 +59,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     sameCompany90d: sameCompany,
     resume,
     events,
+    interviews,
   });
 }
 

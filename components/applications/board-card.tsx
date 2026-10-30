@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarClockIcon, ExternalLinkIcon, MoreHorizontalIcon } from 'lucide-react';
+import { CalendarClockIcon, ExternalLinkIcon, MoreHorizontalIcon, UsersRoundIcon } from 'lucide-react';
 
 import { ScoreChip } from '@/components/jobs/chips';
 import { UserChip } from '@/components/shell/viewing';
@@ -17,7 +17,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CLOSE_REASON_LABEL, formatDate, safeHref, STAGE_META, timeAgo, type JobStage } from '@/lib/format';
+import { CLOSE_REASON_LABEL, formatDate, formatWhen, safeHref, STAGE_META, timeAgo, type JobStage } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 import { CLOSE_CHOICES } from './close-dialog';
@@ -49,6 +49,13 @@ function followUpTone(at: string | null): 'overdue' | 'due' | 'later' | null {
   return 'later';
 }
 
+/** A follow-up date on a card (on a saved job, the reminder to apply). */
+function followUpText(tone: 'overdue' | 'due' | 'later', reminder: boolean, at: string | null): string {
+  if (tone === 'overdue') return reminder ? 'reminder due' : 'follow-up overdue';
+  if (tone === 'due') return reminder ? 'reminder today' : 'follow up today';
+  return formatDate(at);
+}
+
 export function BoardCardView({
   card,
   selected,
@@ -75,7 +82,10 @@ export function BoardCardView({
   onDragEnd: () => void;
 }) {
   const c = card;
-  const tone = c.stage === 'APPLIED' || c.stage === 'INTERVIEW' ? followUpTone(c.followUpAt) : null;
+  // A saved job's date is a reminder to apply.
+  const reminder = c.stage === 'SAVED';
+  const tone = c.stage === 'APPLIED' || c.stage === 'INTERVIEW' || reminder ? followUpTone(c.followUpAt) : null;
+  const interview = c.nextInterviewAt && c.stage !== 'REJECTED' && c.stage !== 'ARCHIVED' ? c.nextInterviewAt : null;
   const href = safeHref(c.manualApplyUrl) ?? safeHref(c.url);
   const closed = c.stage === 'ARCHIVED' && c.closeReason ? CLOSE_REASON_LABEL[c.closeReason] : null;
   return (
@@ -157,6 +167,12 @@ export function BoardCardView({
       <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
         {c.appliedAt ? <span>applied {timeAgo(c.appliedAt)}</span> : <span>added {timeAgo(c.stageUpdatedAt ?? c.createdAt)}</span>}
         {closed ? <Badge variant="outline">{closed}</Badge> : null}
+        {interview ? (
+          <Badge variant="outline" className="gap-1 border-amber-500/40" title={`Next interview: ${formatWhen(interview)}`}>
+            <UsersRoundIcon />
+            {formatWhen(interview)}
+          </Badge>
+        ) : null}
         {tone ? (
           <Badge
             variant="outline"
@@ -165,10 +181,10 @@ export function BoardCardView({
               tone === 'overdue' && 'border-red-500/40 text-red-700 dark:text-red-400',
               tone === 'due' && 'border-amber-500/40 text-amber-700 dark:text-amber-400',
             )}
-            title={`Follow up ${formatDate(c.followUpAt)}`}
+            title={`${reminder ? 'Reminder to apply' : 'Follow up'} ${formatDate(c.followUpAt)}`}
           >
             <CalendarClockIcon />
-            {tone === 'overdue' ? 'follow-up overdue' : tone === 'due' ? 'follow up today' : formatDate(c.followUpAt)}
+            {followUpText(tone, reminder, c.followUpAt)}
           </Badge>
         ) : null}
         {href ? (

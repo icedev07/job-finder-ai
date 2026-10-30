@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 import { BOARD_STAGES, BoardCardView, FOLLOW_UPS, inDays } from '@/components/applications/board-card';
 import { CLOSE_CHOICES, CloseDialog } from '@/components/applications/close-dialog';
+import { plural, restoreJobs, UNDO_TOAST_MS, type Before } from '@/components/applications/application-commands';
 import type { Board, BoardCard, BoardColumn, BoardUser, Destination } from '@/components/applications/types';
 import { JobDetailSheet } from '@/components/jobs/job-detail-sheet';
 import { useStatus } from '@/components/shell/status-provider';
@@ -29,7 +30,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Switch } from '@/components/ui/switch';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import { api, errorMessage } from '@/lib/clientApi';
-import { CLOSE_REASON_LABEL, formatNumber, platformLabel, STAGE_META, type CloseReason, type JobStage } from '@/lib/format';
+import { CLOSE_REASON_LABEL, formatNumber, platformLabel, STAGE_META, type JobStage } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 // The Applications board of the user being viewed, or of every user with
@@ -49,15 +50,6 @@ const SCORES = [
 ];
 // The columns ← / → step through (Archived only by 6, the menu or a drop).
 const ARROW_STAGES: JobStage[] = ['SAVED', 'APPLIED', 'INTERVIEW', 'OFFER', 'REJECTED'];
-// Long enough to read the toast and still reach its Undo.
-const UNDO_TOAST_MS = 8000;
-
-/** What a card was before a change, for Undo. */
-type Before = { id: number; stage: JobStage; closeReason: CloseReason | null; followUpAt: string | null };
-
-function plural(n: number, word: string): string {
-  return `${formatNumber(n)} ${word}${n === 1 ? '' : 's'}`;
-}
 
 function destinationText(to: Destination, n: number): string {
   const what = n === 1 ? '' : ` ${formatNumber(n)}`;
@@ -158,27 +150,7 @@ export function ApplicationsView() {
 
   const restore = useCallback(
     async (before: Before[]) => {
-      // One request per earlier state.
-      const groups = new Map<string, Before[]>();
-      for (const b of before) {
-        const key = `${b.stage}|${b.closeReason ?? ''}|${b.followUpAt ?? ''}`;
-        groups.set(key, [...(groups.get(key) ?? []), b]);
-      }
-      try {
-        for (const list of groups.values()) {
-          const b = list[0];
-          await api('/api/admin/jobs', {
-            method: 'PATCH',
-            json: {
-              ids: list.map((x) => x.id),
-              set: { stage: b.stage, followUpAt: b.followUpAt, ...(b.stage === 'ARCHIVED' ? { closeReason: b.closeReason } : {}) },
-            },
-          });
-        }
-        toast.success(`Undone: ${plural(before.length, 'application')} back as they were`);
-      } catch (e) {
-        toast.error(errorMessage(e));
-      }
+      await restoreJobs(before);
       changed();
     },
     [changed],
@@ -561,7 +533,7 @@ export function ApplicationsView() {
   );
 }
 
-/** Each user's pipeline at a glance; a click shows only their cards (again: everyone's). */
+/** Each user's pipeline and next actions at a glance; a click shows only their cards (again: everyone's). */
 function UserStrip({ users, only, onOnly }: { users: BoardUser[]; only: number | null; onOnly: (id: number | null) => void }) {
   const { userName } = useViewing();
   const total = users.reduce(
@@ -569,9 +541,9 @@ function UserStrip({ users, only, onOnly }: { users: BoardUser[]; only: number |
       saved: t.saved + u.saved,
       applied: t.applied + u.applied,
       interview: t.interview + u.interview,
-      followUpsDue: t.followUpsDue + u.followUpsDue,
+      todo: t.todo + u.todo,
     }),
-    { saved: 0, applied: 0, interview: 0, followUpsDue: 0 },
+    { saved: 0, applied: 0, interview: 0, todo: 0 },
   );
   const rows = [{ id: null as number | null, name: 'All users', ...total }, ...users.map((u) => ({ ...u, id: u.id as number | null, name: userName(u.id) }))];
   return (
@@ -593,9 +565,7 @@ function UserStrip({ users, only, onOnly }: { users: BoardUser[]; only: number |
             <span className="text-sm font-medium">{r.name}</span>
             <span className="tabular text-muted-foreground">
               {formatNumber(r.saved)} saved · {formatNumber(r.applied)} applied · {formatNumber(r.interview)} interview
-              {r.followUpsDue ? (
-                <span className="text-amber-700 dark:text-amber-400"> · {formatNumber(r.followUpsDue)} to follow up</span>
-              ) : null}
+              {r.todo ? <span className="text-amber-700 dark:text-amber-400"> · {formatNumber(r.todo)} to do</span> : null}
             </span>
           </button>
         );

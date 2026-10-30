@@ -1,41 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Prisma } from "@/generated/prisma";
+import { CARD_SELECT, withNextInterviews } from "@/lib/applicationCards";
 import { isJobStage, type JobStage } from "@/lib/format";
+import { nextActionCounts } from "@/lib/nextActions";
 import { prisma } from "@/lib/prisma";
 import { adminScope, scopedUsers } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
 // The Applications board of the user being viewed (or of every user with
-// Applications on): each column's cards, newest move first, a page at a time.
+// Applications on): each column's cards, newest move first, a page at a time,
+// each with its next interview.
 //
 // GET ?q=&only=<userId>&platform=a,b&minScore=60&archived=1
 //   → { columns: [{ stage, total, cards }], users: [{ id, on, saved, applied,
-//       interview, offer, followUpsDue }], sources: [{ platform, count }] }
+//       interview, offer, todo }], sources: [{ platform, count }] }
+//   (todo: the user's next actions)
 // GET …&stage=APPLIED&offset=100 → { cards, total }: more of one column.
 
 const OPEN: JobStage[] = ["SAVED", "APPLIED", "INTERVIEW", "OFFER", "REJECTED"];
 const PAGE = 100;
-const DAY_MS = 24 * 60 * 60_000;
-
-const CARD_SELECT = {
-  id: true,
-  userId: true,
-  title: true,
-  company: true,
-  location: true,
-  platform: true,
-  aiScore: true,
-  stage: true,
-  closeReason: true,
-  stageUpdatedAt: true,
-  appliedAt: true,
-  followUpAt: true,
-  url: true,
-  manualApplyUrl: true,
-  applyMethod: true,
-  createdAt: true,
-} satisfies Prisma.ScrapedJobSelect;
 
 const ORDER: Prisma.ScrapedJobOrderByWithRelationInput[] = [
   { stageUpdatedAt: { sort: "desc", nulls: "last" } },
@@ -53,7 +37,8 @@ export async function GET(req: NextRequest) {
   if (scope instanceof NextResponse) return scope;
   const params = new URL(req.url).searchParams;
   const users = await scopedUsers(scope);
-  const on = users.filter((u) => u.settings.applicationsEnabled).map((u) => u.id);
+  const onUsers = users.filter((u) => u.settings.applicationsEnabled);
+  const on = onUsers.map((u) => u.id);
   const only = int(params.get("only"), 1, 2 ** 31 - 1);
   const shown = only != null && on.includes(only) ? [only] : on;
 
@@ -85,27 +70,26 @@ export async function GET(req: NextRequest) {
       prisma.scrapedJob.findMany({ where: where(one), orderBy: ORDER, skip: offset, take: PAGE, select: CARD_SELECT }),
       prisma.scrapedJob.count({ where: where(one) }),
     ]);
-    return NextResponse.json({ cards, total });
+    return NextResponse.json({ cards: await withNextInterviews(cards), total });
   }
 
   const stages: JobStage[] = params.get("archived") === "1" ? [...OPEN, "ARCHIVED"] : OPEN;
-  const soon = new Date(Date.now() + DAY_MS);
-  const [columns, perStage, due, sources] = await Promise.all([
+  const [columns, perStage, todo, sources] = await Promise.all([
     Promise.all(
       stages.map(async (stage) => {
         const [cards, total] = await Promise.all([
           prisma.scrapedJob.findMany({ where: where(stage), orderBy: ORDER, take: PAGE, select: CARD_SELECT }),
           prisma.scrapedJob.count({ where: where(stage) }),
         ]);
-        return { stage, total, cards };
+        return { stage, total, cards: await withNextInterviews(cards) };
       }),
     ),
     // Each user's whole pipeline, for the strip (filters don't apply).
     prisma.scrapedJob.groupBy({ by: ["userId", "stage"], where: { userId: { in: on }, stage: { not: null } }, _count: { _all: true } }),
-    prisma.scrapedJob.groupBy({
-      by: ["userId"],
-      where: { userId: { in: on }, stage: { in: ["APPLIED", "INTERVIEW"] }, followUpAt: { lte: soon } },
-      _count: { _all: true },
+    // The board works without them (before /api/setup added interviews).
+    nextActionCounts(onUsers).catch((err) => {
+      console.error(`[applications] could not count next actions: ${(err as Error)?.message || err}`);
+      return new Map<number, number>();
     }),
     prisma.scrapedJob.groupBy({ by: ["platform"], where: { userId: { in: on }, stage: { not: null } }, _count: { _all: true } }),
   ]);
@@ -121,7 +105,7 @@ export async function GET(req: NextRequest) {
       applied: count(u.id, "APPLIED"),
       interview: count(u.id, "INTERVIEW"),
       offer: count(u.id, "OFFER"),
-      followUpsDue: due.find((r) => r.userId === u.id)?._count._all ?? 0,
+      todo: todo.get(u.id) ?? 0,
     })),
     sources: sources
       .map((r) => ({ platform: r.platform, count: r._count._all }))

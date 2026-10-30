@@ -1,13 +1,24 @@
 'use client';
 
 import { useViewing } from '@/components/shell/viewing';
-import { CLOSE_REASON_LABEL, formatDate, formatDateTime, isCloseReason, isJobStage, STAGE_META } from '@/lib/format';
+import {
+  CLOSE_REASON_LABEL,
+  formatDate,
+  formatDateTime,
+  formatWhen,
+  INTERVIEW_KIND_LABEL,
+  interviewName,
+  isCloseReason,
+  isInterviewKind,
+  isJobStage,
+  STAGE_META,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /** An application's timeline event, as the job API returns it (lib/applicationEvents.ts). */
 export type TimelineEvent = {
   id: number;
-  kind: 'stage' | 'reason' | 'follow_up' | 'note' | 'applied';
+  kind: 'stage' | 'reason' | 'follow_up' | 'followed_up' | 'note' | 'applied' | 'interview';
   fromStage: string | null;
   toStage: string | null;
   detail: Record<string, unknown>;
@@ -46,8 +57,24 @@ export function eventText(e: TimelineEvent): string {
       const reason = reasonLabel(d.reason);
       return reason ? `Close reason: ${reason}` : 'Close reason cleared';
     }
-    case 'follow_up':
-      return typeof d.at === 'string' ? `Follow-up set for ${formatDate(d.at)}` : 'Follow-up cleared';
+    case 'follow_up': {
+      // A saved job's date is a reminder to apply.
+      const what = d.saved ? 'Reminder' : 'Follow-up';
+      return typeof d.at === 'string' ? `${what} set for ${formatDate(d.at)}` : `${what} cleared`;
+    }
+    case 'followed_up':
+      return typeof d.next === 'string' ? `Followed up · next reminder ${formatDate(d.next)}` : 'Followed up';
+    case 'interview': {
+      const name = interviewName(d.kind);
+      const at = formatWhen(typeof d.at === 'string' ? d.at : null);
+      if (d.action === 'removed') return `${name} on ${at} removed`;
+      if (d.action === 'changed') {
+        const moved = typeof d.fromAt === 'string' ? `${name} moved to ${at} (was ${formatWhen(d.fromAt)})` : `${name} on ${at}`;
+        const kind = isInterviewKind(d.fromKind) ? ` · was ${INTERVIEW_KIND_LABEL[d.fromKind]}` : '';
+        return `${moved}${kind}${followUp}`;
+      }
+      return `${name} scheduled for ${at}${followUp}`;
+    }
     case 'note':
       return d.cleared ? 'Notes cleared' : `Note: “${String(d.text ?? '')}${d.more ? '…' : ''}”`;
     case 'applied': {
@@ -64,11 +91,11 @@ export function eventText(e: TimelineEvent): string {
   }
 }
 
-/** Every stage change, close reason, follow-up date, note and "Mark as applied", newest first, with who did it. */
+/** Every stage change, close reason, interview, follow-up, note and "Mark as applied", newest first, with who did it. */
 export function Timeline({ events }: { events: TimelineEvent[] }) {
   const { userName } = useViewing();
   if (events.length === 0) {
-    return <p className="text-sm text-muted-foreground">Nothing yet: moves, follow-ups and notes show up here.</p>;
+    return <p className="text-sm text-muted-foreground">Nothing yet: moves, interviews, follow-ups and notes show up here.</p>;
   }
   const who = (e: TimelineEvent) => {
     if (e.detail.imported) return null;
@@ -78,7 +105,7 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
   return (
     <ol className="relative space-y-3 border-l pl-4" aria-label="Timeline">
       {events.map((e) => {
-        const stage = e.kind === 'stage' || e.kind === 'applied' ? e.toStage : null;
+        const stage = e.kind === 'stage' || e.kind === 'applied' ? e.toStage : e.kind === 'interview' ? 'INTERVIEW' : null;
         const by = who(e);
         return (
           <li key={e.id} className="relative text-sm">

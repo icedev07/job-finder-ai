@@ -7,6 +7,7 @@ import { parseAiRoutes, type ProviderId } from "./aiRoutes";
 import { listExtensionBrowsers } from "./extensionTokens";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
+import { nextActionCounts } from "./nextActions";
 import { hasReview, reviewQueueWhere } from "./review";
 import { scopedUsers, type AdminScope } from "./scope";
 import { usesDefaultPassword } from "./users";
@@ -37,7 +38,8 @@ export type StatusSnapshot = {
   sheets: { configured: boolean; unsynced: number };
   /** browsers: signed in to the extension, any user; keySet: the old shared key (extension 2.0) is on. */
   extension: { keySet: boolean; lastSeen: string | null; browsers: number };
-  counts: { pending: number; review: number; followUpsDue: number; approved24h: number; applied: number };
+  /** nextActions: follow-ups due, interviews coming up and the rest of Next actions (lib/nextActions.ts). */
+  counts: { pending: number; review: number; nextActions: number; approved24h: number; applied: number };
   /** Review / Applications is on for at least one user in view (off, the page and its badge are hidden). */
   features: { review: boolean; applications: boolean };
   warnings: { defaultPassword: boolean; cronSecretMissing: boolean; sessionSecretMissing: boolean };
@@ -80,8 +82,8 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
   const mine = scope.viewing === "all" ? {} : { userId: scope.viewing };
   const reviewOn = hasReview(users);
   const reviewWhere = reviewQueueWhere(users, now);
-  // Follow-ups count only for users with Applications on.
-  const pipelineUsers = users.filter((u) => u.settings.applicationsEnabled).map((u) => u.id);
+  // Next actions count only for users with Applications on.
+  const pipelineUsers = users.filter((u) => u.settings.applicationsEnabled);
   const applicationsOn = pipelineUsers.length > 0;
 
   const [
@@ -94,7 +96,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     lastLinkedInJob,
     pending,
     review,
-    followUpsDue,
+    nextActions,
     approved24h,
     applied,
     defaultPassword,
@@ -135,15 +137,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
     soft(reviewOn ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
     soft(
-      applicationsOn
-        ? prisma.scrapedJob.count({
-            where: {
-              userId: { in: pipelineUsers },
-              stage: { in: ["APPLIED", "INTERVIEW"] },
-              followUpAt: { lte: new Date(now.getTime() + 24 * 60 * 60_000) },
-            },
-          })
-        : Promise.resolve(0),
+      nextActionCounts(pipelineUsers, now).then((c) => [...c.values()].reduce((s, n) => s + n, 0)),
       0,
     ),
     soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
@@ -157,7 +151,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     // The newest table and column: both exist once /api/setup ran after the last upgrade.
     soft(
       prisma
-        .$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"ApplicationEvent"') IS NOT NULL
+        .$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Interview"') IS NOT NULL
           AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ScrapedJob' AND column_name = 'closeReason') AS ok`
         .then((r) => !!r[0]?.ok),
       false,
@@ -320,7 +314,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       lastSeen: extensionLastSeen?.toISOString() ?? null,
       browsers: extensionBrowsers,
     },
-    counts: { pending, review, followUpsDue, approved24h, applied },
+    counts: { pending, review, nextActions, approved24h, applied },
     features: { review: reviewOn, applications: applicationsOn },
     warnings: { defaultPassword, cronSecretMissing, sessionSecretMissing },
     setup: { done: steps.filter((s) => s.done).length, total: steps.length, steps },

@@ -6,12 +6,15 @@ import {
   ExternalLinkIcon,
   FlaskConicalIcon,
   LoaderCircleIcon,
+  MessageSquareReplyIcon,
   RefreshCwIcon,
   SendIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
 
+import { markFollowedUp } from '@/components/applications/application-commands';
+import { Interviews, type Interview } from '@/components/applications/interviews';
 import { Timeline, type TimelineEvent } from '@/components/applications/timeline';
 import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
 import { FeedbackButtons } from '@/components/jobs/feedback-buttons';
@@ -74,6 +77,7 @@ type DetailResponse = {
   sameCompany90d: number;
   resume: { id: number; name: string; fileName: string } | null;
   events: TimelineEvent[];
+  interviews: Interview[];
 };
 
 // The reasons an archived application can have (Rejected is its own stage).
@@ -237,20 +241,33 @@ export function JobDetailSheet({
 
               <section className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label htmlFor="followup">Follow-up date</Label>
-                  <Input
-                    id="followup"
-                    type="date"
-                    defaultValue={dateInput(job.followUpAt)}
-                    key={job.followUpAt ?? 'none'}
-                    onChange={(e) =>
-                      void patchJobs(
-                        [job.id],
-                        { followUpAt: e.target.value ? new Date(`${e.target.value}T09:00:00`).toISOString() : null },
-                        { success: e.target.value ? `Follow-up on ${formatDate(e.target.value)}` : 'Follow-up cleared', onDone: changed },
-                      )
-                    }
-                  />
+                  <Label htmlFor="followup">{job.stage === 'SAVED' ? 'Reminder to apply' : 'Follow-up date'}</Label>
+                  {/* On a phone the button goes under the date. */}
+                  <div className="flex flex-wrap gap-2">
+                    <Input
+                      id="followup"
+                      type="date"
+                      className="w-auto min-w-0 flex-1 basis-36"
+                      defaultValue={dateInput(job.followUpAt)}
+                      key={job.followUpAt ?? 'none'}
+                      onChange={(e) =>
+                        void patchJobs(
+                          [job.id],
+                          { followUpAt: e.target.value ? new Date(`${e.target.value}T09:00:00`).toISOString() : null },
+                          {
+                            success: `${job.stage === 'SAVED' ? 'Reminder' : 'Follow-up'} ${e.target.value ? `on ${formatDate(e.target.value)}` : 'cleared'}`,
+                            onDone: changed,
+                          },
+                        )
+                      }
+                    />
+                    {job.stage === 'APPLIED' || job.stage === 'INTERVIEW' ? (
+                      <Button size="sm" variant="outline" className="h-9 shrink-0" onClick={() => void markFollowedUp([job.id], changed)}>
+                        <MessageSquareReplyIcon />
+                        Followed up
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="space-y-1.5 text-sm">
                   <Label>Applied</Label>
@@ -296,7 +313,7 @@ export function JobDetailSheet({
                     rows={3}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Recruiter name, interview dates, impressions…"
+                    placeholder="Recruiter name, salary talks, impressions…"
                   />
                   <div className="flex justify-end">
                     <Button
@@ -330,6 +347,10 @@ export function JobDetailSheet({
                   </section>
                 </>
               ) : null}
+
+              <Separator />
+
+              <Interviews jobId={job.id} interviews={data.interviews ?? []} onChanged={changed} />
 
               <Separator />
 

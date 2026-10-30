@@ -37,6 +37,8 @@ const KEYS = [
   'review_band_max',
   'applications_enabled',
   'followup_days',
+  'saved_reminder_days',
+  'no_answer_days',
   'job_analysis_prompt',
   'scan_boards',
   'google_sheet_id',
@@ -55,6 +57,8 @@ const LABEL: Record<Key, string> = {
   review_band_max: 'Review band',
   applications_enabled: 'Applications',
   followup_days: 'Follow-up days',
+  saved_reminder_days: 'Days in Saved',
+  no_answer_days: 'Days without an answer',
   job_analysis_prompt: 'Analysis prompt',
   scan_boards: 'Job boards',
   google_sheet_id: 'Sheet ID',
@@ -262,10 +266,13 @@ function UserSettingsForm() {
               <div className="space-y-0.5">
                 <FieldLabel htmlFor="applications-enabled">Applications board</FieldLabel>
                 <FieldDescription>
-                  Jobs approved by hand land in Saved, with follow-up reminders, a timeline for each application and a Stage
-                  column in the Google Sheet that follows the board. Off: approved jobs stay out of Saved, there are no
-                  reminders, the sheet&apos;s Stage column is left alone, and{' '}
-                  {multiUser ? `${loaded.user.name}'s applications stay off the board` : 'Applications and its badge are hidden'}.
+                  Jobs approved by hand land in Saved, with follow-up reminders, interviews, Next actions, a timeline for each
+                  application and a Stage column in the Google Sheet that follows the board. Off: approved jobs stay out of
+                  Saved, there are no reminders, the sheet&apos;s Stage column is left alone, and{' '}
+                  {multiUser
+                    ? `${loaded.user.name}'s applications stay off the board and Next actions`
+                    : 'Applications and Next actions are hidden'}
+                  .
                 </FieldDescription>
               </div>
             </Field>
@@ -279,7 +286,36 @@ function UserSettingsForm() {
                 onChange={(e) => set('followup_days')(e.target.value)}
                 disabled={!applicationsOn}
               />
-              <FieldDescription>When a job is marked Applied, a follow-up reminder is set this many days later.</FieldDescription>
+              <FieldDescription>
+                When a job is marked Applied, and after each interview, a follow-up reminder is set this many days later.
+              </FieldDescription>
+            </Field>
+            <Field data-disabled={!applicationsOn || undefined}>
+              <FieldLabel htmlFor="saved-reminder">Remind to apply after (days in Saved)</FieldLabel>
+              <Input
+                id="saved-reminder"
+                inputMode="numeric"
+                className="w-24"
+                value={draft.saved_reminder_days}
+                onChange={(e) => set('saved_reminder_days')(e.target.value)}
+                disabled={!applicationsOn}
+              />
+              <FieldDescription>A saved job not applied to by then shows in Next actions. 0: never.</FieldDescription>
+            </Field>
+            <Field data-disabled={!applicationsOn || undefined}>
+              <FieldLabel htmlFor="no-answer">Suggest closing after (days without an answer)</FieldLabel>
+              <Input
+                id="no-answer"
+                inputMode="numeric"
+                className="w-24"
+                value={draft.no_answer_days}
+                onChange={(e) => set('no_answer_days')(e.target.value)}
+                disabled={!applicationsOn}
+              />
+              <FieldDescription>
+                An application with no answer this long after applying shows in Next actions, ready to close as no response.
+                0: never.
+              </FieldDescription>
             </Field>
           </FieldGroup>
         </SectionCard>

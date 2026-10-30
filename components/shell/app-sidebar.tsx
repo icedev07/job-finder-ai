@@ -26,18 +26,18 @@ import { formatCompact } from '@/lib/format';
 
 const BADGE_LABEL: Record<NavBadge, (n: number) => string> = {
   review: (n) => `${n} jobs to review`,
-  followUps: (n) => `${n} follow-ups due`,
+  nextActions: (n) => `${n} next actions`,
   setup: (n) => `${n} setup steps left`,
 };
 
-/** Left navigation: grouped sections with active state and live counts (review queue, follow-ups, setup). */
+/** Left navigation: grouped sections with active state and live counts (review queue, next actions, setup). */
 export function AppSidebar({ version, account }: { version: string; account: { name: string; username: string } }) {
   const pathname = usePathname();
   const { setOpenMobile, isMobile } = useSidebar();
   const { snapshot } = useStatus();
   const counts: Record<NavBadge, number> = {
     review: snapshot?.counts.review ?? 0,
-    followUps: snapshot?.counts.followUpsDue ?? 0,
+    nextActions: snapshot?.counts.nextActions ?? 0,
     setup: snapshot ? snapshot.setup.steps.filter((s) => !s.done && !s.optional).length : 0,
   };
   const active = activeNavItem(pathname, NAV_ITEMS);
