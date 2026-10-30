@@ -33,6 +33,10 @@ export const CONFIG_KEYS = {
   GOOGLE_SHEETS_CREDENTIALS: "google_sheets_credentials",
   // The spreadsheet for everyone: users set to it get their own tabs there.
   SHARED_SHEET_ID: "shared_sheet_id",
+  // Job sources that need a (free) key.
+  REED_API_KEY: "reed_api_key",
+  ADZUNA_APP_ID: "adzuna_app_id",
+  ADZUNA_APP_KEY: "adzuna_app_key",
   // The old shared extension key: it still works and acts as the first admin.
   EXTENSION_API_KEY: "extension_api_key",
   ANALYZER_REQUEST_DELAY_MS: "analyzer_request_delay_ms",
@@ -61,6 +65,8 @@ export const SECRET_CONFIG_KEYS = [
   CONFIG_KEYS.ANTHROPIC_API_KEY,
   CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS,
   CONFIG_KEYS.EXTENSION_API_KEY,
+  CONFIG_KEYS.REED_API_KEY,
+  CONFIG_KEYS.ADZUNA_APP_KEY,
 ] as const;
 
 export type SecretConfigKey = (typeof SECRET_CONFIG_KEYS)[number];

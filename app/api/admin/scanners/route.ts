@@ -6,6 +6,12 @@ import { adminOnly } from "@/lib/scope";
 export const dynamic = "force-dynamic";
 
 const SCANNER_KEY_PREFIXES = [
+  // European search engines and public employment services
+  "eures",
+  "arbeitsagentur",
+  "jobtech",
+  "reed",
+  "adzuna",
   "remoteok",
   "jobicy",
   "landingjobs",

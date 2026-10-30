@@ -24,6 +24,8 @@ type LandingJobsRaw = {
   locations?: Array<{ city?: string; country_code?: string }>;
   remote?: boolean;
   is_remote?: boolean;
+  published_at?: string;
+  created_at?: string;
   salary?: string;
   salary_min?: number;
   salary_max?: number;
@@ -100,6 +102,13 @@ function buildDescription(j: LandingJobsRaw): string {
   return parts.filter(Boolean).join("\n\n").trim();
 }
 
+/** A date the board gives, as ISO 8601 (null when it does not parse). */
+function iso(value: string | number | null | undefined, unit: "ms" | "s" = "ms"): string | null {
+  if (value == null || value === "") return null;
+  const t = typeof value === "number" ? value * (unit === "s" ? 1000 : 1) : Date.parse(value);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 export const landingJobsFeed: Feed = {
   key: "landingjobs",
   label: "Landing.Jobs",
@@ -133,6 +142,9 @@ export const landingJobsFeed: Feed = {
         location: locationOf(entry),
         description: (description + tagSuffix).trim() || null,
         salary: formatSalary(entry),
+        postedAt: iso(entry.published_at ?? entry.created_at),
+        workplace: entry.is_remote || entry.remote ? "remote" : null,
+        country: entry.is_remote || entry.remote ? null : entry.locations?.[0]?.country_code?.toUpperCase() ?? null,
       });
       if (jobs.length >= maxJobs) break;
     }

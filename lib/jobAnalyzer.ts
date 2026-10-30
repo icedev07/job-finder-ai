@@ -32,6 +32,8 @@ function coerceEligibility(v: unknown): string | null {
 type PromptConfig = {
   targetMarket: string;
   currentLocation: string;
+  /** The roles they look for (Settings → What to look for); none = a software developer. */
+  roles?: string[];
   jobAnalysisPrompt: string;
   /** The candidate profile, when "use my profile when judging jobs" is on. */
   profile?: CandidateProfile | null;
@@ -50,6 +52,7 @@ export async function promptConfigFor(userId: number): Promise<PromptConfig> {
   return {
     targetMarket: promptMarket(settings),
     currentLocation: promptLocation(settings),
+    roles: settings.searchProfile.roles,
     jobAnalysisPrompt: settings.jobAnalysisPrompt,
     profile,
   };
@@ -78,9 +81,24 @@ export function clip(text: string, limit: number): string {
   return `${text.slice(0, limit - tail - 3)}\n…\n${text.slice(-tail)}`;
 }
 
+/** Who the candidate is: the roles they look for (a software developer when none are set) and where they are based. */
+function candidateSentence(config: PromptConfig): string {
+  return config.roles?.length
+    ? `The candidate looks for these roles: ${config.roles.join(", ")}. They are based in ${config.currentLocation}.`
+    : `The candidate is a software developer based in ${config.currentLocation}.`;
+}
+
 /** Who the candidate is, the first line of every analysis prompt. */
 function candidateLine(config: PromptConfig): string {
-  return `You are a strict job-suitability classifier. The candidate is a software developer based in ${config.currentLocation}. Target market: ${config.targetMarket}.`;
+  return `You are a strict job-suitability classifier. ${candidateSentence(config)} Target market: ${config.targetMarket}.`;
+}
+
+/** A prompt's placeholders about the candidate. */
+function fillCandidate(text: string, config: PromptConfig): string {
+  return text
+    .replace(/\{\{CANDIDATE\}\}/g, candidateSentence(config))
+    .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
+    .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
 }
 
 // Insert the profile block into a single-job template: at {{CANDIDATE_PROFILE}}
@@ -98,13 +116,14 @@ function buildPrompt(
   config: PromptConfig,
 ): string {
   const template = withProfile(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT, config.profile);
-  return template
-    .replace(/\{\{JOB_TITLE\}\}/g, job.title)
-    .replace(/\{\{COMPANY\}\}/g, job.company)
-    .replace(/\{\{LOCATION\}\}/g, job.location || "Not specified")
-    .replace(/\{\{DESCRIPTION\}\}/g, clip(job.description || "No description available", 6000))
-    .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
-    .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
+  return fillCandidate(
+    template
+      .replace(/\{\{JOB_TITLE\}\}/g, job.title)
+      .replace(/\{\{COMPANY\}\}/g, job.company)
+      .replace(/\{\{LOCATION\}\}/g, job.location || "Not specified")
+      .replace(/\{\{DESCRIPTION\}\}/g, clip(job.description || "No description available", 6000)),
+    config,
+  );
 }
 
 // Small models sometimes answer "approved":"false" (a string), which !!value
@@ -173,9 +192,7 @@ function extractRulesCore(template: string): string {
 }
 
 function buildBatchPrompt(jobs: PendingJobRow[], config: PromptConfig): string {
-  const rules = extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT)
-    .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
-    .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
+  const rules = fillCandidate(extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT), config);
 
   const jobBlocks = jobs
     .map((j) => {
@@ -261,9 +278,7 @@ export const BATCH_VERDICT_SCHEMA: Record<string, unknown> = {
 };
 
 export function buildClaudeSystemPrompt(config: PromptConfig): string {
-  const rules = extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT)
-    .replace(/\{\{TARGET_MARKET\}\}/g, config.targetMarket)
-    .replace(/\{\{CURRENT_LOCATION\}\}/g, config.currentLocation);
+  const rules = fillCandidate(extractRulesCore(config.jobAnalysisPrompt || DEFAULT_ANALYSIS_PROMPT), config);
   return `${candidateLine(config)}
 
 You are given one or more job postings. Judge each one independently against the rules below — a verdict on one job must never influence another.

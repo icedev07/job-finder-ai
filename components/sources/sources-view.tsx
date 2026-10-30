@@ -1,6 +1,7 @@
 'use client';
 
-import { CircleAlertIcon, GemIcon, RefreshCwIcon } from 'lucide-react';
+import { CircleAlertIcon, GlobeIcon, RefreshCwIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 
@@ -29,6 +30,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, ApiError, errorMessage } from '@/lib/clientApi';
 import { formatNumber } from '@/lib/format';
+import { sourceEnabled } from '@/lib/sourceMeta';
+import { useAdminConfig } from '@/lib/useAdminConfig';
 
 const GRID = 'grid gap-4 @2xl/sources:grid-cols-2 @6xl/sources:grid-cols-3';
 
@@ -105,24 +108,43 @@ async function analyzeBatchOnce(): Promise<BatchResult> {
   }
 }
 
-function HiddenGemsNote() {
-  return (
-    <Alert>
-      <GemIcon />
-      <AlertTitle>Hidden job sources</AlertTitle>
-      <AlertDescription>
-        Low-competition, zero-auth feeds that bypass the crowded commercial boards: public JSON APIs and the monthly
-        Hacker News “Who is hiring?” thread. Switch each one on to include it in scans; every enabled source is
-        checked by the AI inline and runs as part of <strong>Scrape all sources</strong>. No login or API key
-        required.
-      </AlertDescription>
-    </Alert>
-  );
+// What the tab's sources do, above their cards.
+function TabNote({ tab }: { tab: string }) {
+  if (tab === 'europe') {
+    return (
+      <Alert>
+        <GlobeIcon />
+        <AlertTitle>The European job market</AlertTitle>
+        <AlertDescription>
+          The search engines and public employment services here search each user&apos;s roles in their countries (
+          <Link href="/admin/settings#search" className="underline underline-offset-2">
+            Settings → What to look for
+          </Link>
+          ), and every posting from every source goes through that free check before the AI. Reed and Adzuna need a free key.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (tab === 'us') {
+    return (
+      <Alert>
+        <GlobeIcon />
+        <AlertTitle>Mostly US, or remote jobs mostly closed to Europe</AlertTitle>
+        <AlertDescription>
+          These start off. Switch one on to scan it too: its postings go through each user&apos;s free check, which leaves out
+          remote jobs limited to the US.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  return null;
 }
 
 /** The Sources page: scanner settings per job board, single and full scans, and the pending-analysis queue. */
 export function SourcesView({ initialTab }: { initialTab: string }) {
   const { refresh: refreshStatus } = useStatus();
+  // The app-wide settings, for the keys some sources need (Reed, Adzuna).
+  const { config: appConfig, reload: reloadAppConfig } = useAdminConfig();
   const { viewing, userName } = useViewing();
   const now = useSyncExternalStore(subscribeMinute, thisMinute, serverMinute);
   const [tab, setTab] = useState(initialTab);
@@ -247,7 +269,7 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
   // path. Each board only stores its CHECKED results; nothing is left pending.
   async function runAllBoards() {
     setRunning('all');
-    const enabled = SOURCES.filter((s) => config[`${s.key}_enabled`] !== 'false');
+    const enabled = SOURCES.filter((s) => sourceEnabled(s.key, config));
     const totals = { found: 0, saved: 0, approved: 0, rejected: 0, unanalyzed: 0 };
     const errors: ScrapeAllProgress['errors'] = [];
     for (let idx = 0; idx < enabled.length; idx++) {
@@ -444,6 +466,8 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
             onSave={saveConfig}
             onPersist={persistConfig}
             onRun={() => void runScan(s)}
+            appConfig={appConfig}
+            onKeysSaved={reloadAppConfig}
           />
         ))}
       </div>
@@ -463,7 +487,7 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
 
       <div className="grid gap-4 @4xl/sources:grid-cols-2">
         <PipelineCard
-          enabledCount={SOURCES.filter((s) => config[`${s.key}_enabled`] !== 'false').length}
+          enabledCount={SOURCES.filter((s) => sourceEnabled(s.key, config)).length}
           totalCount={SOURCES.length}
           rescanDays={config.scanner_rescan_after_days ?? '0'}
           ready={ready}
@@ -492,7 +516,6 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
           <TabsList>
             {SOURCE_TABS.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="px-2.5">
-                {t.id === 'hidden' ? <GemIcon /> : null}
                 {t.label}
                 <span className="tabular ml-0.5 rounded-full bg-muted-foreground/10 px-1.5 text-[10px] text-muted-foreground">
                   {t.keys.length}
@@ -503,7 +526,7 @@ export function SourcesView({ initialTab }: { initialTab: string }) {
         </div>
         {SOURCE_TABS.map((t) => (
           <TabsContent key={t.id} value={t.id} className="flex flex-col gap-4">
-            {t.id === 'hidden' ? <HiddenGemsNote /> : null}
+            <TabNote tab={t.id} />
             {renderSources(t.id)}
           </TabsContent>
         ))}

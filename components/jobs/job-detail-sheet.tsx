@@ -43,6 +43,9 @@ import {
   type JobStatus,
 } from '@/lib/format';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
+import { countryName } from '@/lib/searchProfile';
+
+const WORKPLACE_TEXT: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'On-site' };
 
 type AnalysisLog = { id: number; model: string; approved: boolean; score: number | null; reason: string | null; createdAt: string; durationMs: number | null };
 
@@ -250,6 +253,22 @@ export function JobDetailSheet({
                       : `First job from ${job.company} in the last 90 days.`}
                   </li>
                   {typeof signals.postedText === 'string' ? <li>Posted: {signals.postedText}</li> : null}
+                  {typeof signals.postedAt === 'string' ? (
+                    <li>
+                      Posted {formatDate(signals.postedAt)} ({timeAgo(signals.postedAt)})
+                    </li>
+                  ) : null}
+                  {typeof signals.workplace === 'string' || typeof signals.country === 'string' ? (
+                    <li>
+                      {[
+                        typeof signals.workplace === 'string' ? WORKPLACE_TEXT[signals.workplace] ?? signals.workplace : null,
+                        typeof signals.country === 'string' ? countryName(signals.country) : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                      , as the board says.
+                    </li>
+                  ) : null}
                   {signals.reposted === true ? <li className="text-tier-maybe-ink">LinkedIn marks this posting as reposted.</li> : null}
                   {typeof signals.applicants === 'string' ? <li>Applicants: {signals.applicants}</li> : null}
                   {data.sheet && (job.sheetSynced || job.status === 'APPROVED') ? (

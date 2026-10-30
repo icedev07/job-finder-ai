@@ -52,8 +52,8 @@ const quoted = (tabs: string[]) => tabs.map((t) => `“${t}”`).join(' and ');
 /** The last delivery, the last test, or the failure with what to do. */
 function StatusLine({ status }: { status: SheetStatus | null }) {
   if (!status) return <p className="text-xs text-muted-foreground" data-testid="sheet-status">Nothing sent yet.</p>;
-  const when = timeAgo(status.at);
-  const ago = when === 'just now' ? 'just now' : `${when} ago`;
+  // "just now", "5m ago", "3d ago".
+  const ago = timeAgo(status.at);
   if (!status.ok) {
     return (
       <p className="text-xs text-destructive" role="alert" data-testid="sheet-status">

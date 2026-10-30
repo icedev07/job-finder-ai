@@ -70,6 +70,8 @@ export const realWorkFromAnywhereFeed: Feed = {
         location: it.categories?.[0] ? `Worldwide · ${it.categories[0]}` : "Worldwide / Remote",
         description: description || null,
         salary: null,
+        postedAt: it.pubDate && Number.isFinite(Date.parse(it.pubDate)) ? new Date(Date.parse(it.pubDate)).toISOString() : null,
+        workplace: "remote",
       });
       if (jobs.length >= maxJobs) break;
     }

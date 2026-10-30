@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { SaveBar } from '@/components/common/save-bar';
 import { SectionCard } from '@/components/common/section-card';
 import { PasswordCard } from '@/components/settings/password-card';
+import { SearchProfileCard } from '@/components/settings/search-profile-card';
 import { SheetsAppCard, UserSheetCard, type SheetInfo, type SheetKey } from '@/components/settings/sheet-settings';
 import { useStatus } from '@/components/shell/status-provider';
 import { ChooseUser, useViewing } from '@/components/shell/viewing';
@@ -29,6 +30,7 @@ import { useAdminConfig, type AdminConfig } from '@/lib/useAdminConfig';
 // Google service account and the shared spreadsheet, your password).
 
 const KEYS = [
+  'search_profile',
   'target_market',
   'current_location',
   'profile_in_matching',
@@ -50,6 +52,7 @@ const KEYS = [
 type Key = (typeof KEYS)[number];
 
 const LABEL: Record<Key, string> = {
+  search_profile: 'What to look for',
   target_market: 'Target market',
   current_location: 'Based in',
   profile_in_matching: 'Profile in matching',
@@ -191,6 +194,8 @@ function UserSettingsForm({ appConfig }: { appConfig: AdminConfig | null }) {
 
   return (
     <>
+      <SearchProfileCard value={draft.search_profile} onChange={set('search_profile')} whose={whose} />
+
       <SectionCard
         title="Target & matching"
         description={`What the AI judges ${multiUser ? `${loaded.user.name}'s` : 'your'} jobs against.`}

@@ -12,6 +12,7 @@ import {
   sheetTabs,
   spreadsheetIdFrom,
 } from "@/lib/sheetModel";
+import { parseSearchProfile } from "@/lib/searchProfile";
 import { USER_KEYS, getUserConfigRaw, getUserSettings, invalidateUserSettings, isUserKey, setUserConfig } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +72,8 @@ export async function GET(req: NextRequest) {
     },
     // "" = every board; else a JSON array of board keys.
     scan_boards: s.scanBoards == null ? "" : JSON.stringify(s.scanBoards),
+    // JSON SearchProfile (lib/searchProfile.ts), with the defaults filled in.
+    search_profile: JSON.stringify(s.searchProfile),
   });
 }
 
@@ -159,6 +162,16 @@ export async function PUT(req: NextRequest) {
     } catch {
       return badRequest("Sheet columns must be a JSON array (or blank for the defaults).");
     }
+  }
+  if (values.search_profile !== undefined) {
+    try {
+      const parsed = JSON.parse(values.search_profile);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
+    } catch {
+      return badRequest("search_profile must be a JSON object (Settings → What to look for).");
+    }
+    // Stored as it is read: known countries, at most 8 roles, the defaults for the rest.
+    values.search_profile = JSON.stringify(parseSearchProfile(values.search_profile));
   }
   if (values.scan_boards) {
     let boards: unknown;

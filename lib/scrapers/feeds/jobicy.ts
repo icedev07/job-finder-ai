@@ -32,6 +32,13 @@ type JobicyRaw = {
 
 type JobicyResponse = { jobs?: JobicyRaw[] };
 
+/** A date the board gives, as ISO 8601 (null when it does not parse). */
+function iso(value: string | number | null | undefined, unit: "ms" | "s" = "ms"): string | null {
+  if (value == null || value === "") return null;
+  const t = typeof value === "number" ? value * (unit === "s" ? 1000 : 1) : Date.parse(value);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 function buildUrl(searchUrl: string | undefined, count: number): string {
   if (searchUrl && /^https?:/i.test(searchUrl.trim())) {
     try {
@@ -52,6 +59,8 @@ function buildUrl(searchUrl: string | undefined, count: number): string {
     }
   }
   if (!params.has("count")) params.set("count", String(count));
+  // Remote jobs open to European candidates, unless the search names another geo.
+  if (!params.has("geo") && !params.has("jobGeo")) params.set("geo", "europe");
   return `${JOBICY_BASE}?${params.toString()}`;
 }
 
@@ -112,6 +121,8 @@ export const jobicyFeed: Feed = {
         location: entry.jobGeo || "Remote",
         description: description || null,
         salary: formatSalary(entry.annualSalaryMin, entry.annualSalaryMax, entry.salaryCurrency),
+        postedAt: iso(entry.pubDate),
+        workplace: "remote",
       });
       if (jobs.length >= maxJobs) break;
     }

@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.10.0](README.md#upgrading-from-4100), [4.9.1](README.md#upgrading-from-491), [4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.10.1](README.md#upgrading-from-4101), [4.10.0](README.md#upgrading-from-4100), [4.9.1](README.md#upgrading-from-491), [4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -216,6 +216,10 @@ The first sections belong to the user selected in the **Viewing** menu (with one
 
 | Section | Setting | Example value |
 |---------|---------|---------------|
+| What to look for | Roles (one per line) | `Backend Developer`, `.NET Developer` (or **Suggest from the profile**) |
+| | Leave out titles with | `Intern, Werkstudent` |
+| | Countries for on-site and hybrid jobs | Germany, Netherlands |
+| | Workplace, posted within, open to Europe, English only | remote and hybrid, the last 14 days, on, as they need |
 | Target & matching | Target market | `Europe, remote worldwide` |
 | | Where they are based | `Poland` |
 | | Use the profile when judging jobs | on |
@@ -242,7 +246,7 @@ Start the Profile tab with **Fill in from a resume**: choose the resume (PDF, Wo
 
 ### Sources and skip rules
 
-Enable the job sources you want under **Sources** and run **Scrape all sources** once to check everything works. Add **Skip rules** for companies or titles you never want to see.
+**Sources** opens on the European sources, which are on, with the remote boards and companies' careers sites; the boards whose jobs are mostly in the US start off. The European sources search each user's roles (**Settings → What to look for**), so set those first: a user without roles gets nothing from them. For the UK and more countries, add the free keys of **Reed** (reed.co.uk/developers/jobseeker) and **Adzuna** (developer.adzuna.com) on their cards. Run **Scrape all sources** once to check everything works: each scan's log says how many postings the free check left out and why. Add **Skip rules** for companies or titles you never want to see.
 
 ---
 

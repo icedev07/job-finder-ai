@@ -62,17 +62,15 @@ export const leverFeed: Feed = {
     const perCompany = Math.max(5, Math.ceil(maxJobs / Math.max(1, slugs.length)));
     for (const slug of slugs) {
       if (jobs.length >= maxJobs) break;
-      const url = `https://api.lever.co/v0/postings/${encodeURIComponent(slug)}?mode=json`;
+      const headers = {
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
+        "Accept": "application/json",
+      };
+      const path = `/v0/postings/${encodeURIComponent(slug)}?mode=json`;
       try {
-        const res = await fetch(url, {
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36",
-            "Accept": "application/json",
-          },
-          signal,
-          cache: "no-store",
-        });
+        let res = await fetch(`https://api.lever.co${path}`, { headers, signal, cache: "no-store" });
+        // Boards hosted in the EU (e.g. TomTom) are only on Lever's EU host.
+        if (res.status === 404) res = await fetch(`https://api.eu.lever.co${path}`, { headers, signal, cache: "no-store" });
         if (!res.ok) {
           warnings.push(`${slug}: ${res.status}`);
           continue;

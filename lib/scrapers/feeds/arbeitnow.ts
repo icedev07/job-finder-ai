@@ -26,7 +26,17 @@ type ArbeitnowRaw = {
   remote?: boolean;
   tags?: string[];
   job_types?: string[];
+  /** Unix seconds. */
+  created_at?: number;
 };
+
+/** A date the board gives, as ISO 8601 (null when it does not parse). */
+function iso(value: string | number | null | undefined, unit: "ms" | "s" = "ms"): string | null {
+  if (value == null || value === "") return null;
+  const t = typeof value === "number" ? value * (unit === "s" ? 1000 : 1) : Date.parse(value);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 
 type ArbeitnowResponse = {
   data?: ArbeitnowRaw[];
@@ -112,6 +122,8 @@ export const arbeitnowFeed: Feed = {
           location: locationOf(entry),
           description: descWithTags || null,
           salary: null,
+          postedAt: iso(entry.created_at, "s"),
+          workplace: entry.remote ? "remote" : null,
         });
         if (jobs.length >= maxJobs) break;
       }

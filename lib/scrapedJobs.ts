@@ -312,6 +312,8 @@ export async function createAnalyzedScrapedJob(params: {
   description?: string | null;
   salary?: string | null;
   manualApplyUrl?: string | null;
+  /** JSON: what the source said that has no column (posted date, country, workplace). */
+  signals?: string | null;
   verdict: JobVerdict;
 }): Promise<{ id: number } | null> {
   const { verdict } = params;
@@ -337,6 +339,7 @@ export async function createAnalyzedScrapedJob(params: {
         aiReason: verdict.aiReason,
         techStack: verdict.techStack.length > 0 ? verdict.techStack.join(", ") : null,
         eligibility: verdict.eligibility ?? null,
+        signals: params.signals ?? null,
       },
     });
     await prisma.analysisLog.create({

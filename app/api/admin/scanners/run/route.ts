@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { FEED_KEYS, getFeed, runFeedScan } from "@/lib/scrapers";
 import { analyzeAllPending } from "@/lib/jobAnalyzer";
 import { syncApprovedJobsToSheet } from "@/lib/googleSheetsSync";
-import { getAllConfig } from "@/lib/config";
+import { getAllConfig, setConfigValue } from "@/lib/config";
 import { safeEqual } from "@/lib/adminAuth";
 import { adminScope, viewingUserId } from "@/lib/scope";
 
@@ -103,24 +103,31 @@ async function runOne(
   return outcome;
 }
 
+// Where the next scan of every board starts: the first board the last one did not reach.
+const NEXT_BOARD_KEY = "scan_next_board";
+
 // Scrape + analyze feeds in sequence, giving each board a real working window.
-// Boards not reached before the function budget runs out are simply processed
-// on the next run — nothing is left half-stored, and no PENDING rows are
-// created, so re-running is always safe.
+// A run starts where the last one stopped, so the boards at the end of the list
+// get their turn too; boards not reached are processed by the next run.
+// Nothing is left half-stored, and no PENDING rows are created, so re-running
+// is always safe.
 async function runAllSequential(
   sharedConfig: Record<string, string>,
   functionStartedAt: number,
   userIds?: number[],
 ): Promise<RunOutcome[]> {
   const outcomes: RunOutcome[] = [];
-  for (const key of FEED_KEYS) {
+  const start = Math.max(0, FEED_KEYS.indexOf(sharedConfig[NEXT_BOARD_KEY] ?? ""));
+  let i = 0;
+  for (; i < FEED_KEYS.length; i++) {
     const remaining = FUNCTION_BUDGET_MS - (Date.now() - functionStartedAt);
     if (remaining < MIN_BOARD_BUDGET_MS) break;
     // Cap each board so several boards get touched per run instead of one board
     // eating the whole budget.
     const budget = Math.min(30_000, remaining - 4_000);
-    outcomes.push(await runOne(key, sharedConfig, budget, userIds));
+    outcomes.push(await runOne(FEED_KEYS[(start + i) % FEED_KEYS.length], sharedConfig, budget, userIds));
   }
+  await setConfigValue(NEXT_BOARD_KEY, FEED_KEYS[(start + i) % FEED_KEYS.length]).catch(() => undefined);
   return outcomes;
 }
 

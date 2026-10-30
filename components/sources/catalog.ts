@@ -1,4 +1,5 @@
 import greenhouseCuratedSlugs from '@/lib/scrapers/feeds/greenhouse-curated-slugs.json';
+import { SOURCE_META } from '@/lib/sourceMeta';
 
 // Derived from the bundled list so the help text can never drift from reality.
 const GREENHOUSE_CURATED_COUNT = (greenhouseCuratedSlugs as string[]).length;
@@ -14,12 +15,79 @@ export type SourceDef = {
   /** Pre-filled search-url value. Empty for sources that need user input (ATS slugs). */
   defaultSearchUrl: string;
   searchPlaceholder: string;
-  /** "session" sources need a pasted login cookie; every other one is a public, zero-auth feed. */
-  auth: 'public' | 'session';
+  /** "session" sources need a pasted login cookie, "key" ones a (free) API key; the rest are public, zero-auth feeds. */
+  auth: 'public' | 'session' | 'key';
+  /** Searched with each user's roles in their countries (Settings → What to look for): no search field. */
+  searches?: boolean;
+  /** The keys a "key" source needs (app-wide settings; secret ones are write-only). */
+  keys?: { configKey: string; label: string; secret: boolean; placeholder: string }[];
+  /** Where to get the key, or what to know about the source. */
+  note?: string;
 };
 
-// The order matters: "Scrape all sources" scans the enabled boards in this order.
-export const SOURCES: SourceDef[] = [
+const ALL_SOURCES: SourceDef[] = [
+  // European search engines and public employment services: searched with each
+  // user's roles in their countries.
+  {
+    key: 'eures',
+    label: 'EURES (EU job mobility portal)',
+    summary:
+      'Every public employment service in the EU, the EEA and Switzerland: about 2 million jobs in 31 countries (not the UK), with their full text.',
+    defaultMax: 50,
+    defaultSearchUrl: '',
+    searchPlaceholder: '',
+    auth: 'public',
+    searches: true,
+    note: 'The portal’s own search (no official API): if it changes, the scan says so. Source: the European Labour Authority.',
+  },
+  {
+    key: 'arbeitsagentur',
+    label: 'Bundesagentur für Arbeit (Germany)',
+    summary: 'Germany’s largest job database, about 800,000 jobs (mostly in German), with home office and salary.',
+    defaultMax: 50,
+    defaultSearchUrl: '',
+    searchPlaceholder: '',
+    auth: 'public',
+    searches: true,
+    note: 'The search behind arbeitsagentur.de/jobsuche (no official API): if it changes, the scan says so.',
+  },
+  {
+    key: 'jobtech',
+    label: 'Arbetsförmedlingen (Sweden)',
+    summary: 'Every job in Sweden’s Platsbanken through the official, open JobTech API, with the full text and remote work.',
+    defaultMax: 50,
+    defaultSearchUrl: '',
+    searchPlaceholder: '',
+    auth: 'public',
+    searches: true,
+  },
+  {
+    key: 'reed',
+    label: 'Reed (UK)',
+    summary: 'The UK’s largest job board through its official API: English postings, full text.',
+    defaultMax: 50,
+    defaultSearchUrl: '',
+    searchPlaceholder: '',
+    auth: 'key',
+    searches: true,
+    keys: [{ configKey: 'reed_api_key', label: 'Reed API key', secret: true, placeholder: 'Your key from reed.co.uk/developers' }],
+    note: 'Free key: sign up at reed.co.uk/developers/jobseeker.',
+  },
+  {
+    key: 'adzuna',
+    label: 'Adzuna',
+    summary: 'Job boards and employers’ sites in 10 countries (UK, DE, FR, NL, BE, AT, CH, IT, ES, PL); short descriptions only.',
+    defaultMax: 50,
+    defaultSearchUrl: '',
+    searchPlaceholder: '',
+    auth: 'key',
+    searches: true,
+    keys: [
+      { configKey: 'adzuna_app_id', label: 'App ID', secret: false, placeholder: 'e.g. 1a2b3c4d' },
+      { configKey: 'adzuna_app_key', label: 'App key', secret: true, placeholder: 'Your key from developer.adzuna.com' },
+    ],
+    note: 'Free key at developer.adzuna.com. Its terms allow personal job search; a business needs a licence.',
+  },
   // JSON feeds
   {
     key: 'remoteok',
@@ -221,50 +289,50 @@ export const SOURCES: SourceDef[] = [
   },
 ];
 
-export const HIDDEN_SOURCE_KEYS = [
-  'remotive',
-  'workingnomads',
+// The order of "Scrape all sources" (the same as the daily scan's): Europe first.
+const ORDER = [
+  'eures',
+  'arbeitsagentur',
+  'jobtech',
+  'reed',
+  'adzuna',
   'arbeitnow',
+  'landingjobs',
+  'nofluffjobs',
+  'jobicy',
+  'remotive',
+  'realworkfromanywhere',
+  'greenhouse',
+  'lever',
+  'ashby',
+  'remoteok',
+  'workingnomads',
   'hnwhoishiring',
   'themuse',
-  'realworkfromanywhere',
-  'nofluffjobs',
+  'weworkremotely',
+  'jobspresso',
+  'authenticjobs',
+  'nodesk',
+  'justremote',
+  'mygreenhouse',
 ];
+
+export const SOURCES: SourceDef[] = ORDER.map((key) => ALL_SOURCES.find((s) => s.key === key)).filter(
+  (s): s is SourceDef => !!s,
+);
 
 export type SourceTab = { id: string; label: string; keys: string[] };
 
-// Groups by source family, so the Greenhouse pair (public + authenticated
-// portal) lives in one place. "All sources" is the flat view.
+// By where the jobs are (lib/sourceMeta.ts): the European market first.
 export const SOURCE_TABS: SourceTab[] = [
+  { id: 'europe', label: 'Europe', keys: SOURCES.filter((s) => ['europe', 'country'].includes(SOURCE_META[s.key]?.region ?? '')).map((s) => s.key) },
+  { id: 'remote', label: 'Remote', keys: SOURCES.filter((s) => SOURCE_META[s.key]?.region === 'remote').map((s) => s.key) },
+  { id: 'companies', label: 'Companies', keys: SOURCES.filter((s) => SOURCE_META[s.key]?.region === 'companies').map((s) => s.key) },
+  { id: 'us', label: 'US & worldwide', keys: SOURCES.filter((s) => SOURCE_META[s.key]?.region === 'us').map((s) => s.key) },
   { id: 'all', label: 'All sources', keys: SOURCES.map((s) => s.key) },
-  { id: 'hidden', label: 'Hidden gems', keys: HIDDEN_SOURCE_KEYS },
-  { id: 'greenhouse', label: 'Greenhouse', keys: ['greenhouse', 'mygreenhouse'] },
-  { id: 'lever', label: 'Lever', keys: ['lever'] },
-  { id: 'ashby', label: 'Ashby', keys: ['ashby'] },
-  {
-    id: 'rss',
-    label: 'RSS feeds',
-    keys: ['weworkremotely', 'jobspresso', 'authenticjobs', 'nodesk', 'realworkfromanywhere'],
-  },
-  {
-    id: 'json',
-    label: 'JSON feeds',
-    keys: [
-      'remoteok',
-      'jobicy',
-      'landingjobs',
-      'remotive',
-      'workingnomads',
-      'arbeitnow',
-      'hnwhoishiring',
-      'themuse',
-      'nofluffjobs',
-      'justremote',
-    ],
-  },
 ];
 
-export const DEFAULT_SOURCE_TAB = 'hidden';
+export const DEFAULT_SOURCE_TAB = 'europe';
 
 export function isSourceTab(id: string): boolean {
   return SOURCE_TABS.some((t) => t.id === id);

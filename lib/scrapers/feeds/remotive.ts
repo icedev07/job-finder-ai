@@ -26,6 +26,13 @@ type RemotiveRaw = {
 
 type RemotiveResponse = { jobs?: RemotiveRaw[] };
 
+/** A date the board gives, as ISO 8601 (null when it does not parse). */
+function iso(value: string | number | null | undefined, unit: "ms" | "s" = "ms"): string | null {
+  if (value == null || value === "") return null;
+  const t = typeof value === "number" ? value * (unit === "s" ? 1000 : 1) : Date.parse(value);
+  return Number.isFinite(t) && t > 0 ? new Date(t).toISOString() : null;
+}
+
 function buildUrl(searchUrl: string | undefined, count: number): string {
   if (searchUrl && /^https?:/i.test(searchUrl.trim())) {
     const u = new URL(searchUrl.trim());
@@ -87,6 +94,8 @@ export const remotiveFeed: Feed = {
         location: entry.candidate_required_location || "Remote",
         description: descWithTags || null,
         salary: salary || null,
+        postedAt: iso(entry.publication_date),
+        workplace: "remote",
       });
       if (jobs.length >= maxJobs) break;
     }

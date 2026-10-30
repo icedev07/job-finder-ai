@@ -48,6 +48,8 @@ export async function GET(req: NextRequest) {
     cloudflare_account_id: all.cloudflare_account_id || "",
     cloudflare_model: all.cloudflare_model || "@cf/meta/llama-3.1-8b-instruct",
     shared_sheet_id: config.sharedSheetId,
+    // Job sources that need a key (the secret halves are write-only, in `secrets`).
+    adzuna_app_id: all[CONFIG_KEYS.ADZUNA_APP_ID] || "",
     secrets,
   });
 }

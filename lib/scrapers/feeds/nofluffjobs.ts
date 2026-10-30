@@ -210,6 +210,9 @@ export const noFluffJobsFeed: Feed = {
         location: locationOf(p),
         description: buildDescription(p),
         salary: formatSalary(p.salary),
+        postedAt: postedAt(p) ? new Date(postedAt(p)).toISOString() : null,
+        workplace: p.location?.fullyRemote ? "remote" : null,
+        country: p.location?.fullyRemote ? null : p.location?.places?.find((pl) => pl.country?.code)?.country?.code?.toUpperCase() ?? null,
       });
       if (jobs.length >= maxJobs) break;
     }

@@ -1,8 +1,19 @@
 # Job Finder
 
-Automated job finder for software developers: it finds remote and on-site jobs, has AI judge each one against where the candidate is based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, profile, results and Google Sheet, and admins manage all of them from one dashboard.
+Automated job finder for the European job market: it searches public employment services, job search engines and job boards for each user's roles in the countries they choose, checks every posting for free against what they look for, has AI judge the rest against where they are based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, what they look for, profile, results and Google Sheet, and admins manage all of them from one dashboard.
 
-It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews. Version 4.7 adds **Writing**, AI drafts for each application (resume match, cover letter, intro, follow-up and interview prep), and insights into every application on the Dashboard. Version 4.8, with extension 2.2, makes the pages and the extension faster, judges LinkedIn jobs with their Remote / Hybrid / On-site label against each user's own market, and keeps each job in one row of its Google Sheet tab. Version 4.9 fills a user's profile in from their resume (also while adding the user), reads Word resumes and makes uploading a resume hard to miss; 4.9.1 reads the text of PDF and Word resumes itself, so both are ready the moment they are uploaded. Version 4.10 sends approved jobs to Google Sheets for everyone: one shared spreadsheet the admin sets, where each user gets their own tabs, or a spreadsheet of a user's own, and it says when a delivery fails and what to do; 4.10.1 connects to Supabase through its transaction pooler on Vercel, so pages no longer fail with "max clients reached".
+It pulls jobs from 24 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews. Version 4.7 adds **Writing**, AI drafts for each application (resume match, cover letter, intro, follow-up and interview prep), and insights into every application on the Dashboard. Version 4.8, with extension 2.2, makes the pages and the extension faster, judges LinkedIn jobs with their Remote / Hybrid / On-site label against each user's own market, and keeps each job in one row of its Google Sheet tab. Version 4.9 fills a user's profile in from their resume (also while adding the user), reads Word resumes and makes uploading a resume hard to miss; 4.9.1 reads the text of PDF and Word resumes itself, so both are ready the moment they are uploaded. Version 4.10 sends approved jobs to Google Sheets for everyone: one shared spreadsheet the admin sets, where each user gets their own tabs, or a spreadsheet of a user's own, and it says when a delivery fails and what to do; 4.10.1 connects to Supabase through its transaction pooler on Vercel, so pages no longer fail with "max clients reached". Version 4.11 searches the European market: EURES (31 countries), Germany's Federal Employment Agency, Sweden's Arbetsförmedlingen, Reed (UK) and Adzuna search each user's roles in their countries; every posting from every source gets a free check against what the user looks for before any AI call, and the boards whose jobs are mostly in the US start off.
+
+## Upgrading from 4.10.1
+
+Version 4.11 needs no database change and no new extension. Deploy it, then set up what each user looks for.
+
+- **What to look for, per user.** **Settings → What to look for** (with the user selected) takes the roles to search (one per line; **Suggest from the profile** fills them from the headline and job titles), words that leave a title out (`Intern, Werkstudent`), the countries for on-site and hybrid jobs, the workplaces they take, how recent a posting must be, whether remote jobs must be open to Europe, English-only postings, and how closely a title must fit a role.
+- **European sources that search.** EURES, the EU's job mobility portal (every public employment service in the EU, the EEA and Switzerland: about 2 million jobs in 31 countries, with their full text), Germany's Bundesagentur für Arbeit (about 800,000 jobs), Sweden's Arbetsförmedlingen, Reed (UK, a free key) and Adzuna (10 countries, a free key) search each user's roles in each of their countries. A scan runs at most 12 searches a source and the next one goes on from there. A user without roles gets nothing from them. Where a search gives no full text, the details are fetched only for the jobs about to be judged.
+- **A free check before the AI.** Every posting from every source, the LinkedIn extension aside, is checked against what the user looks for first: another role, an excluded word, too old, another country, another workplace, not in English when that is asked, or remote but closed to Europe ("US only", or a region like "Americas" alone) never costs an AI call. Each scan's log says how many were left out and why. With no roles set, only the age (30 days) and "remote but closed to Europe" apply.
+- **The AI knows the roles.** The built-in prompt says which roles the user looks for (and still "a software developer" for a user without roles), and its first rule rejects jobs that are not one of them. A user who saved a prompt the app shipped gets the new one; a prompt of their own is kept (its new `{{CANDIDATE}}` placeholder is optional).
+- **Europe first.** **Sources** opens on **Europe**, with **Remote**, **Companies** and **US & worldwide** tabs, and each source says what it covers. RemoteOK, Working Nomads, We Work Remotely, Hacker News, The Muse, Jobspresso, Authentic Jobs, Nodesk, JustRemote, MyGreenhouse and Remotive (now about a dozen jobs a day, and 4 calls a day allowed) start off; switch any of them on again. Jobicy now asks for remote jobs open to Europe, Lever boards hosted in the EU are found, and the boards that say when a job was posted, where it is and whether it is remote pass that on to the free check and the job's panel.
+- **Every board gets its turn.** A scan of every board (the daily one, **Run a scan pass**) starts where the last one stopped, so the boards at the end of the list are reached too.
 
 ## Upgrading from 4.10.0
 
@@ -152,8 +163,8 @@ Other changes to know about:
 
 ## How it works
 
-1. **Find**: server-side scanners pull jobs from public job-board APIs, RSS feeds and page payloads, plus your MyGreenhouse session (see [Job sources](#job-sources)). They run daily on Vercel Cron or on demand from **Sources**. The Chrome extension scans LinkedIn searches while you watch.
-2. **Judge**: AI checks every job during the scan itself, once for each user who gets that board. Is it a software role? Can someone based where that user is be hired? Does it fit their target market (and their profile, if it is turned on)? Each AI task has its own *route*, an ordered list of providers that fails over automatically when one is rate-limited (see [AI](#ai-providers-routes-and-cost)). A scan stores a job only once it has a verdict (`APPROVED` or `REJECTED`). Jobs it could not check are retried on the next scan.
+1. **Find**: server-side scanners search European public employment services and job search engines for each user's roles in their countries (**Settings → What to look for**), and read job boards, remote boards and companies' careers sites (see [Job sources](#job-sources)). They run daily on Vercel Cron or on demand from **Sources**. The Chrome extension scans LinkedIn searches while you watch.
+2. **Judge**: every posting first gets a free check against what the user looks for (role, excluded words, age, country, workplace, language, remote but closed to Europe); only the rest go to the AI, during the scan itself, once for each user who gets that board. Is it one of their roles? Can someone based where that user is be hired? Does it fit their target market (and their profile, if it is turned on)? Each AI task has its own *route*, an ordered list of providers that fails over automatically when one is rate-limited (see [AI](#ai-providers-routes-and-cost)). A scan stores a job only once it has a verdict (`APPROVED` or `REJECTED`). Jobs it could not check are retried on the next scan.
 3. **Review**: close calls (score 45–70 by default) wait in **Review**. Approve or reject them (your answers also measure how often each model agrees with you, under **AI → Evaluations**), keep the AI verdict, or mark them all reviewed. Review can be off for a user; their close calls then keep the AI verdict.
 4. **Apply**: open a job's application form, click **Autofill this page** in the extension side panel, check the colour-coded fields, submit the form yourself, then click **Mark as applied**.
 5. **Track**: applications move through **Applications** (Saved → Applied → Interview → Offer, or closed as Rejected or Archived with a reason) with follow-up reminders, interviews and a timeline for each one, and **Next actions** lists what to do next on them. Approved jobs also go to a Google Sheet (optional): the shared spreadsheet, where each user has their own tabs, or a user's own; the AI's approvals as each scan ends, the ones you approve right away. The sheet's Stage column follows the board.
@@ -171,7 +182,7 @@ With more than one user, the **Viewing** menu at the top right picks whose data 
 | Review | `/admin/review` | Close calls as a list: approve, reject or keep the AI verdict for one row or the selected ones, **Mark all reviewed**, and with **All users** a user filter. Or one at a time in **Focus**: `y` or `→` good match, `n` or `←` not a match, `k` keep the AI verdict, `s` skip, `o` open the posting, `u` undo. A switch turns Review off for the viewed user |
 | Next actions | `/admin/next-actions` | What to do next on each application, for the viewed user or everyone: interviews in the next two days, follow-ups that are due, no answer weeks after applying, saved jobs not applied to yet. **Followed up**, **Applied**, **Snooze** or close with a reason, one row or the selected ones; with **All users**, a user filter. A row's menu drafts a follow-up (or a cover letter), and **Prepare** writes interview prep. The sidebar badge counts them |
 | Applications | `/admin/applications` | Every user's applications on one board: Saved → Applied → Interview → Offer / Rejected (+ Archived), with each user's numbers on top. Search, filter by user, source and score. Drag cards, use a card's menu, or focus one and press `1`–`6` or `←` / `→`; tick cards to move, close or follow up several at once. Moving to Archived asks why it closed. Follow-up badges turn amber when due and red when overdue, and a card shows its next interview; a card opens the job with its interviews and timeline. A switch turns Applications off for the viewed user |
-| Sources | `/admin/sources` | Enable and configure each job source, run one or **Scrape all sources**, set the analyzer batch size and the MyGreenhouse cookie |
+| Sources | `/admin/sources` | The job sources by region (Europe, Remote, Companies, US & worldwide) with what each covers: switch each on or off, set its search, max jobs or key (Reed, Adzuna), run one or **Scrape all sources**, set the analyzer batch size and the MyGreenhouse cookie |
 | Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern, for one user or for everyone. Rules run before the AI, so they also save quota |
 | AI | `/admin/ai` | Providers & keys, per-task routes, usage & cost, playground, evaluations |
 | Profile & resumes | `/admin/profile` | Each user's candidate profile, resume files and the answer bank used by autofill |
@@ -179,7 +190,7 @@ With more than one user, the **Viewing** menu at the top right picks whose data 
 | Users | `/admin/users` | Everyone who can sign in: add a user (user ID, name, password, Admin or User role, where they are based, target market, optionally a copy of another user's search options, skip rules or profile), rename, change the role, set a new password, disable or enable, sign out everywhere, delete (with all their data) |
 | Logs | `/admin/logs` | All jobs, AI analysis log, scan logs, extension logs |
 | Data | `/admin/data` | Storage use against the Supabase free 500 MB, safe clean-ups, exports, SQL console (read-only by default) |
-| Settings | `/admin/settings` | Each user's target market and location, profile in matching, Review on or off and its score band, Applications on or off with the follow-up days and when a saved or unanswered application shows in Next actions, analysis prompt, job boards and where their approved jobs go (the shared Google spreadsheet, their own or nowhere, with the last delivery); the app-wide Google service account and shared spreadsheet; your password |
+| Settings | `/admin/settings` | Each user's search (what to look for: roles, excluded words, countries, workplaces, how recent, English only, how closely titles must fit), target market and location, profile in matching, Review on or off and its score band, Applications on or off with the follow-up days and when a saved or unanswered application shows in Next actions, analysis prompt, job boards and where their approved jobs go (the shared Google spreadsheet, their own or nowhere, with the last delivery); the app-wide Google service account and shared spreadsheet; your password |
 | Setup | `/admin/setup` | 15-step checklist from database to first scan; per-user steps name who is missing what; **Speed** shows how far the database is and the Vercel Function Region next to it |
 
 The top bar shows the last scan, AI calls in the last 24 hours, Claude spend against the budget, database size, and when the extension last reported in.
@@ -344,40 +355,54 @@ Once your profile has content, a short summary of it is added to the job analysi
 
 ## Job sources
 
-All sources below are free for applicants. Configure each one from **Admin → Sources** (search params, max jobs, enabled/disabled).
+All sources below are free for applicants; Reed and Adzuna need a free key. Configure each one under **Admin → Sources**, where they are grouped by region. Sources marked *search* run each user's roles in their countries (**Settings → What to look for**); the others are read as a whole and narrowed by the free check.
 
-| Key | Source | Auth | Notes |
-|---|---|---|---|
-| `remoteok` | [RemoteOK](https://remoteok.com) | none | public JSON feed |
-| `jobicy` | [Jobicy](https://jobicy.com) | none | v2 JSON API; supports tag/jobGeo filters |
-| `landingjobs` | [Landing.Jobs](https://landing.jobs) | none | EU-leaning developer API |
-| `remotive` | [Remotive](https://remotive.com) | none | public JSON; `category=`/`search=`/`company_name=` filters |
-| `workingnomads` | [Working Nomads](https://workingnomads.com) | none | public JSON (one flat feed); client-side category filter |
-| `arbeitnow` | [Arbeitnow](https://www.arbeitnow.com) | none | Germany/DACH-leaning JSON; paginated, rate-limited (5 req/min) |
-| `hnwhoishiring` | [Hacker News “Who is hiring?”](https://news.ycombinator.com) | none | the monthly thread via the HN Algolia API; each comment is a job |
-| `themuse` | [The Muse](https://www.themuse.com) | none | public JSON; server-side `category=`/`location=`/`level=` filters |
-| `realworkfromanywhere` | [Real Work From Anywhere](https://www.realworkfromanywhere.com) | none | RSS of true work-from-anywhere roles; per-category feeds |
-| `nofluffjobs` | [NoFluffJobs](https://nofluffjobs.com) | none | Poland/CEE IT board via the public search API; salary always disclosed, opt-in `keyword`/`remote=true`/`days=N` filters |
-| `weworkremotely` | [We Work Remotely](https://weworkremotely.com) | none | RSS per category slug |
-| `jobspresso` | [Jobspresso](https://jobspresso.co) | none | RSS at `/jobs/feed/` |
-| `authenticjobs` | [Authentic Jobs](https://authenticjobs.com) | none | dev-leaning RSS |
-| `nodesk` | [Nodesk](https://nodesk.co) | none | Atom feed |
-| `justremote` | [JustRemote](https://justremote.co) | none | scraped from SSR payload (~10 jobs/page) |
-| `greenhouse` | [Greenhouse boards](https://boards-api.greenhouse.io) | none | per-company public ATS API. Supports `@curated` to expand the bundled live-only slug list, a comma-separated custom slug list, and opt-in filter tokens (`@remote`, `@since=N`, `@kw=…`, `@loc=…`). |
-| `lever` | [Lever](https://api.lever.co) | none | per-company public API |
-| `ashby` | [Ashby](https://api.ashbyhq.com/posting-api) | none | per-company public API |
-| `mygreenhouse` | [MyGreenhouse candidate portal](https://my.greenhouse.io) | session cookie | aggregator across every employer opted into MyGreenhouse. See below. |
+| Key | Source | Covers | Auth | On at first | Notes |
+|---|---|---|---|---|---|
+| `eures` | [EURES](https://europa.eu/eures) | 31 countries (EU, EEA, Switzerland; not the UK) | none | yes | *search*: every public employment service's jobs with their full text; the details add the city, salary and the employer's link. The portal's own search (no official API); the European Labour Authority is the source |
+| `arbeitsagentur` | [Bundesagentur für Arbeit](https://www.arbeitsagentur.de/jobsuche) | Germany | none | yes | *search*: about 800,000 jobs, mostly in German, with home office and salary; the description comes from the details. The site's own search (no official API) |
+| `jobtech` | [Arbetsförmedlingen](https://jobsearch.api.jobtechdev.se) | Sweden | none | yes | *search*: the official open API (CC0), full text, remote and hybrid |
+| `reed` | [Reed](https://www.reed.co.uk/developers) | United Kingdom | free key | yes | *search*: English postings; the details give the full text and the employer's link |
+| `adzuna` | [Adzuna](https://developer.adzuna.com) | UK, DE, FR, NL, BE, AT, CH, IT, ES, PL | free key | yes | *search*: short descriptions only; its terms allow personal job search (a business needs a licence) |
+| `arbeitnow` | [Arbeitnow](https://www.arbeitnow.com) | Germany and remote in Europe | none | yes | public JSON, English-heavy |
+| `landingjobs` | [Landing.Jobs](https://landing.jobs) | Portugal, Spain, Germany, the Netherlands and remote | none | yes | tech jobs |
+| `nofluffjobs` | [NoFluffJobs](https://nofluffjobs.com) | Poland and Central Europe | none | yes | IT board with salaries; opt-in `keyword`/`remote=true`/`days=N` filters |
+| `jobicy` | [Jobicy](https://jobicy.com) | remote, open to Europe | none | yes | asks for `geo=europe` unless the search names another geo |
+| `realworkfromanywhere` | [Real Work From Anywhere](https://www.realworkfromanywhere.com) | remote from anywhere | none | yes | RSS per category |
+| `greenhouse` | [Greenhouse boards](https://boards-api.greenhouse.io) | companies' careers sites | none | yes | per-company public ATS API (`@curated` and filter tokens below) |
+| `lever` | [Lever](https://api.lever.co) | companies' careers sites | none | yes | per-company public API; boards hosted in the EU are read from `api.eu.lever.co` |
+| `ashby` | [Ashby](https://api.ashbyhq.com/posting-api) | companies' careers sites | none | yes | per-company public API |
+| `remotive` | [Remotive](https://remotive.com) | remote | none | no | about a dozen jobs a day, a day late; its terms allow 4 calls a day |
+| `remoteok` | [RemoteOK](https://remoteok.com) | remote, mostly US | none | no | public JSON |
+| `workingnomads` | [Working Nomads](https://workingnomads.com) | remote, mostly US | none | no | one flat feed |
+| `hnwhoishiring` | [Hacker News “Who is hiring?”](https://news.ycombinator.com) | worldwide, mostly US | none | no | the monthly thread; each comment is a job |
+| `themuse` | [The Muse](https://www.themuse.com) | United States | none | no | `category=`/`location=`/`level=` filters |
+| `weworkremotely` | [We Work Remotely](https://weworkremotely.com) | remote, mostly US | none | no | RSS per category |
+| `jobspresso` | [Jobspresso](https://jobspresso.co) | remote, mostly US | none | no | RSS |
+| `authenticjobs` | [Authentic Jobs](https://authenticjobs.com) | mostly US | none | no | RSS |
+| `nodesk` | [Nodesk](https://nodesk.co) | remote, mostly US | none | no | Atom feed |
+| `justremote` | [JustRemote](https://justremote.co) | remote, mostly US | none | no | read from the page's data |
+| `mygreenhouse` | [MyGreenhouse](https://my.greenhouse.io) | Greenhouse's candidate portal, mostly US | session cookie | no | see below |
 
-### Hidden sources ("Hidden gems" tab)
+A source switched on or off by an admin keeps that choice; the ones never switched follow the "On at first" column.
 
-`remotive`, `workingnomads`, `arbeitnow`, `hnwhoishiring`, `themuse`, `realworkfromanywhere`, and `nofluffjobs` are low-competition, zero-auth sources that bypass the crowded commercial boards. They are grouped under the **Hidden gems** tab in **Admin → Sources**, each with its own enable/disable toggle, and run as part of **Scrape all sources** like every other feed. No login or API key is required.
+### What to look for, and the free check
 
-- `hnwhoishiring` resolves the latest monthly *"Ask HN: Who is hiring?"* thread via the HN Algolia API, then parses each top-level comment. The job link stored is the HN comment permalink (stable + unique for dedup); the employer's own apply link, when present, is captured separately as the manual apply URL.
-- `arbeitnow` is rate-limited to 5 requests/min, so it pulls only a few pages per scan and paces requests.
-- `nofluffjobs` queries the public NoFluffJobs search API (`POST /api/search/posting`) in a single call — its pagination params are ignored, so one request returns the freshest slab (~80-190 postings), which we sort newest-first and slice. Salary is always disclosed (PLN/month), and the reliable `fullyRemote` flag powers the `remote=true` filter. The search field is an opt-in pre-filter: a bare keyword (e.g. `.net`, `c#`, `java`) plus optional `remote=true`, `days=N` tokens; blank keeps every technology. The endpoint serves the Poland/CEE catalogue and ignores a region param, so region is not exposed as a filter.
-- The search field for the client-filtered feeds (`workingnomads`, `arbeitnow`, `hnwhoishiring`) is a comma-separated keyword/category include filter; `remotive` and `themuse` accept real server-side query params (or a full API URL). `realworkfromanywhere` takes a category slug or a full RSS URL.
+**Settings → What to look for** (with the user selected) holds what the searching sources search and what every posting is checked against, for free, before the AI:
 
-Some well-known "hidden" boards were evaluated and **excluded** because they cannot be fetched zero-auth from a serverless function: **Himalayas** (Cloudflare JS challenge blocks datacenter IPs on both its JSON and RSS endpoints), **Wellfound/AngelList** (DataDome + Cloudflare), **StillHiring.today** (data lives only inside an authenticated Airtable embed), and **Dynamite Jobs / Remote.co** (no machine-readable feed). GitHub company directories (yanirs/established-remote, remoteintech/remote-jobs, etc.) are company lists rather than job feeds, so they are better used to extend the Greenhouse/Lever/Ashby slug lists than as standalone scanners.
+- **Roles**, one per line (up to 8). **Suggest from the profile** fills them from the profile's headline and job titles. A posting must fit one: developer, engineer, programmer and their German, French, Spanish, Italian, Polish, Dutch and Swedish forms count as the same word, and so do back-end and backend, .NET and C#. *Loose* (the default) wants a word of a role in the title and all of them in the posting, *Strict* all of them in the title, *Off* no role check. The European search engines are also asked for every way a role's words are written.
+- **Leave out titles with**: whole words, such as `Intern, Werkstudent, Sales`.
+- **Countries** for on-site and hybrid jobs (up to 12; none = any). The searching sources search each role in each of these they cover.
+- **Workplace** (remote, hybrid, on-site), **Posted within** (1 to 30 days, or any age; 30 by default), **Remote jobs must be open to Europe** (on: leaves out "US only", "must be based in the US", a region like "Americas" alone) and **English-language postings only** (off by default).
+
+What a source does not say never leaves a posting out: a job with no date, country or workplace goes on to the AI. Each scan's log says how many postings were left out and why, for example "60 filtered out for free (45 another role, 9 not in English, 5 too old, 1 an excluded word)". With no roles set, only the age and "remote but closed to Europe" apply, and the searching sources give that user nothing (not even what they find for others): their scan log says to add roles.
+
+### Sources that need a key
+
+- **Reed**: sign up at reed.co.uk/developers/jobseeker and paste the key under **Sources → Reed**.
+- **Adzuna**: sign up at developer.adzuna.com and paste the app ID and key under **Sources → Adzuna**.
+
+The keys are stored like the AI keys: write-only (the panel shows only whether one is set). A source without its key says so in its scan log and searches nothing.
 
 ### MyGreenhouse session cookie
 
@@ -423,7 +448,7 @@ With no filter tokens the scanner behaves as before (newest jobs per company, sp
 - **Daily**: Vercel Cron calls `GET /api/admin/scanners/run` every day at 06:00 UTC (see `vercel.json`) and sends `Authorization: Bearer $CRON_SECRET`. Without `CRON_SECRET` the run is refused and logged, so nobody else can trigger scans that spend your AI quota.
 - **On demand**: **Scrape all sources** on **Admin → Sources** for a full pass, **Run** on a single source, or **Run a scan pass** on the Dashboard or in the command palette.
 
-Each scan checks every job with AI as it runs, stores only the suitable / not-suitable results, and sends approved ones to the Google Sheets right after; there is no separate analyze step. **Analyze pending** stays available only to clear leftovers (a rescan reset, or a pre-upgrade backlog) and normally shows `0`. To judge stored jobs again (for example after changing the prompt or the route), select them on the Jobs page and click **Re-analyze** (up to 60 at a time).
+A scan of every board starts where the last one stopped, so every board gets its turn; a searching source runs at most 12 searches a scan and the next scan goes on from there. Each scan checks every job for free against what the user looks for, has the AI judge the rest as it runs, stores only the suitable / not-suitable results, and sends approved ones to the Google Sheets right after; there is no separate analyze step. **Analyze pending** stays available only to clear leftovers (a rescan reset, or a pre-upgrade backlog) and normally shows `0`. To judge stored jobs again (for example after changing the prompt or the route), select them on the Jobs page and click **Re-analyze** (up to 60 at a time).
 
 ## Security
 
@@ -587,6 +612,8 @@ Default column config JSON:
 | Target market, where a user is based | none: asked when you add a user (Setup flags users without them) | Settings → Target & matching |
 | Use the profile when judging jobs | on (applies once the profile has content) | Settings → Target & matching |
 | Job boards per user | every board | Settings → Job boards |
+| What to look for | no roles, any country, every workplace, the last 30 days, remote jobs open to Europe, any language, loose titles | Settings → What to look for |
+| Sources on at first | the European, remote and company ones; the mostly-US ones and Remotive start off (see [Job sources](#job-sources)) | Sources |
 | Review | on for every user | Settings → Target & matching, or the switch on Review |
 | Review band | scores `45`–`70` | Settings → Target & matching |
 | Applications | on for every user | Settings → Applications, or the switch on Applications |
@@ -603,9 +630,9 @@ Default column config JSON:
 
 ### Job analysis prompt
 
-Leave **Settings → Job analysis prompt** blank to use the built-in prompt, a strict classifier with hard reject rules (not a software role, location or work-authorization blockers, region-locked remote), soft signals and a scoring rubric (approve at 60 or more). The Settings page shows it so you can copy and adapt it.
+Leave **Settings → Job analysis prompt** blank to use the built-in prompt, a strict classifier with hard reject rules (not one of the roles the user looks for, location or work-authorization blockers, region-locked remote), soft signals and a scoring rubric (approve at 60 or more). The Settings page shows it so you can copy and adapt it.
 
-Available placeholders: `{{JOB_TITLE}}`, `{{COMPANY}}`, `{{LOCATION}}`, `{{DESCRIPTION}}`, `{{TARGET_MARKET}}`, `{{CURRENT_LOCATION}}`, and `{{CANDIDATE_PROFILE}}` (empty unless your profile is used in matching).
+Available placeholders: `{{JOB_TITLE}}`, `{{COMPANY}}`, `{{LOCATION}}`, `{{DESCRIPTION}}`, `{{TARGET_MARKET}}`, `{{CURRENT_LOCATION}}`, `{{CANDIDATE}}` (who the candidate is: "The candidate looks for these roles: … They are based in …", or "The candidate is a software developer based in …" without roles), and `{{CANDIDATE_PROFILE}}` (empty unless your profile is used in matching).
 
 The prompt asks for one JSON object: `approved`, `score` (0–100), `reason` and `techStack`. Board scans also ask for `eligibility`. With Claude, the same rules become the system prompt and a JSON schema enforces the reply, eligibility included.
 

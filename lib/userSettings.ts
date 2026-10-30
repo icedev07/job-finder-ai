@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "./prisma";
 import { DEFAULT_ANALYSIS_PROMPT } from "./defaultPrompt";
+import { parseSearchProfile, type SearchProfile } from "./searchProfile";
 import { parseSheetStatus, resolveSheetMode, type SheetMode, type SheetStatus } from "./sheetModel";
 
 // A user's own settings: what the AI judges their jobs against, their Google
@@ -43,6 +44,9 @@ export const USER_KEYS = {
   SHEET_STATUS: "sheet_status",
   // JSON array of the board keys this user gets results from; missing = every board.
   SCAN_BOARDS: "scan_boards",
+  // JSON SearchProfile (lib/searchProfile.ts): the roles, countries and limits
+  // the boards are searched with, and the free filter before the AI.
+  SEARCH_PROFILE: "search_profile",
   // JSON ExtensionSettings (lib/extensionSettings.ts): how the Chrome extension
   // scans LinkedIn for this user. Written by the popup and Admin → Extension.
   EXTENSION_SETTINGS: "extension_settings",
@@ -69,6 +73,7 @@ export const SEARCH_KEYS: UserKey[] = [
   USER_KEYS.SAVED_REMINDER_DAYS,
   USER_KEYS.NO_ANSWER_DAYS,
   USER_KEYS.SCAN_BOARDS,
+  USER_KEYS.SEARCH_PROFILE,
   USER_KEYS.EXTENSION_SETTINGS,
 ];
 
@@ -101,6 +106,8 @@ export type UserSettings = {
   sheetStatus: SheetStatus | null;
   /** Board keys this user gets results from; null = every board. */
   scanBoards: string[] | null;
+  /** What they look for: the boards' searches and the free filter before the AI. */
+  searchProfile: SearchProfile;
 };
 
 // Read on every analysis and scan, so cached briefly per user (like AppConfig).
@@ -108,6 +115,7 @@ export type UserSettings = {
 // earlier version) still means "the built-in prompt", so it follows the
 // current default instead of keeping an old one.
 const SHIPPED_PROMPT_HASHES = new Set([
+  "0f39f6d4ce100420460f77726400cf105cbf44f1bdb7e1a2e56f3a152baef1d3", // 4.8–4.10
   "1fee734a90b8d97772c8ace6300605792d3758ec3bbc21234b6960dd3dc3d692", // 4.0–4.7
   "e40c268f2bc1794570e69905c9e4ae8eed668fc1d25f28f4f3dc2677ae278e65", // before 4.0
 ]);
@@ -179,6 +187,7 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     sheetColumns: v[USER_KEYS.SHEET_COLUMNS] || "",
     sheetStatus: parseSheetStatus(v[USER_KEYS.SHEET_STATUS]),
     scanBoards: parseScanBoards(v[USER_KEYS.SCAN_BOARDS]),
+    searchProfile: parseSearchProfile(v[USER_KEYS.SEARCH_PROFILE]),
   };
 }
 

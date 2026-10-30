@@ -1,4 +1,4 @@
-import type { Feed, FeedFetchResult, NormalizedJob } from "./types";
+import type { Feed, FeedFetchResult, FeedQuery, NormalizedJob } from "./types";
 import { remoteOkFeed } from "./feeds/remoteok";
 import { weWorkRemotelyFeed } from "./feeds/weworkremotely";
 import { jobicyFeed } from "./feeds/jobicy";
@@ -20,6 +20,13 @@ import { hackerNewsFeed } from "./feeds/hackernews";
 import { theMuseFeed } from "./feeds/themuse";
 import { realWorkFromAnywhereFeed } from "./feeds/realworkfromanywhere";
 import { noFluffJobsFeed } from "./feeds/nofluffjobs";
+// European search engines and public employment services: searched with each
+// user's roles in their countries (Settings → What to look for).
+import { euresFeed } from "./feeds/eures";
+import { arbeitsagenturFeed } from "./feeds/arbeitsagentur";
+import { jobtechFeed } from "./feeds/jobtech";
+import { reedFeed } from "./feeds/reed";
+import { adzunaFeed } from "./feeds/adzuna";
 import {
   findExistingJob,
   refreshScrapedJob,
@@ -29,35 +36,43 @@ import {
 } from "../scrapedJobs";
 import { shouldSkipJob } from "../jobSkipRules";
 import { analyzeScrapedJobs, type InlineVerdict } from "../jobAnalyzer";
-import { getAllConfig } from "../config";
+import { getAllConfig, setConfigValue } from "../config";
+import { filterJob, filterSummary, type FilterReason, type SearchProfile } from "../searchProfile";
+import { sourceEnabled } from "../sourceMeta";
 import { activeUsers } from "../users";
 import { getUserSettings, wantsBoard } from "../userSettings";
 
+// The order of "Scrape all sources" and the daily scan: Europe first.
 const FEEDS: Feed[] = [
-  // single-endpoint json feeds
-  remoteOkFeed,
-  jobicyFeed,
-  landingJobsFeed,
-  // hidden / low-competition zero-auth sources
-  remotiveFeed,
-  workingNomadsFeed,
+  // European search engines and public employment services (searched)
+  euresFeed,
+  arbeitsagenturFeed,
+  jobtechFeed,
+  reedFeed,
+  adzunaFeed,
+  // European job boards
   arbeitnowFeed,
+  landingJobsFeed,
+  noFluffJobsFeed,
+  // remote jobs open to Europe
+  jobicyFeed,
+  remotiveFeed,
+  realWorkFromAnywhereFeed,
+  // companies' own careers sites
+  greenhouseFeed,
+  leverFeed,
+  ashbyFeed,
+  // mostly US, or remote jobs mostly closed to Europe: off until an admin switches them on
+  remoteOkFeed,
+  workingNomadsFeed,
   hackerNewsFeed,
   theMuseFeed,
-  realWorkFromAnywhereFeed,
-  noFluffJobsFeed,
-  // RSS-driven boards (default URL, user can override)
   weWorkRemotelyFeed,
   jobspressoFeed,
   authenticJobsFeed,
   nodeskFeed,
-  // SPA boards with no public api — scraped from embedded SSR payload
   justRemoteFeed,
-  // multi-company ATS
-  greenhouseFeed,
-  leverFeed,
-  ashbyFeed,
-  // authenticated candidate-portal aggregator (requires pasted session cookie)
+  // Greenhouse's candidate portal (needs a pasted session cookie)
   myGreenhouseFeed,
 ];
 
@@ -82,6 +97,8 @@ export type ScanOutcome = {
   rescanned: number;
   /** Jobs dropped before analysis (skip rule, or duplicate with nothing to refresh). */
   skipped: number;
+  /** Jobs the free filter dropped (Settings → What to look for), by reason. */
+  filtered: Partial<Record<FilterReason, number>>;
   /** New / rescan jobs not checked this run — deliberately NOT stored, retried next scan. */
   unanalyzed: number;
   warning?: string;
@@ -126,17 +143,75 @@ const emptyOutcome = (): ScanOutcome => ({
   refreshed: 0,
   rescanned: 0,
   skipped: 0,
+  filtered: {},
   unanalyzed: 0,
 });
 
-/** The active users who get this board's results, limited to `only` when given. */
-async function usersForBoard(key: string, only?: number[]): Promise<number[]> {
-  const ids: number[] = [];
+/** The active users who get this board's results (with what they look for), limited to `only` when given. */
+async function usersForBoard(key: string, only?: number[]): Promise<{ id: number; profile: SearchProfile }[]> {
+  const out: { id: number; profile: SearchProfile }[] = [];
   for (const user of await activeUsers()) {
     if (only && !only.includes(user.id)) continue;
-    if (wantsBoard(await getUserSettings(user.id), key)) ids.push(user.id);
+    const settings = await getUserSettings(user.id);
+    if (wantsBoard(settings, key)) out.push({ id: user.id, profile: settings.searchProfile });
   }
-  return ids;
+  return out;
+}
+
+// A searching source runs at most this many searches a scan; the next scan
+// goes on from where this one stopped, so every role and country gets its turn.
+const MAX_QUERIES_PER_RUN = 12;
+
+/**
+ * The searches a source runs for these users: each of their roles in each of
+ * their countries the source covers (remote boards: each role). The same
+ * search for two users runs once, with the longer age limit.
+ */
+export function plannedQueries(feed: Feed, profiles: SearchProfile[]): FeedQuery[] {
+  const byKey = new Map<string, FeedQuery>();
+  for (const p of profiles) {
+    if (!p.roles.length) continue;
+    const covered = feed.countries;
+    const countries: (string | null)[] =
+      covered === "remote" || !covered ? [null] : p.countries.filter((c) => covered.includes(c));
+    for (const role of p.roles) {
+      for (const country of countries) {
+        const key = `${role.toLowerCase()}|${country ?? ""}`;
+        const prev = byKey.get(key);
+        const maxAgeDays = prev && (prev.maxAgeDays === 0 || p.maxAgeDays === 0) ? 0 : Math.max(prev?.maxAgeDays ?? 0, p.maxAgeDays);
+        byKey.set(key, { keywords: role, country, maxAgeDays: prev ? maxAgeDays : p.maxAgeDays });
+      }
+    }
+  }
+  return [...byKey.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, q]) => q);
+}
+
+/**
+ * Run a searching source's queries in turn, from where the last scan stopped,
+ * until the budget is spent; the jobs of every query, each once.
+ */
+async function runQueries(
+  feed: Feed,
+  queries: FeedQuery[],
+  opts: { maxJobs: number; signal: AbortSignal; config: Record<string, string> },
+): Promise<FeedFetchResult & { queriesRun: number }> {
+  const cursorKey = `${feed.key}_query_cursor`;
+  const start = Math.max(0, Number(opts.config[cursorKey]) || 0) % queries.length;
+  const jobs: NormalizedJob[] = [];
+  const warnings: string[] = [];
+  let run = 0;
+  for (; run < Math.min(queries.length, MAX_QUERIES_PER_RUN); run++) {
+    if (opts.signal.aborted) break;
+    const q = queries[(start + run) % queries.length];
+    const r = await feed.search!(q, { maxJobs: opts.maxJobs, signal: opts.signal, config: opts.config });
+    jobs.push(...r.jobs);
+    if (r.warning && !warnings.includes(r.warning)) warnings.push(r.warning);
+  }
+  if (queries.length > run) {
+    await setConfigValue(cursorKey, String((start + run) % queries.length)).catch(() => undefined);
+  }
+  const more = queries.length > run ? ` (${run} of ${queries.length} searches this scan; the next scan runs the others)` : "";
+  return { jobs, queriesRun: run, warning: [`${run} search${run === 1 ? "" : "es"}${more}`, ...warnings].join("; ") };
 }
 
 // Why a scan stopped early. A rate limit or an AI error stops the whole board
@@ -149,6 +224,8 @@ type JudgeContext = {
   /** Latest moment we may still begin analyzing a wave. */
   analyzeDeadline?: number;
   flags: StopFlags;
+  /** The source's details call, for jobs about to be judged (Feed.describe). */
+  describe?: (jobs: NormalizedJob[]) => Promise<void>;
 };
 
 type Counts = Omit<ScanOutcome, "found" | "warning">;
@@ -156,6 +233,8 @@ type Counts = Omit<ScanOutcome, "found" | "warning">;
 function summarize(feedWarning: string | undefined, o: Counts, flags: StopFlags): string | undefined {
   const parts: string[] = [];
   if (feedWarning) parts.push(feedWarning);
+  const filtered = filterSummary(o.filtered);
+  if (filtered) parts.push(filtered);
   const checked = o.approved + o.rejected;
   if (checked > 0) {
     parts.push(`checked ${checked}: ${o.approved} suitable, ${o.rejected} not suitable`);
@@ -195,13 +274,20 @@ export async function runFeedScan(
   // One config read per scan (or zero, if the caller already loaded it).
   const config = preloadedConfig ?? (await getAllConfig());
 
-  if (config[`${key}_enabled`] === "false") {
+  if (!sourceEnabled(key, config)) {
     return { ...emptyOutcome(), warning: "scanner disabled", users: [] };
   }
-  const userIds = await usersForBoard(key, options.userIds);
-  if (userIds.length === 0) {
+  const wanting = await usersForBoard(key, options.userIds);
+  if (wanting.length === 0) {
     return { ...emptyOutcome(), warning: "no active user gets this board's results", users: [] };
   }
+  // A searching source finds the roles users look for: someone without roles
+  // gets nothing from it (else every posting found for the others would go to
+  // the AI for them too), and their log says why.
+  const roleless = feed.search ? wanting.filter((u) => u.profile.roles.length === 0) : [];
+  const judged = wanting.filter((u) => !roleless.includes(u));
+  const userIds = judged.map((u) => u.id);
+  const profiles = new Map(judged.map((u) => [u.id, u.profile]));
 
   const maxJobs = Math.min(200, Math.max(1, Number(config[`${key}_max_jobs`]) || 25));
   const rescanAfterDays = Math.max(0, Number(config["scanner_rescan_after_days"]) || 0);
@@ -219,12 +305,26 @@ export async function runFeedScan(
   const timer = scrapeBudget ? setTimeout(() => controller.abort(), scrapeBudget) : null;
   let result: FeedFetchResult;
   try {
-    result = await feed.fetch({
-      maxJobs,
-      searchUrl: config[`${key}_search_url`] || undefined,
-      signal: controller.signal,
-      config,
-    });
+    if (feed.search) {
+      // A searching source runs the users' searches (Settings → What to look for).
+      const queries = plannedQueries(feed, judged.map((u) => u.profile));
+      result = queries.length
+        ? await runQueries(feed, queries, { maxJobs, signal: controller.signal, config })
+        : {
+            jobs: [],
+            warning:
+              feed.countries === "remote"
+                ? "no searches: add the roles to look for (Settings → What to look for)"
+                : "no searches: add the roles and countries to look for (Settings → What to look for)",
+          };
+    } else {
+      result = await feed.fetch({
+        maxJobs,
+        searchUrl: config[`${key}_search_url`] || undefined,
+        signal: controller.signal,
+        config,
+      });
+    }
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -241,7 +341,14 @@ export async function runFeedScan(
 
   // --- Judge for each user ------------------------------------------------
   const flags: StopFlags = { rateLimited: false, timedOut: false };
-  const ctx: JudgeContext = { batchSize, rescanAfterDays, analyzeDeadline, flags };
+  const describe = feed.describe;
+  const ctx: JudgeContext = {
+    batchSize,
+    rescanAfterDays,
+    analyzeDeadline,
+    flags,
+    describe: describe ? (list) => describe(list, { signal: AbortSignal.timeout(15_000), config }) : undefined,
+  };
   const users: UserScanOutcome[] = [];
   for (const userId of userIds) {
     let counts: Counts;
@@ -250,13 +357,19 @@ export async function runFeedScan(
       // Not reached in this run: nothing stored for them, the next scan retries.
       counts = { ...emptyOutcome(), unanalyzed: jobs.length };
     } else {
-      counts = await judgeForUser(userId, jobs, ctx);
+      counts = await judgeForUser(userId, jobs, ctx, profiles.get(userId)!);
     }
     users.push({ ...counts, userId, found: result.jobs.length, warning: summarize(result.warning, counts, flags) });
+  }
+  for (const u of roleless) {
+    users.push({ ...emptyOutcome(), userId: u.id, found: 0, warning: "no searches for this user: add the roles to look for (Settings → What to look for)" });
   }
 
   const total: Counts = { ...emptyOutcome() };
   for (const u of users) {
+    for (const [reason, n] of Object.entries(u.filtered) as [FilterReason, number][]) {
+      total.filtered[reason] = (total.filtered[reason] ?? 0) + n;
+    }
     total.saved += u.saved;
     total.approved += u.approved;
     total.rejected += u.rejected;
@@ -277,8 +390,9 @@ export async function runFeedScan(
  * reached before the budget is spent are simply not stored; the next scan
  * re-fetches and retries them.
  */
-async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeContext): Promise<Counts> {
-  const counts: Counts = { ...emptyOutcome() };
+async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeContext, profile: SearchProfile): Promise<Counts> {
+  const counts: Counts = { ...emptyOutcome(), filtered: {} };
+  const now = new Date();
   const { flags } = ctx;
   let stopped = false;
   let pendingFresh: NormalizedJob[] = [];
@@ -288,6 +402,16 @@ async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeCon
   // job that came back with a verdict. Jobs the model could not classify, or
   // that we ran out of budget for, are left unstored for the next scan.
   const storeWave = async (): Promise<void> => {
+    if (ctx.describe && pendingFresh.length + pendingRescan.length > 0) {
+      // The text the source's search left out, only for these jobs about to be judged.
+      await ctx.describe([...pendingFresh, ...pendingRescan.map((r) => r.job)]).catch(() => undefined);
+      // The checks that read it (language, closed to Europe, the loose role check), now that it is there.
+      pendingFresh = pendingFresh.filter((job) => {
+        const fit = filterJob(job, profile, now);
+        if (!fit.keep) counts.filtered[fit.reason] = (counts.filtered[fit.reason] ?? 0) + 1;
+        return fit.keep;
+      });
+    }
     const freshCount = pendingFresh.length;
     const batch: NormalizedJob[] = [...pendingFresh, ...pendingRescan.map((r) => r.job)];
     const rescanRows = pendingRescan;
@@ -328,6 +452,7 @@ async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeCon
           description: job.description ?? null,
           salary: job.salary ?? null,
           manualApplyUrl: job.applyUrl ?? null,
+          signals: boardSignals(job),
           verdict: jv,
         });
         if (created) {
@@ -365,6 +490,13 @@ async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeCon
       break;
     }
     const job = jobs[idx];
+
+    // Free, before anything else: another role or country, too old, … (Settings → What to look for).
+    const fit = filterJob(job, profile, now);
+    if (!fit.keep) {
+      counts.filtered[fit.reason] = (counts.filtered[fit.reason] ?? 0) + 1;
+      continue;
+    }
 
     if (await shouldSkipJob({ userId, title: job.title, company: job.company, externalUrl: job.url })) {
       counts.skipped++;
@@ -409,4 +541,13 @@ async function judgeForUser(userId: number, jobs: NormalizedJob[], ctx: JudgeCon
   counts.unanalyzed += pendingFresh.length + pendingRescan.length;
   if (idx < jobs.length) counts.unanalyzed += jobs.length - idx;
   return counts;
+}
+
+/** What a source said about a job that the job row has no column for (shown in the job's panel). */
+function boardSignals(job: NormalizedJob): string | null {
+  const signals: Record<string, string> = {};
+  if (job.postedAt) signals.postedAt = job.postedAt;
+  if (job.country) signals.country = job.country.toUpperCase();
+  if (job.workplace) signals.workplace = job.workplace;
+  return Object.keys(signals).length ? JSON.stringify(signals) : null;
 }
