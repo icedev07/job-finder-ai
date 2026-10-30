@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { docxText } from "./docx";
-import { generateForTask } from "./llmClient";
+import { generateForTask, type LLMRequest } from "./llmClient";
+import { pdfText } from "./pdfText";
 import { getProfile, saveProfile } from "./profile";
 import { mergeResumeProfile, normalizeProfile, type CandidateProfile } from "./profileModel";
 import { resumeFileProblem, resumeNameOf, resumeType, RESUME_TYPES } from "./resumeFiles";
@@ -156,7 +157,7 @@ const PROFILE_SCHEMA: Record<string, unknown> = {
   },
 };
 
-// A PDF: its facts and its text, which the app cannot read itself (Writing drafts from it).
+// A PDF without text (a scan): its facts and its text, which only Claude can read (Writing drafts from it).
 const PDF_SCHEMA: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
@@ -167,7 +168,7 @@ const PDF_SCHEMA: Record<string, unknown> = {
   },
 };
 
-// A text or Word file: the app has its text already, so only the facts (half the output, so sooner).
+// A resume with text: the app has its text already, so only the facts (half the output, so sooner).
 const TEXT_SCHEMA: Record<string, unknown> = {
   type: "object",
   additionalProperties: false,
@@ -182,30 +183,57 @@ const RESUME_RULES = `You read a candidate's resume and return its facts as stru
 - experience: newest first, with a one- or two-sentence summary of what the person did there.
 - linkedin, github, portfolio: the full addresses when the resume gives them (a "Links:" line lists where its links point).`;
 const PDF_SYSTEM = `${RESUME_RULES}\n- text: the whole resume as plain text in reading order.`;
+// The schema in words, for providers without structured output (the free ones).
+const PROFILE_SHAPE =
+  '{"profile":{"firstName":string,"lastName":string,"email":string,"phone":string,"city":string,"country":string,"linkedin":string,"github":string,"portfolio":string,"headline":string,"summary":string,"yearsExperience":number|null,"skills":[{"name":string,"years":number|null}],"languages":[{"name":string,"level":string}],"experience":[{"company":string,"title":string,"start":string,"end":string,"location":string,"summary":string}],"education":[{"school":string,"degree":string,"field":string,"start":string,"end":string}]}}';
 
 const MAX_TEXT = 100_000;
+// Less than this (letters, digits, signs) is no resume text: a scan, or an empty template.
+const MIN_TEXT = 30;
+const OLD_DOC = "The AI reads PDF, Word (.docx) or text resumes: save this .doc as a PDF or .docx and upload that.";
 
-/** The resume's text when the app reads it without the AI (text and Word files); null for a PDF or an old .doc. */
-export function localResumeText(mimeType: string, bytes: Buffer): string | null {
+/**
+ * The resume's text as the app reads it itself: a text file's, a Word file's (lib/docx.ts) or a PDF's (lib/pdfText.ts),
+ * or "" and why not. A PDF with no text layer (a scan) has no problem: Claude reads it as a document.
+ */
+export async function resumeText(mimeType: string, bytes: Buffer): Promise<{ text: string; problem: string | null }> {
   const kind = RESUME_TYPES[mimeType];
-  if (kind === "txt" || kind === "md") {
-    return bytes.toString("utf8").replace(/^﻿/, "").replace(/\r\n?/g, "\n").trim().slice(0, MAX_TEXT);
+  try {
+    // trim() also drops a leading byte-order mark.
+    if (kind === "txt" || kind === "md") return { text: bytes.toString("utf8").replace(/\r\n?/g, "\n").trim().slice(0, MAX_TEXT), problem: null };
+    if (kind === "docx") return { text: docxText(bytes).slice(0, MAX_TEXT), problem: null };
+    if (kind === "pdf") return { text: (await pdfText(bytes)).slice(0, MAX_TEXT), problem: null };
+  } catch (e) {
+    return { text: "", problem: (e as Error).message };
   }
-  if (kind === "docx") return docxText(bytes).slice(0, MAX_TEXT);
-  return null;
+  return { text: "", problem: OLD_DOC };
 }
+
+const hasText = (text: string) => text.replace(/\s+/g, "").length >= MIN_TEXT;
 
 export type ResumeFile = { bytes: Buffer; mimeType: string; fileName: string };
 export type ResumeReading = { profile: CandidateProfile; text: string; model: string | null; costUsd: number | null };
 
-/** Claude reads a resume: its facts as a profile, and its text (a text or Word file's own, a PDF's from Claude). */
-export async function readResume(file: ResumeFile, userId: number, signal?: AbortSignal): Promise<ResumeReading> {
-  const kind = RESUME_TYPES[file.mimeType];
-  let text = "";
-  let request;
-  if (kind === "pdf") {
+/**
+ * The AI reads a resume's facts into a profile. A resume with text (PDF, Word or text) goes as its text, to any
+ * provider on the Resume reading route, and only its facts come back; a PDF without text (a scan) goes to Claude as a
+ * document, which gives its text back too. `stored` is a text read before (a scan's, from Claude).
+ */
+export async function readResume(file: ResumeFile, userId: number, signal?: AbortSignal, stored?: string | null): Promise<ResumeReading> {
+  const own = await resumeText(file.mimeType, file.bytes);
+  const text = hasText(own.text) ? own.text : (stored ?? "");
+  let request: LLMRequest;
+  if (hasText(text)) {
+    const user = `Extract this resume:\n\n${text.slice(0, 60_000)}`;
+    request = {
+      // Free providers get the same instructions as one prompt.
+      prompt: `${RESUME_RULES}\n\n${user}\n\nReturn ONLY a JSON object: ${PROFILE_SHAPE}`,
+      claude: { system: RESUME_RULES, user, jsonSchema: TEXT_SCHEMA, maxTokens: 12000 },
+    };
+  } else if (RESUME_TYPES[file.mimeType] === "pdf") {
     request = {
       prompt: "",
+      // Only Claude reads a PDF as a document.
       claudeOnly: true,
       claude: {
         system: PDF_SYSTEM,
@@ -215,34 +243,25 @@ export async function readResume(file: ResumeFile, userId: number, signal?: Abor
         maxTokens: 16000,
       },
     };
-  } else if (kind === "txt" || kind === "md" || kind === "docx") {
-    text = localResumeText(file.mimeType, file.bytes) ?? "";
-    if (text.replace(/\s+/g, "").length < 30) {
-      throw new Error("There is almost no text in this file (is it a scan?): upload the resume as a PDF.");
-    }
-    request = {
-      prompt: "",
-      claudeOnly: true,
-      claude: { system: RESUME_RULES, user: `Extract this resume:\n\n${text.slice(0, 60_000)}`, jsonSchema: TEXT_SCHEMA, maxTokens: 12000 },
-    };
   } else {
-    throw new Error("Claude reads PDF, Word (.docx) or text resumes: save this .doc as a PDF or .docx and upload that.");
+    throw new Error(own.problem ?? "There is almost no text in this file (is it a scan?): upload the resume as a PDF.");
   }
 
-  // Reading a document needs Claude (claudeOnly skips any free provider on the route).
   const result = await generateForTask("resume", request, signal, { callTimeoutMs: 55_000, userId });
   let parsed: { profile?: unknown; text?: unknown };
   try {
-    parsed = JSON.parse(result.text);
+    // A free provider may wrap the JSON in prose or a code fence.
+    const start = result.text.indexOf("{");
+    parsed = JSON.parse(start >= 0 ? result.text.slice(start, result.text.lastIndexOf("}") + 1) : result.text);
   } catch {
-    throw new Error("Claude returned an unreadable answer — try again.");
+    throw new Error("The AI returned an unreadable answer — try again.");
   }
-  if (kind === "pdf") text = typeof parsed.text === "string" ? parsed.text.slice(0, MAX_TEXT) : "";
-  return { profile: normalizeProfile(parsed.profile), text, model: result.model, costUsd: result.costUsd ?? null };
+  const readText = hasText(text) ? text : typeof parsed.text === "string" ? parsed.text.slice(0, MAX_TEXT) : "";
+  return { profile: normalizeProfile(parsed.profile), text: readText, model: result.model, costUsd: result.costUsd ?? null };
 }
 
 /**
- * A stored resume read by Claude, keeping what it found on the resume. With `reuse`, an earlier reading comes back
+ * A stored resume read by the AI, keeping what it found on the resume. With `reuse`, an earlier reading comes back
  * at once, without an AI call (`reused`).
  */
 export async function parseResume(
@@ -261,7 +280,7 @@ export async function parseResume(
     }
   }
   const file = { bytes: Buffer.from(resume.data), mimeType: resume.mimeType, fileName: resume.fileName };
-  const reading = await readResume(file, resume.userId, signal);
+  const reading = await readResume(file, resume.userId, signal, resume.textContent);
   await prisma.resume.update({ where: { id }, data: { parsed: JSON.stringify(reading.profile), textContent: reading.text || null } });
   return { ...reading, reused: false };
 }
@@ -280,32 +299,38 @@ function readingFrom(raw: unknown): { profile: CandidateProfile; text: string } 
   }
 }
 
-export type UploadedResume = { id: number; isDefault: boolean; readable: boolean; read: boolean; filled: string[] };
+export type UploadedResume = {
+  id: number;
+  isDefault: boolean;
+  /** Its text is stored: Writing drafts from it, and reading it sends the text. */
+  readable: boolean;
+  /** A reading came with it. */
+  read: boolean;
+  filled: string[];
+  /** Why the AI cannot read it (a damaged or old Word file, no text); null when it can. */
+  problem: string | null;
+};
 
 /**
- * Stores an uploaded resume for this user. Their first one is the default, and `makeDefault` ("true") makes a later
- * one the default. A text or Word file is readable (Writing drafts from it) at once. A reading done before
- * (`reading`, JSON) is stored with it, and `fillProfile` ("replace") copies its facts into the user's profile.
+ * Stores an uploaded resume for this user, whatever the app can read in it (autofill still attaches it). Their
+ * first one is the default, and `makeDefault` ("true") makes a later one the default. Its text is read at once
+ * (PDF, Word or text), so Writing drafts from it. A reading done before (`reading`, JSON) is stored with it, and
+ * `fillProfile` ("replace") copies its facts into the user's profile.
  */
 export async function addResume(
   userId: number,
   form: { file: File; name?: unknown; tags?: unknown; makeDefault?: unknown; reading?: unknown; fillProfile?: unknown },
 ): Promise<UploadedResume> {
   const { file } = form;
-  const problem = resumeFileProblem(file);
-  if (problem) throw new ResumeUploadError(problem);
+  const refused = resumeFileProblem(file);
+  if (refused) throw new ResumeUploadError(refused);
   const mimeType = resumeType(file.type, file.name)!;
   const data = Buffer.from(await file.arrayBuffer());
-  let ownText: string | null;
-  try {
-    ownText = localResumeText(mimeType, data);
-  } catch (e) {
-    throw new ResumeUploadError((e as Error).message);
-  }
+  const own = await resumeText(mimeType, data);
   const reading = readingFrom(form.reading);
   const name = (typeof form.name === "string" && form.name.trim().slice(0, 120)) || resumeNameOf(file.name);
   const tags = (typeof form.tags === "string" && form.tags.trim().slice(0, 500)) || null;
-  const textContent = ownText || reading?.text || null;
+  const textContent = (hasText(own.text) ? own.text : "") || reading?.text || null;
 
   const count = await prisma.resume.count({ where: { userId } });
   const created = await prisma.resume.create({
@@ -332,5 +357,8 @@ export async function addResume(
     if (merged.filled.length) await saveProfile(userId, merged.profile);
     filled = merged.filled;
   }
-  return { id: created.id, isDefault: count === 0 || makeDefault, readable: !!textContent, read: !!reading, filled };
+  // A scan has no problem (Claude reads it as a document); a Word or text file with no text does.
+  const problem =
+    textContent || mimeType === "application/pdf" ? null : (own.problem ?? "There is almost no text in this file (is it a scan?): upload the resume as a PDF.");
+  return { id: created.id, isDefault: count === 0 || makeDefault, readable: !!textContent, read: !!reading, filled, problem };
 }

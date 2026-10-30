@@ -43,7 +43,7 @@ export function filledMessage(filled: string[], from: string, mode: MergeMode): 
     : `The profile already has everything in “${from}”`;
 }
 
-/** Resume variants: upload, the default, names and tags for auto-pick, and what Claude reads in one into the profile. */
+/** Resume variants: upload, the default, names and tags for auto-pick, and what the AI reads in one into the profile. */
 export function ResumesPanel({
   onApply,
   profileIncomplete,
@@ -115,7 +115,8 @@ export function ResumesPanel({
       setUploading(false);
       return;
     }
-    toast.success(added.isDefault ? `“${shown}” uploaded — the default resume` : `“${shown}” uploaded`);
+    if (added.problem) toast.warning(`“${shown}” uploaded, but the AI cannot read it: ${added.problem}`, { duration: 10_000 });
+    else toast.success(added.isDefault ? `“${shown}” uploaded — the default resume` : `“${shown}” uploaded`);
     setFile(null);
     setName('');
     setAutoName('');
@@ -123,13 +124,13 @@ export function ResumesPanel({
     setMakeDefault(false);
     setUploading(false);
     await load();
-    if (!fill) return;
+    if (!fill || added.problem) return;
     setReading(added.id);
     try {
       const r = await readStoredResume(added.id, false);
       apply(r.profile, 'fill', shown);
     } catch (e) {
-      toast.error(`Claude could not read “${shown}”: ${errorMessage(e)}`);
+      toast.error(`The AI could not read “${shown}”: ${errorMessage(e)}`);
     } finally {
       setReading(null);
       await load();
@@ -155,7 +156,7 @@ export function ResumesPanel({
     await patch(current.id, { name: next }, `Renamed to “${next}”`);
   }
 
-  // Claude reads the resume (or an earlier reading comes back), then the dialog shows what it found.
+  // The AI reads the resume (or an earlier reading comes back), then the dialog shows what it found.
   async function read(r: ResumeItem, reuse: boolean) {
     setReading(r.id);
     try {
@@ -190,7 +191,7 @@ export function ResumesPanel({
           </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={fillProfile} onCheckedChange={(v) => setFillProfile(!!v)} />
-            Fill the profile’s empty fields from it (Claude reads it)
+            Fill the profile’s empty fields from it (the AI reads it)
           </label>
         </div>
         <Button onClick={() => void upload()} disabled={uploading || reading !== null}>
@@ -201,7 +202,7 @@ export function ResumesPanel({
 
       <SectionCard
         title="Resumes"
-        description="Each user has their own. The extension attaches the default, or the variant whose tags fit the job. Read with Claude shows what Claude finds in a PDF, Word or text resume and copies it into the profile."
+        description="Each user has their own. The extension attaches the default, or the variant whose tags fit the job. Read with AI shows what the AI finds in a PDF, Word or text resume and copies it into the profile."
       >
         {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
         {!resumes ? (
@@ -257,7 +258,7 @@ export function ResumesPanel({
                     </>
                   )}
                   {r.isDefault ? <Badge>Default</Badge> : null}
-                  {r.parsed ? <Badge variant="secondary">Read by Claude</Badge> : null}
+                  {r.parsed ? <Badge variant="secondary">Read by the AI</Badge> : null}
                   <span className="text-xs text-muted-foreground">
                     {r.fileName} · {formatBytes(r.sizeBytes)} · updated {timeAgo(r.updatedAt)}
                   </span>
@@ -280,7 +281,7 @@ export function ResumesPanel({
                   ) : null}
                   <Button size="sm" variant="outline" onClick={() => void read(r, true)} disabled={reading !== null || uploading}>
                     {reading === r.id ? <Spinner /> : <SparklesIcon />}
-                    {reading === r.id ? 'Reading…' : r.parsed ? 'Fill profile' : 'Read with Claude'}
+                    {reading === r.id ? 'Reading…' : r.parsed ? 'Fill profile' : 'Read with AI'}
                   </Button>
                   <Button size="sm" variant="ghost" nativeButton={false} render={<a href={`/api/admin/resumes/${r.id}/file?${viewingParam()}`} target="_blank" rel="noopener noreferrer" />}>
                     <DownloadIcon />
@@ -315,12 +316,12 @@ export function ResumesPanel({
       <Dialog open={!!found} onOpenChange={(o) => !o && setFound(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>What Claude read in “{found?.name}”</DialogTitle>
+            <DialogTitle>What the AI read in “{found?.name}”</DialogTitle>
             <DialogDescription>
               {found?.reused
                 ? 'Read before, so nothing was spent.'
                 : found
-                  ? `Read by ${found.model ? modelLabel(found.model) : 'Claude'}${found.costUsd != null ? ` · ${formatUsd(found.costUsd)}` : ''}.`
+                  ? `Read by ${found.model ? modelLabel(found.model) : 'the AI'}${found.costUsd != null ? ` · ${formatUsd(found.costUsd)}` : ''}.`
                   : ''}{' '}
               Copy it into the profile, then review the profile and save it.
             </DialogDescription>

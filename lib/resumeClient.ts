@@ -18,10 +18,18 @@ export type ResumeItem = {
   updatedAt: string;
 };
 
-/** What Claude found in a resume; `model` is null when an earlier reading came back (`reused`). */
+/** What the AI found in a resume; `model` is null when an earlier reading came back (`reused`). */
 export type ResumeReading = { profile: CandidateProfile; model: string | null; costUsd: number | null; reused?: boolean };
 
-export type UploadedResume = { id: number; isDefault: boolean; readable: boolean; read: boolean; filled: string[] };
+export type UploadedResume = {
+  id: number;
+  isDefault: boolean;
+  readable: boolean;
+  read: boolean;
+  filled: string[];
+  /** Why the AI cannot read it; null when it can. */
+  problem: string | null;
+};
 
 export async function listResumes(): Promise<{ resumes: ResumeItem[]; error?: string }> {
   return api<{ resumes: ResumeItem[]; error?: string }>('/api/admin/resumes');

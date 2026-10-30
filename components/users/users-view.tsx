@@ -338,7 +338,7 @@ function suggestedId(profile: CandidateProfile, taken: Set<string>): string {
   const plain = (s: string) =>
     s
       .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '')
+      .replace(/\p{M}/gu, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '');
   const first = plain(profile.firstName);
@@ -371,7 +371,7 @@ function AddUserDialog({
   const [copy, setCopy] = useState({ search: true, rules: true, profile: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Their resume: Claude reads it while the rest is filled in; it is stored with the new user.
+  // Their resume: the AI reads it while the rest is filled in; it is stored with the new user.
   const [resume, setResume] = useState<File | null>(null);
   const [reading, setReading] = useState<Reading | 'reading' | null>(null);
   const resumeRef = useRef<File | null>(null);
@@ -400,7 +400,7 @@ function AddUserDialog({
     chooseResume(null);
   }
 
-  // Claude reads the resume at once; what it finds fills the name, user ID and Based in that are still empty.
+  // The AI reads the resume at once; what it finds fills the name, user ID and Based in that are still empty.
   function chooseResume(file: File | null) {
     setResume(file);
     resumeRef.current = file;
@@ -437,7 +437,7 @@ function AddUserDialog({
         makeDefault: true,
         ...('result' in read ? { reading: { profile: read.result.profile, text: read.result.text }, fillProfile: true } : {}),
       });
-      if (!('result' in read)) return { added: true, note: `Their resume is added; Claude could not read it (${read.error}), so fill in their profile by hand.` };
+      if (!('result' in read)) return { added: true, note: `Their resume is added; the AI could not read it (${read.error}), so fill in their profile by hand.` };
       return {
         added: true,
         note: up.filled.length
@@ -493,14 +493,14 @@ function AddUserDialog({
     reading === 'reading' ? (
       <span className="flex items-center gap-2">
         <Spinner />
-        Claude is reading it — fill in the rest meanwhile.
+        The AI is reading it — fill in the rest meanwhile.
       </span>
     ) : found ? (
       `Read: ${[fullName(found), found.headline, [found.city, found.country].filter(Boolean).join(', '), `${found.skills.length} skills`, `${found.experience.length} roles`].filter(Boolean).join(' · ')}. Their profile is filled in from it.`
     ) : reading && 'error' in reading ? (
-      <span className="text-amber-700 dark:text-amber-400">Claude could not read it: {reading.error} It is still added as their resume.</span>
+      <span className="text-amber-700 dark:text-amber-400">The AI could not read it: {reading.error} It is still added as their resume.</span>
     ) : (
-      'Optional. Claude reads it to fill in the name, user ID and where they are based, then their profile. It becomes their default resume.'
+      'Optional. The AI reads it (PDF, Word or text) to fill in the name, user ID and where they are based, then their profile. It becomes their default resume.'
     );
 
   return (

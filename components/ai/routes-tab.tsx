@@ -42,7 +42,7 @@ import { cn } from '@/lib/utils';
 const UNIT: Record<AiTask, { unit: string; input: number; cached: number; output: number }> = {
   scan: { unit: 'jobs', input: 900, cached: 220, output: 250 },
   extension: { unit: 'jobs', input: 2000, cached: 1100, output: 400 },
-  resume: { unit: 'resumes', input: 6000, cached: 0, output: 2500 },
+  resume: { unit: 'resumes', input: 6000, cached: 0, output: 1500 },
   answers: { unit: 'answers', input: 2500, cached: 900, output: 350 },
   writing: { unit: 'drafts', input: 3500, cached: 0, output: 900 },
 };
@@ -265,7 +265,7 @@ export function RoutesTab({ config, reload }: { config: AdminConfig; reload: () 
               {task === 'resume' && !usesClaude ? (
                 <p className={cn('flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400')}>
                   <TriangleAlertIcon className="size-3.5" />
-                  Reading resume PDFs needs Claude on this route.
+                  Without Claude on this route, scanned PDFs (no text in them) cannot be read.
                 </p>
               ) : null}
               {freeOnPrivate ? (

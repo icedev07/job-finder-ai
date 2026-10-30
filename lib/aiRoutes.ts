@@ -21,7 +21,8 @@ export const AI_TASK_INFO: Record<AiTask, { label: string; description: string }
   },
   resume: {
     label: "Resume reading",
-    description: "Reads an uploaded resume (PDF, Word or text) into the profile's facts. Needs Claude (it reads PDFs).",
+    description:
+      "Reads an uploaded resume (PDF, Word or text) into the profile's facts. Personal data — Claude recommended; a scanned PDF needs Claude.",
   },
   answers: {
     label: "Form answers",

@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -240,7 +240,7 @@ Click **Save** (or press `Ctrl+S`).
 
 ### Profile & resumes
 
-Start the Profile tab with **Fill in from a resume**: choose the resume (PDF, Word or text) and Claude fills in the name, contact details, headline, summary, skills, languages, experience and education; review them, add the work terms a resume does not state, and save. Add more resume variants on the Resumes tab, with tags (for example `.net, c#` and `react, typescript`) so autofill attaches the right one; the first is the default, and **Make default** picks another. The profile is also used as a soft signal when the AI judges jobs.
+Start the Profile tab with **Fill in from a resume**: choose the resume (PDF, Word or text) and the AI fills in the name, contact details, headline, summary, skills, languages, experience and education; review them, add the work terms a resume does not state, and save. Add more resume variants on the Resumes tab, with tags (for example `.net, c#` and `react, typescript`) so autofill attaches the right one; the first is the default, and **Make default** picks another. The profile is also used as a soft signal when the AI judges jobs.
 
 ### Sources and skip rules
 

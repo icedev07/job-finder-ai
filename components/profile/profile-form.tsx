@@ -280,7 +280,7 @@ export function ProfileForm({ profile, onChange }: { profile: CandidateProfile; 
         <ListEditor
           items={profile.experience}
           onChange={(experience) => set({ experience })}
-          empty="No experience yet — read a resume with Claude to fill this in."
+          empty="No experience yet — fill it in from a resume at the top of this tab."
           blank={BLANK_EXPERIENCE}
           addLabel="Add a role"
           fields={[

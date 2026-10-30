@@ -26,7 +26,7 @@ function resultText({ from, filled, mode }: FillResult): string {
 }
 
 /**
- * The top of the Profile tab: Claude reads one of the user's resumes (or one uploaded here, which joins them) and
+ * The top of the Profile tab: the AI reads one of the user's resumes (or one uploaded here, which joins them) and
  * its facts go into the profile, for the admin to review and save. A resume read before fills at once.
  */
 export function ResumeFill({ onApply, last }: { onApply: ApplyResume; last: FillResult | null }) {
@@ -79,12 +79,12 @@ export function ResumeFill({ onApply, last }: { onApply: ApplyResume; last: Fill
       id = resume.id;
       from = resume.name;
     }
-    setBusy(`Claude is reading “${from}”… this can take up to a minute.`);
+    setBusy(`The AI is reading “${from}”… this can take up to a minute.`);
     try {
       const r = await readStoredResume(id, true);
       onApply(r.profile, mode, from);
     } catch (e) {
-      setError(`Claude could not read “${from}”: ${errorMessage(e)}`);
+      setError(`The AI could not read “${from}”: ${errorMessage(e)}`);
     } finally {
       setBusy(null);
       await load();
@@ -94,7 +94,7 @@ export function ResumeFill({ onApply, last }: { onApply: ApplyResume; last: Fill
   return (
     <SectionCard
       title="Fill in from a resume"
-      description="Claude reads the resume and fills in the name, contact details, headline, summary, skills, languages, experience and education. A resume has no work terms: fill those in below."
+      description="The AI reads the resume (PDF, Word or text) and fills in the name, contact details, headline, summary, skills, languages, experience and education. A resume has no work terms: fill those in below."
     >
       {resumes === null ? (
         <Spinner />
