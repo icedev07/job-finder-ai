@@ -1,13 +1,21 @@
 import { google, type sheets_v4 } from "googleapis";
+import type { ScrapedJob } from "../generated/prisma";
 import { getConfig, getSheetColumns } from "./config";
 import { prisma } from "./prisma";
 import { activeUsers } from "./users";
 import { getUserSettings, type UserSettings } from "./userSettings";
 
-// Approved jobs go to the Google Sheet of the user they were found for. One
-// service account (app-wide) writes every sheet; each user names their own
-// spreadsheet and tabs, so several users can share one spreadsheet with
-// separate tabs. A missing tab is created on first use.
+// Approved jobs go to the Google Sheet of the user they were found for: board
+// jobs to the Jobs tab, LinkedIn jobs to the LinkedIn tab. One service account
+// (app-wide) writes every sheet; each user names their own spreadsheet and
+// tabs, so several users can share one spreadsheet with separate tabs. A
+// missing tab is created on first use.
+//
+// sheetSynced means "the job has a row in its user's sheet". The AI's
+// approvals are sent at the end of each scan (and LinkedIn ones as the
+// extension finds them); a job approved by hand is sent right away. Rows are
+// never deleted, so a job rejected later keeps its row and is not sent again
+// if approved once more.
 
 function getAuth(credentialsJson: string) {
   const credentials = JSON.parse(credentialsJson);
@@ -35,22 +43,49 @@ export async function sheetTargetFor(userId: number): Promise<SheetTarget | null
 // Tabs known to exist, per spreadsheet (for the life of the server instance).
 const knownTabs = new Map<string, Set<string>>();
 
-async function ensureTab(target: SheetTarget, tab: string): Promise<void> {
-  const known = knownTabs.get(target.spreadsheetId);
-  if (known?.has(tab)) return;
+async function tabTitles(target: SheetTarget): Promise<Set<string>> {
   const meta = await target.sheets.spreadsheets.get({
     spreadsheetId: target.spreadsheetId,
     fields: "sheets.properties.title",
   });
-  const titles = new Set((meta.data.sheets ?? []).map((s) => s.properties?.title ?? ""));
+  return new Set((meta.data.sheets ?? []).map((s) => s.properties?.title ?? ""));
+}
+
+async function ensureTab(target: SheetTarget, tab: string): Promise<void> {
+  const known = knownTabs.get(target.spreadsheetId);
+  if (known?.has(tab)) return;
+  const titles = await tabTitles(target);
   if (!titles.has(tab)) {
-    await target.sheets.spreadsheets.batchUpdate({
-      spreadsheetId: target.spreadsheetId,
-      requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
-    });
+    try {
+      await target.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: target.spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
+      });
+    } catch (err) {
+      // Another server instance may have just added it.
+      if (!(await tabTitles(target)).has(tab)) throw err;
+    }
     titles.add(tab);
   }
   knownTabs.set(target.spreadsheetId, titles);
+}
+
+const APPEND_BATCH = 50;
+
+/** Append rows (one per job), marking each batch as in the sheet once it is there. */
+async function appendRows(target: SheetTarget, range: string, rows: string[][], jobIds: number[]): Promise<void> {
+  for (let i = 0; i < rows.length; i += APPEND_BATCH) {
+    await target.sheets.spreadsheets.values.append({
+      spreadsheetId: target.spreadsheetId,
+      range,
+      valueInputOption: "RAW",
+      requestBody: { values: rows.slice(i, i + APPEND_BATCH) },
+    });
+    await prisma.scrapedJob.updateMany({
+      where: { id: { in: jobIds.slice(i, i + APPEND_BATCH) } },
+      data: { sheetSynced: true },
+    });
+  }
 }
 
 function getJobValue(job: Record<string, any>, key: string): string {
@@ -69,14 +104,8 @@ function getJobValue(job: Record<string, any>, key: string): string {
 const NOT_CONFIGURED =
   "Google Sheets is not set up for this user: add the service account in Settings → Google Sheets and the user's spreadsheet ID.";
 
-/** Append one user's approved, not yet exported jobs to their "Jobs" tab. */
-async function syncUserApprovedJobs(userId: number, target: SheetTarget): Promise<number> {
-  const jobs = await prisma.scrapedJob.findMany({
-    where: { userId, status: "APPROVED", sheetSynced: false },
-    orderBy: { createdAt: "asc" },
-  });
-  if (jobs.length === 0) return 0;
-
+/** Append board jobs to the user's Jobs tab, with the header row first on an empty tab. */
+async function appendToJobsTab(target: SheetTarget, jobs: ScrapedJob[]): Promise<void> {
   const { sheets, spreadsheetId, settings } = target;
   const tab = settings.jobsSheetTab;
   const columns = getSheetColumns(settings.sheetColumns);
@@ -95,21 +124,71 @@ async function syncUserApprovedJobs(userId: number, target: SheetTarget): Promis
   }
 
   const rows = jobs.map((job) => columns.map((col) => getJobValue(job, col.key)));
-  const batchSize = 50;
-  for (let i = 0; i < rows.length; i += batchSize) {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range: a1(tab, "A:Z"),
-      valueInputOption: "RAW",
-      requestBody: { values: rows.slice(i, i + batchSize) },
-    });
-  }
+  await appendRows(target, a1(tab, "A:Z"), rows, jobs.map((j) => j.id));
+}
 
-  await prisma.scrapedJob.updateMany({
-    where: { id: { in: jobs.map((j) => j.id) } },
-    data: { sheetSynced: true },
-  });
+/** Approved jobs not in the sheet yet, each to its tab: LinkedIn jobs to the LinkedIn tab, the rest to the Jobs tab. */
+async function appendApproved(target: SheetTarget, jobs: ScrapedJob[]): Promise<number> {
+  const boards = jobs.filter((j) => j.platform !== "linkedin");
+  const linkedin = jobs.filter((j) => j.platform === "linkedin");
+  if (boards.length) await appendToJobsTab(target, boards);
+  if (linkedin.length) await appendToLinkedInTab(target, linkedin);
   return jobs.length;
+}
+
+/** Send one user's approved jobs that are not in their sheet yet. */
+async function syncUserApprovedJobs(userId: number, target: SheetTarget): Promise<number> {
+  const jobs = await prisma.scrapedJob.findMany({
+    where: { userId, status: "APPROVED", sheetSynced: false },
+    orderBy: { createdAt: "asc" },
+  });
+  return jobs.length ? appendApproved(target, jobs) : 0;
+}
+
+// Every write to the sheets from this server instance runs after the one
+// before it: a push after an approval, the sync after a scan, the extension's
+// LinkedIn rows, a full rewrite. A sync that starts while a push is still
+// retrying then finds the job already sent instead of adding it twice, and
+// quick approvals don't race to create the same tab or number the same
+// LinkedIn row.
+let writing: Promise<unknown> = Promise.resolve();
+
+function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
+  const run = writing.then(work);
+  writing = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Send these jobs to their users' sheets now, if they are approved and not in
+ * a sheet yet (jobs approved by hand); `scope` limits them to one user's.
+ * Users without a sheet are skipped: their jobs wait for the next sync. Never
+ * throws: a failure is logged, and the next sync sends the job.
+ */
+export function sendApprovedJobsNow(ids: number[], scope: { userId?: number } = {}): Promise<number> {
+  return oneAtATime(() => sendNow(ids, scope));
+}
+
+async function sendNow(ids: number[], scope: { userId?: number }): Promise<number> {
+  // As many as one change touches (lib/jobActions.ts).
+  const unique = Array.from(new Set(ids)).slice(0, 500);
+  if (unique.length === 0) return 0;
+  const jobs = await prisma.scrapedJob.findMany({
+    where: { id: { in: unique }, ...scope, status: "APPROVED", sheetSynced: false },
+    orderBy: { createdAt: "asc" },
+  });
+  const byUser = new Map<number, ScrapedJob[]>();
+  for (const job of jobs) byUser.set(job.userId, [...(byUser.get(job.userId) ?? []), job]);
+  let sent = 0;
+  for (const [userId, list] of byUser) {
+    try {
+      const target = await sheetTargetFor(userId);
+      if (target) sent += await appendApproved(target, list);
+    } catch (err) {
+      console.error(`[sheets] sending ${list.length} approved job(s) of user #${userId} failed: ${(err as Error)?.message || err}`);
+    }
+  }
+  return sent;
 }
 
 /**
@@ -118,22 +197,24 @@ async function syncUserApprovedJobs(userId: number, target: SheetTarget): Promis
  * sheet, one after another; a user whose sheet fails is skipped, the rest
  * still sync.
  */
-export async function syncApprovedJobsToSheet(userId?: number): Promise<{ synced: number }> {
-  if (userId != null) {
-    const target = await sheetTargetFor(userId);
-    if (!target) throw new Error(NOT_CONFIGURED);
-    return { synced: await syncUserApprovedJobs(userId, target) };
-  }
-  let synced = 0;
-  for (const user of await activeUsers()) {
-    try {
-      const target = await sheetTargetFor(user.id);
-      if (target) synced += await syncUserApprovedJobs(user.id, target);
-    } catch (err) {
-      console.error(`[sheets] sync for user ${user.username} failed: ${(err as Error)?.message || err}`);
+export function syncApprovedJobsToSheet(userId?: number): Promise<{ synced: number }> {
+  return oneAtATime(async () => {
+    if (userId != null) {
+      const target = await sheetTargetFor(userId);
+      if (!target) throw new Error(NOT_CONFIGURED);
+      return { synced: await syncUserApprovedJobs(userId, target) };
     }
-  }
-  return { synced };
+    let synced = 0;
+    for (const user of await activeUsers()) {
+      try {
+        const target = await sheetTargetFor(user.id);
+        if (target) synced += await syncUserApprovedJobs(user.id, target);
+      } catch (err) {
+        console.error(`[sheets] sync for user ${user.username} failed: ${(err as Error)?.message || err}`);
+      }
+    }
+    return { synced };
+  });
 }
 
 const LINKEDIN_HEADER = ["No", "Date", "Platform", "Job Url", "Company", "Country", "Role", "Url", "Apply via"];
@@ -144,8 +225,7 @@ export function applyViaLabel(applyMethod: string | null | undefined): string {
   return "";
 }
 
-/** Add one approved LinkedIn job to its user's LinkedIn tab (no-op when their sheet is not set up). */
-export async function syncJobToLinkedInTab(job: {
+type LinkedInSheetJob = {
   id: number;
   userId: number;
   title: string;
@@ -155,9 +235,15 @@ export async function syncJobToLinkedInTab(job: {
   manualApplyUrl?: string | null;
   applyMethod?: string | null;
   createdAt: Date;
-}): Promise<void> {
-  const target = await sheetTargetFor(job.userId);
-  if (!target) return;
+};
+
+/** Add a LinkedIn job the AI just approved to its user's LinkedIn tab (no-op when their sheet is not set up). */
+export async function syncJobToLinkedInTab(job: Pick<LinkedInSheetJob, "id" | "userId">): Promise<void> {
+  await sendApprovedJobsNow([job.id], { userId: job.userId });
+}
+
+/** Append LinkedIn jobs to the user's LinkedIn tab, numbered on from its last row. */
+async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]): Promise<void> {
   const { sheets, spreadsheetId, settings } = target;
   const tab = settings.linkedinSheetTab;
   await ensureTab(target, tab);
@@ -194,34 +280,26 @@ export async function syncJobToLinkedInTab(job: {
   // Job Url stays as the LinkedIn viewer link (so we can re-open the original
   // posting), and the trailing Url column gets the company apply link when the
   // extension captured it, falling back to the LinkedIn link otherwise.
-  const applyHref = (job.manualApplyUrl && job.manualApplyUrl.trim()) || job.url;
-  const row = [
-    String(rowCount),
+  const rows = jobs.map((job, i) => [
+    String(rowCount + i),
     job.createdAt.toISOString().split("T")[0],
     "LinkedIn",
     job.url,
     job.company,
     job.location || "",
     job.title,
-    applyHref,
+    (job.manualApplyUrl && job.manualApplyUrl.trim()) || job.url,
     applyViaLabel(job.applyMethod),
-  ];
-
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: a1(tab, "A:I"),
-    valueInputOption: "RAW",
-    requestBody: { values: [row] },
-  });
-
-  await prisma.scrapedJob.update({
-    where: { id: job.id },
-    data: { sheetSynced: true },
-  });
+  ]);
+  await appendRows(target, a1(tab, "A:I"), rows, jobs.map((j) => j.id));
 }
 
 /** Rewrite one user's "Jobs" tab with all of their approved jobs, newest first. */
-export async function fullSyncToSheet(userId: number): Promise<{ synced: number }> {
+export function fullSyncToSheet(userId: number): Promise<{ synced: number }> {
+  return oneAtATime(() => rewriteJobsTab(userId));
+}
+
+async function rewriteJobsTab(userId: number): Promise<{ synced: number }> {
   const target = await sheetTargetFor(userId);
   if (!target) throw new Error(NOT_CONFIGURED);
   const { sheets, spreadsheetId, settings } = target;
@@ -248,6 +326,12 @@ export async function fullSyncToSheet(userId: number): Promise<{ synced: number 
   await prisma.scrapedJob.updateMany({
     where: { userId, status: "APPROVED" },
     data: { sheetSynced: true },
+  });
+  // The rewrite dropped the rows of board jobs no longer approved: approved
+  // again, they go back in. LinkedIn jobs keep theirs in the LinkedIn tab.
+  await prisma.scrapedJob.updateMany({
+    where: { userId, status: { not: "APPROVED" }, platform: { not: "linkedin" }, sheetSynced: true },
+    data: { sheetSynced: false },
   });
 
   return { synced: jobs.length };

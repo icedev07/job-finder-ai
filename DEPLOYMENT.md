@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -221,6 +221,7 @@ The first sections belong to the user selected in the **Viewing** menu (with one
 | Target & matching | Target market | `Europe, remote worldwide` |
 | | Where they are based | `Poland` |
 | | Use the profile when judging jobs | on |
+| | Review queue (off: close calls keep the AI verdict) | on |
 | | Review band | `45` – `70` |
 | | Follow-up days | `7` |
 | Job analysis prompt | (blank = built-in prompt) | |
@@ -323,6 +324,8 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 ---
 
 ## Google Sheet output
+
+The AI's approvals are sent at the end of each scan, LinkedIn ones as the extension finds them, and a job you approve by hand right away. Board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab, one row per job.
 
 ### "Jobs" tab (from scanners)
 

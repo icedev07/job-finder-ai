@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     current_location: s.currentLocation,
     job_analysis_prompt: s.jobAnalysisPrompt,
     profile_in_matching: s.profileInMatching ? "true" : "false",
+    review_enabled: s.reviewEnabled ? "true" : "false",
     review_band_min: String(s.reviewBandMin),
     review_band_max: String(s.reviewBandMax),
     followup_days: String(s.followUpDays),
@@ -83,8 +84,10 @@ export async function PUT(req: NextRequest) {
   if (values.followup_days !== undefined && !intIn(values.followup_days, 1, 60)) {
     return badRequest("Follow-up days must be a whole number from 1 to 60.");
   }
-  if (values.profile_in_matching !== undefined && !["true", "false"].includes(values.profile_in_matching)) {
-    return badRequest('profile_in_matching must be "true" or "false".');
+  for (const key of ["profile_in_matching", "review_enabled"] as const) {
+    if (values[key] !== undefined && !["true", "false"].includes(values[key])) {
+      return badRequest(`${key} must be "true" or "false".`);
+    }
   }
   if (values.sheet_columns?.trim()) {
     try {

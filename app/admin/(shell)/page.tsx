@@ -104,13 +104,23 @@ export default async function DashboardPage() {
           icon={<CheckCircle2Icon />}
           href="/admin/jobs?status=APPROVED&days=7"
         />
-        <KpiTile
-          label="To review"
-          value={formatNumber(status?.counts.review ?? 0)}
-          sub="close calls for a quick yes / no"
-          icon={<ListChecksIcon />}
-          href="/admin/review"
-        />
+        {status && !status.features.review ? (
+          <KpiTile
+            label="To review"
+            value="Off"
+            sub="close calls keep the AI verdict"
+            icon={<ListChecksIcon />}
+            href="/admin/settings#review"
+          />
+        ) : (
+          <KpiTile
+            label="To review"
+            value={formatNumber(status?.counts.review ?? 0)}
+            sub="close calls for a quick yes / no"
+            icon={<ListChecksIcon />}
+            href="/admin/review"
+          />
+        )}
         <KpiTile
           label="Applications"
           value={formatNumber(data.applied)}

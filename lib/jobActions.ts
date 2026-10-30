@@ -6,8 +6,10 @@ import { getUserSettings } from "./userSettings";
 // board, extension "Mark as applied"). One place for the rules:
 //   - moving to APPLIED stamps appliedAt (once) and schedules a follow-up;
 //   - INTERVIEW keeps / sets a follow-up; OFFER, REJECTED and ARCHIVED clear it;
-//   - a manual approve/reject overrides the AI status (and re-queues Sheets);
-//   - feedback (1 / -1 / null) is stored with its time, for Evaluations.
+//   - a manual approve/reject overrides the AI status (the routes send a job
+//     approved by hand to its user's Google Sheet if it is not there yet);
+//   - feedback (1 / -1 / null) is stored with its time, for Evaluations;
+//   - reviewedAt is set by the Review queue only (lib/review.ts).
 
 export type JobPatch = {
   stage?: JobStage | null;
@@ -15,6 +17,8 @@ export type JobPatch = {
   status?: "APPROVED" | "REJECTED";
   notes?: string | null;
   followUpAt?: string | null;
+  /** Not accepted from requests: the Review queue sets it. */
+  reviewedAt?: Date | null;
 };
 
 export function parseJobPatch(raw: unknown): JobPatch | string {
@@ -49,13 +53,17 @@ export function parseJobPatch(raw: unknown): JobPatch | string {
 
 // `scope` limits the change to one user's jobs ({} = any user's); ids outside
 // it are ignored, so a stale tab can never change another user's jobs.
-export async function updateJobs(ids: number[], patch: JobPatch, scope: { userId?: number } = {}): Promise<number> {
+export async function updateJobs(
+  ids: number[],
+  patch: JobPatch,
+  scope: { userId?: number } = {},
+  now = new Date(),
+): Promise<number> {
   const unique = Array.from(new Set(ids.filter((n) => Number.isInteger(n) && n > 0))).slice(0, 500);
   if (unique.length === 0) return 0;
   const rows = await prisma.scrapedJob.findMany({ where: { id: { in: unique }, ...scope }, select: { id: true, userId: true } });
   const inScope = rows.map((r) => r.id);
   if (inScope.length === 0) return 0;
-  const now = new Date();
 
   const data: Record<string, unknown> = {};
   if (patch.notes !== undefined) data.notes = patch.notes;
@@ -63,10 +71,9 @@ export async function updateJobs(ids: number[], patch: JobPatch, scope: { userId
     data.feedback = patch.feedback;
     data.feedbackAt = patch.feedback === null ? null : now;
   }
-  if (patch.status) {
-    data.status = patch.status;
-    data.sheetSynced = false;
-  }
+  // sheetSynced stays: a job already in the sheet keeps its one row.
+  if (patch.status) data.status = patch.status;
+  if (patch.reviewedAt !== undefined) data.reviewedAt = patch.reviewedAt;
   if (patch.followUpAt !== undefined) data.followUpAt = patch.followUpAt ? new Date(patch.followUpAt) : null;
   if (patch.stage !== undefined) {
     data.stage = patch.stage;

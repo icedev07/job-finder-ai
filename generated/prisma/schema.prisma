@@ -124,6 +124,10 @@ model ScrapedJob {
   // ── Your feedback on the AI verdict: 1 = good match, -1 = bad match ──
   feedback   Int?
   feedbackAt DateTime?
+  // When the job left the Review queue: approved, rejected or "keep the AI
+  // verdict" there, or "Mark all reviewed". Jobs marked together share it, so
+  // Undo can find them.
+  reviewedAt DateTime?
 
   // ── Signals ──
   // Where the company can hire, as judged by the AI: worldwide, europe,

@@ -9,6 +9,7 @@ import { SaveBar } from '@/components/common/save-bar';
 import { SecretField } from '@/components/common/secret-field';
 import { SectionCard } from '@/components/common/section-card';
 import { PasswordCard } from '@/components/settings/password-card';
+import { useStatus } from '@/components/shell/status-provider';
 import { ChooseUser, useViewing } from '@/components/shell/viewing';
 import { SOURCES } from '@/components/sources/catalog';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ const KEYS = [
   'target_market',
   'current_location',
   'profile_in_matching',
+  'review_enabled',
   'review_band_min',
   'review_band_max',
   'followup_days',
@@ -47,6 +49,7 @@ const LABEL: Record<Key, string> = {
   target_market: 'Target market',
   current_location: 'Based in',
   profile_in_matching: 'Profile in matching',
+  review_enabled: 'Review',
   review_band_min: 'Review band',
   review_band_max: 'Review band',
   followup_days: 'Follow-up days',
@@ -78,6 +81,8 @@ export function SettingsView() {
 
 function UserSettingsForm() {
   const { multiUser } = useViewing();
+  // Review on/off, the band and the sheet change the sidebar badges and Setup.
+  const { refresh } = useStatus();
   const [loaded, setLoaded] = useState<UserSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(async () => {
@@ -154,6 +159,7 @@ function UserSettingsForm() {
       });
       toast.success('Settings saved');
       await reload();
+      refresh();
     } catch (e) {
       setSaveError(errorMessage(e));
     } finally {
@@ -174,6 +180,7 @@ function UserSettingsForm() {
   }
 
   const usingDefaultPrompt = !draft.job_analysis_prompt.trim();
+  const reviewOn = draft.review_enabled !== 'false';
 
   return (
     <>
@@ -214,14 +221,28 @@ function UserSettingsForm() {
               </FieldDescription>
             </div>
           </Field>
-          <Field>
+          <Field id="review" orientation="horizontal" className="scroll-mt-20 sm:col-span-2">
+            <Switch
+              id="review-enabled"
+              checked={reviewOn}
+              onCheckedChange={(v) => set('review_enabled')(v ? 'true' : 'false')}
+            />
+            <div className="space-y-0.5">
+              <FieldLabel htmlFor="review-enabled">Review queue</FieldLabel>
+              <FieldDescription>
+                Verdicts close to the approval line wait in Review for a yes / no. Off: they keep the AI verdict, and{' '}
+                {multiUser ? `${loaded.user.name}'s jobs stay out of Review` : 'Review and its badge are hidden'}.
+              </FieldDescription>
+            </div>
+          </Field>
+          <Field data-disabled={!reviewOn || undefined}>
             <FieldLabel>Review queue: scores from … to …</FieldLabel>
             <div className="flex items-center gap-2">
-              <Input inputMode="numeric" className="w-20" value={draft.review_band_min} onChange={(e) => set('review_band_min')(e.target.value)} aria-label="Minimum score" />
+              <Input inputMode="numeric" className="w-20" value={draft.review_band_min} onChange={(e) => set('review_band_min')(e.target.value)} disabled={!reviewOn} aria-label="Minimum score" />
               <span className="text-muted-foreground">to</span>
-              <Input inputMode="numeric" className="w-20" value={draft.review_band_max} onChange={(e) => set('review_band_max')(e.target.value)} aria-label="Maximum score" />
+              <Input inputMode="numeric" className="w-20" value={draft.review_band_max} onChange={(e) => set('review_band_max')(e.target.value)} disabled={!reviewOn} aria-label="Maximum score" />
             </div>
-            <FieldDescription>Verdicts close to the approval line (60) wait in Review for a yes / no.</FieldDescription>
+            <FieldDescription>Scores in this band count as close calls (the approval line is 60).</FieldDescription>
           </Field>
           <Field>
             <FieldLabel htmlFor="followup">Follow up after (days)</FieldLabel>

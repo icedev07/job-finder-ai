@@ -179,6 +179,7 @@ exports.Prisma.ScrapedJobScalarFieldEnum = {
   applicationData: 'applicationData',
   feedback: 'feedback',
   feedbackAt: 'feedbackAt',
+  reviewedAt: 'reviewedAt',
   eligibility: 'eligibility',
   signals: 'signals'
 };

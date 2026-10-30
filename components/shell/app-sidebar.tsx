@@ -4,7 +4,7 @@ import { RadarIcon } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-import { activeNavItem, NAV_GROUPS, NAV_ITEMS, type NavBadge } from '@/components/shell/nav';
+import { activeNavItem, NAV_GROUPS, NAV_ITEMS, navItemShown, type NavBadge } from '@/components/shell/nav';
 import { NavUser } from '@/components/shell/nav-user';
 import { useStatus } from '@/components/shell/status-provider';
 import {
@@ -68,7 +68,7 @@ export function AppSidebar({ version, account }: { version: string; account: { n
             <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => {
+                {group.items.filter((item) => navItemShown(item, snapshot?.features)).map((item) => {
                   const isActive = item === active;
                   const count = item.badge ? counts[item.badge] : 0;
                   return (

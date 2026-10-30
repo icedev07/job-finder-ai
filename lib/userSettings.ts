@@ -15,6 +15,8 @@ export const USER_KEYS = {
   PROFILE_IN_MATCHING: "profile_in_matching",
   // JSON CandidateProfile (lib/profileModel.ts) — written by /api/admin/profile.
   CANDIDATE_PROFILE: "candidate_profile",
+  // "false" turns the Review queue off: close calls keep the AI verdict.
+  REVIEW_ENABLED: "review_enabled",
   // Score band whose verdicts land in the Review queue (inclusive).
   REVIEW_BAND_MIN: "review_band_min",
   REVIEW_BAND_MAX: "review_band_max",
@@ -44,6 +46,7 @@ export const SEARCH_KEYS: UserKey[] = [
   USER_KEYS.CURRENT_LOCATION,
   USER_KEYS.JOB_ANALYSIS_PROMPT,
   USER_KEYS.PROFILE_IN_MATCHING,
+  USER_KEYS.REVIEW_ENABLED,
   USER_KEYS.REVIEW_BAND_MIN,
   USER_KEYS.REVIEW_BAND_MAX,
   USER_KEYS.FOLLOWUP_DAYS,
@@ -57,6 +60,8 @@ export type UserSettings = {
   /** "" = the built-in prompt. */
   jobAnalysisPrompt: string;
   profileInMatching: boolean;
+  /** Close calls wait in Review; off, they keep the AI verdict and Review is hidden. */
+  reviewEnabled: boolean;
   reviewBandMin: number;
   reviewBandMax: number;
   followUpDays: number;
@@ -114,6 +119,7 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     // getting improvements.
     jobAnalysisPrompt: prompt.trim() === DEFAULT_ANALYSIS_PROMPT.trim() ? "" : prompt,
     profileInMatching: v[USER_KEYS.PROFILE_IN_MATCHING] !== "false",
+    reviewEnabled: v[USER_KEYS.REVIEW_ENABLED] !== "false",
     // Verdicts scored inside this band go to the Review queue: close to the
     // approval line (60), where a quick human check helps most.
     reviewBandMin: clampInt(v[USER_KEYS.REVIEW_BAND_MIN], 0, 100, 45),

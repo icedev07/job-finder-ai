@@ -6,6 +6,7 @@ import { cache } from "react";
 import { describeDbError } from "./dbErrors";
 import { PATH_HEADER, SESSION_COOKIE, readSessionToken, type SessionPayload } from "./session";
 import { getUserFresh, invalidateUserCache, listUsers, type UserRow } from "./users";
+import { getUserSettings, type UserSettings } from "./userSettings";
 
 // Who is signed in, and whose data a request works on.
 //
@@ -164,6 +165,14 @@ export function viewingUserId(scope: AdminScope): number | null {
 export function userWhere(scope: AdminScope): { userId?: number } {
   const id = viewingUserId(scope);
   return id == null ? {} : { userId: id };
+}
+
+export type ScopedUser = { id: number; user: UserRow; settings: UserSettings };
+
+/** The users a scope covers, with their settings: the viewed one, or every user. */
+export async function scopedUsers(scope: AdminScope): Promise<ScopedUser[]> {
+  const list = scope.viewing === "all" ? scope.users : scope.users.filter((u) => u.id === scope.viewing);
+  return Promise.all(list.map(async (user) => ({ id: user.id, user, settings: await getUserSettings(user.id) })));
 }
 
 export function inScope(scope: AdminScope, userId: number): boolean {

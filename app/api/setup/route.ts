@@ -134,6 +134,8 @@ const EVOLUTION_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "ExtensionToken_tokenHash_key" ON "ExtensionToken"("tokenHash");`,
   `CREATE INDEX IF NOT EXISTS "ExtensionToken_userId_idx" ON "ExtensionToken"("userId");`,
   addForeignKey("ExtensionToken", "ExtensionToken_userId_fkey"),
+  // Review: when a job left the queue ("Mark all reviewed" and Keep included).
+  `ALTER TABLE "ScrapedJob" ADD COLUMN IF NOT EXISTS "reviewedAt" TIMESTAMP(3);`,
 ];
 
 // After migrateUserData() gave every existing row an owner: the constraints

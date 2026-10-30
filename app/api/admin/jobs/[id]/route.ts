@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { sendApprovedJobsNow } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
 import { parseJobPatch, updateJobs } from "@/lib/jobActions";
 import { adminScope, userWhere } from "@/lib/scope";
@@ -70,5 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
   const updated = await updateJobs([id], patch, userWhere(scope));
   if (!updated) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+  // Approved by hand: to the user's Google Sheet right after the response.
+  if (patch.status === "APPROVED") after(() => sendApprovedJobsNow([id], userWhere(scope)));
   return NextResponse.json({ ok: true });
 }

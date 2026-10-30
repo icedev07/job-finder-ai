@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { sendApprovedJobsNow } from "@/lib/googleSheetsSync";
 import { prisma } from "@/lib/prisma";
 import { JOB_LIST_SELECT, jobsOrderBy, jobsWhere, parseJobsQuery } from "@/lib/jobsQuery";
 import { deleteJobs, parseJobPatch, updateJobs } from "@/lib/jobActions";
@@ -8,7 +9,8 @@ export const dynamic = "force-dynamic";
 
 // All for the user being viewed (or every user):
 // GET  → one page of jobs for the admin Jobs table (+ facet counts with facets=1).
-// PATCH { ids, set } → bulk stage / feedback / status / notes changes.
+// PATCH { ids, set } → bulk stage / feedback / status / notes changes; jobs
+//   approved by hand go to their user's Google Sheet right after the response.
 // DELETE { ids } → bulk delete (max 500).
 
 export async function GET(req: NextRequest) {
@@ -75,6 +77,7 @@ export async function PATCH(req: NextRequest) {
   const patch = parseJobPatch((body as { set?: unknown }).set);
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
   const updated = await updateJobs(ids, patch, userWhere(scope));
+  if (patch.status === "APPROVED") after(() => sendApprovedJobsNow(ids, userWhere(scope)));
   return NextResponse.json({ ok: true, updated });
 }
 

@@ -5101,6 +5101,7 @@ export namespace Prisma {
     applicationData: string | null
     feedback: number | null
     feedbackAt: Date | null
+    reviewedAt: Date | null
     eligibility: string | null
     signals: string | null
   }
@@ -5132,6 +5133,7 @@ export namespace Prisma {
     applicationData: string | null
     feedback: number | null
     feedbackAt: Date | null
+    reviewedAt: Date | null
     eligibility: string | null
     signals: string | null
   }
@@ -5163,6 +5165,7 @@ export namespace Prisma {
     applicationData: number
     feedback: number
     feedbackAt: number
+    reviewedAt: number
     eligibility: number
     signals: number
     _all: number
@@ -5212,6 +5215,7 @@ export namespace Prisma {
     applicationData?: true
     feedback?: true
     feedbackAt?: true
+    reviewedAt?: true
     eligibility?: true
     signals?: true
   }
@@ -5243,6 +5247,7 @@ export namespace Prisma {
     applicationData?: true
     feedback?: true
     feedbackAt?: true
+    reviewedAt?: true
     eligibility?: true
     signals?: true
   }
@@ -5274,6 +5279,7 @@ export namespace Prisma {
     applicationData?: true
     feedback?: true
     feedbackAt?: true
+    reviewedAt?: true
     eligibility?: true
     signals?: true
     _all?: true
@@ -5392,6 +5398,7 @@ export namespace Prisma {
     applicationData: string | null
     feedback: number | null
     feedbackAt: Date | null
+    reviewedAt: Date | null
     eligibility: string | null
     signals: string | null
     _count: ScrapedJobCountAggregateOutputType | null
@@ -5442,6 +5449,7 @@ export namespace Prisma {
     applicationData?: boolean
     feedback?: boolean
     feedbackAt?: boolean
+    reviewedAt?: boolean
     eligibility?: boolean
     signals?: boolean
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
@@ -5476,6 +5484,7 @@ export namespace Prisma {
     applicationData?: boolean
     feedback?: boolean
     feedbackAt?: boolean
+    reviewedAt?: boolean
     eligibility?: boolean
     signals?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -5508,6 +5517,7 @@ export namespace Prisma {
     applicationData?: boolean
     feedback?: boolean
     feedbackAt?: boolean
+    reviewedAt?: boolean
     eligibility?: boolean
     signals?: boolean
   }
@@ -5554,6 +5564,7 @@ export namespace Prisma {
       applicationData: string | null
       feedback: number | null
       feedbackAt: Date | null
+      reviewedAt: Date | null
       eligibility: string | null
       signals: string | null
     }, ExtArgs["result"]["scrapedJob"]>
@@ -5977,6 +5988,7 @@ export namespace Prisma {
     readonly applicationData: FieldRef<"ScrapedJob", 'String'>
     readonly feedback: FieldRef<"ScrapedJob", 'Int'>
     readonly feedbackAt: FieldRef<"ScrapedJob", 'DateTime'>
+    readonly reviewedAt: FieldRef<"ScrapedJob", 'DateTime'>
     readonly eligibility: FieldRef<"ScrapedJob", 'String'>
     readonly signals: FieldRef<"ScrapedJob", 'String'>
   }
@@ -14316,6 +14328,7 @@ export namespace Prisma {
     applicationData: 'applicationData',
     feedback: 'feedback',
     feedbackAt: 'feedbackAt',
+    reviewedAt: 'reviewedAt',
     eligibility: 'eligibility',
     signals: 'signals'
   };
@@ -14822,6 +14835,7 @@ export namespace Prisma {
     applicationData?: StringNullableFilter<"ScrapedJob"> | string | null
     feedback?: IntNullableFilter<"ScrapedJob"> | number | null
     feedbackAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    reviewedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
     signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
@@ -14855,6 +14869,7 @@ export namespace Prisma {
     applicationData?: SortOrderInput | SortOrder
     feedback?: SortOrderInput | SortOrder
     feedbackAt?: SortOrderInput | SortOrder
+    reviewedAt?: SortOrderInput | SortOrder
     eligibility?: SortOrderInput | SortOrder
     signals?: SortOrderInput | SortOrder
     analysisLogs?: AnalysisLogOrderByRelationAggregateInput
@@ -14893,6 +14908,7 @@ export namespace Prisma {
     applicationData?: StringNullableFilter<"ScrapedJob"> | string | null
     feedback?: IntNullableFilter<"ScrapedJob"> | number | null
     feedbackAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    reviewedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
     signals?: StringNullableFilter<"ScrapedJob"> | string | null
     analysisLogs?: AnalysisLogListRelationFilter
@@ -14926,6 +14942,7 @@ export namespace Prisma {
     applicationData?: SortOrderInput | SortOrder
     feedback?: SortOrderInput | SortOrder
     feedbackAt?: SortOrderInput | SortOrder
+    reviewedAt?: SortOrderInput | SortOrder
     eligibility?: SortOrderInput | SortOrder
     signals?: SortOrderInput | SortOrder
     _count?: ScrapedJobCountOrderByAggregateInput
@@ -14965,6 +14982,7 @@ export namespace Prisma {
     applicationData?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     feedback?: IntNullableWithAggregatesFilter<"ScrapedJob"> | number | null
     feedbackAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
+    reviewedAt?: DateTimeNullableWithAggregatesFilter<"ScrapedJob"> | Date | string | null
     eligibility?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
     signals?: StringNullableWithAggregatesFilter<"ScrapedJob"> | string | null
   }
@@ -15797,6 +15815,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
@@ -15830,6 +15849,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
@@ -15860,6 +15880,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
@@ -15893,6 +15914,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
@@ -15925,6 +15947,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
   }
@@ -15954,6 +15977,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
@@ -15985,6 +16009,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
@@ -17002,6 +17027,7 @@ export namespace Prisma {
     applicationData?: SortOrder
     feedback?: SortOrder
     feedbackAt?: SortOrder
+    reviewedAt?: SortOrder
     eligibility?: SortOrder
     signals?: SortOrder
   }
@@ -17041,6 +17067,7 @@ export namespace Prisma {
     applicationData?: SortOrder
     feedback?: SortOrder
     feedbackAt?: SortOrder
+    reviewedAt?: SortOrder
     eligibility?: SortOrder
     signals?: SortOrder
   }
@@ -17072,6 +17099,7 @@ export namespace Prisma {
     applicationData?: SortOrder
     feedback?: SortOrder
     feedbackAt?: SortOrder
+    reviewedAt?: SortOrder
     eligibility?: SortOrder
     signals?: SortOrder
   }
@@ -18335,6 +18363,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
@@ -18366,6 +18395,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
@@ -18573,6 +18603,7 @@ export namespace Prisma {
     applicationData?: StringNullableFilter<"ScrapedJob"> | string | null
     feedback?: IntNullableFilter<"ScrapedJob"> | number | null
     feedbackAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
+    reviewedAt?: DateTimeNullableFilter<"ScrapedJob"> | Date | string | null
     eligibility?: StringNullableFilter<"ScrapedJob"> | string | null
     signals?: StringNullableFilter<"ScrapedJob"> | string | null
   }
@@ -19130,6 +19161,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
     user: UserCreateNestedOneWithoutJobsInput
@@ -19162,6 +19194,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
   }
@@ -19207,6 +19240,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
@@ -19239,6 +19273,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
   }
@@ -19447,6 +19482,7 @@ export namespace Prisma {
     applicationData?: string | null
     feedback?: number | null
     feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
     eligibility?: string | null
     signals?: string | null
   }
@@ -19536,6 +19572,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
@@ -19567,6 +19604,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
@@ -19598,6 +19636,7 @@ export namespace Prisma {
     applicationData?: NullableStringFieldUpdateOperationsInput | string | null
     feedback?: NullableIntFieldUpdateOperationsInput | number | null
     feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     eligibility?: NullableStringFieldUpdateOperationsInput | string | null
     signals?: NullableStringFieldUpdateOperationsInput | string | null
   }

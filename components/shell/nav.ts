@@ -17,12 +17,15 @@ import {
 } from 'lucide-react';
 
 export type NavBadge = 'review' | 'followUps' | 'setup';
+/** A page each user can have off (Settings); hidden while it is off for everyone in view. */
+export type NavFeature = 'review';
 
 export interface NavItem {
   title: string;
   href: string;
   icon: LucideIcon;
   badge?: NavBadge;
+  feature?: NavFeature;
   /** Extra words the command palette matches on. */
   keywords?: string;
 }
@@ -41,7 +44,14 @@ export const NAV_GROUPS: NavGroup[] = [
     label: 'Work',
     items: [
       { title: 'Jobs', href: '/admin/jobs', icon: BriefcaseIcon, keywords: 'list table search approved' },
-      { title: 'Review', href: '/admin/review', icon: ListChecksIcon, badge: 'review', keywords: 'queue feedback unsure' },
+      {
+        title: 'Review',
+        href: '/admin/review',
+        icon: ListChecksIcon,
+        badge: 'review',
+        feature: 'review',
+        keywords: 'queue feedback unsure close calls mark reviewed',
+      },
       {
         title: 'Applications',
         href: '/admin/applications',
@@ -74,6 +84,11 @@ export const NAV_GROUPS: NavGroup[] = [
 ];
 
 export const NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+/** Whether an item shows: not while its feature is off for everyone in view (shown until the status is known). */
+export function navItemShown(item: NavItem, features: Partial<Record<NavFeature, boolean>> | undefined): boolean {
+  return !item.feature || features?.[item.feature] !== false;
+}
 
 /** The item whose href is the longest prefix of the path ("/admin" only matches exactly). */
 export function activeNavItem(pathname: string, items: NavItem[] = NAV_ITEMS): NavItem | undefined {

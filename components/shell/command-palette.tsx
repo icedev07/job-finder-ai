@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { NAV_ITEMS } from '@/components/shell/nav';
+import { NAV_ITEMS, navItemShown } from '@/components/shell/nav';
 import { useStatus } from '@/components/shell/status-provider';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,7 +42,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const router = useRouter();
   const { setTheme } = useTheme();
-  const { refresh } = useStatus();
+  const { refresh, snapshot } = useStatus();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -105,7 +105,7 @@ export function CommandPalette() {
               </CommandGroup>
             ) : null}
             <CommandGroup heading="Pages">
-              {NAV_ITEMS.map((item) => (
+              {NAV_ITEMS.filter((item) => navItemShown(item, snapshot?.features)).map((item) => (
                 <CommandItem key={item.href} value={`${item.title} ${item.keywords ?? ''}`} onSelect={() => go(item.href)}>
                   <item.icon />
                   {item.title}

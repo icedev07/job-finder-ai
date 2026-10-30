@@ -7,9 +7,9 @@ import { parseAiRoutes, type ProviderId } from "./aiRoutes";
 import { listExtensionBrowsers } from "./extensionTokens";
 import { getProfile } from "./profile";
 import { profileCompleteness } from "./profileModel";
-import type { AdminScope } from "./scope";
-import { usesDefaultPassword, type UserRow } from "./users";
-import { getUserSettings, type UserSettings } from "./userSettings";
+import { hasReview, reviewQueueWhere } from "./review";
+import { scopedUsers, type AdminScope } from "./scope";
+import { usesDefaultPassword } from "./users";
 
 // Live status for the admin shell: the top status strip, the sidebar badges
 // and the Setup checklist, for the user being viewed (or all users). Every
@@ -38,6 +38,8 @@ export type StatusSnapshot = {
   /** browsers: signed in to the extension, any user; keySet: the old shared key (extension 2.0) is on. */
   extension: { keySet: boolean; lastSeen: string | null; browsers: number };
   counts: { pending: number; review: number; followUpsDue: number; approved24h: number; applied: number };
+  /** Review is on for at least one user in view (off, the page and its badge are hidden). */
+  features: { review: boolean };
   warnings: { defaultPassword: boolean; cronSecretMissing: boolean; sessionSecretMissing: boolean };
   setup: { done: number; total: number; steps: SetupStep[] };
 };
@@ -67,29 +69,6 @@ function providerHasKey(id: ProviderId, c: Awaited<ReturnType<typeof getConfig>>
   }
 }
 
-/**
- * The Review queue's filter: recent verdicts inside each user's own score band
- * that nobody has rated or put in the pipeline yet.
- */
-export function reviewQueueWhere(users: { id: number; settings: UserSettings }[], now = new Date()) {
-  return {
-    status: { in: ["APPROVED", "REJECTED"] as ("APPROVED" | "REJECTED")[] },
-    feedback: null,
-    stage: null,
-    createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60_000) },
-    OR: users.map((u) => ({
-      userId: u.id,
-      aiScore: { gte: u.settings.reviewBandMin, lte: u.settings.reviewBandMax },
-    })),
-  };
-}
-
-/** The users a scope covers, with their settings: the viewed one, or every user. */
-export async function scopedUsers(scope: AdminScope): Promise<{ id: number; user: UserRow; settings: UserSettings }[]> {
-  const list = scope.viewing === "all" ? scope.users : scope.users.filter((u) => u.id === scope.viewing);
-  return Promise.all(list.map(async (user) => ({ id: user.id, user, settings: await getUserSettings(user.id) })));
-}
-
 async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000);
@@ -99,6 +78,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
   // Only users whose searches run count for "every user has …" steps.
   const activeScoped = users.filter((u) => u.user.active);
   const mine = scope.viewing === "all" ? {} : { userId: scope.viewing };
+  const reviewOn = hasReview(users);
   const reviewWhere = reviewQueueWhere(users, now);
 
   const [
@@ -150,7 +130,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       null,
     ),
     soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
-    soft(users.length ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
+    soft(reviewOn ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
     soft(
       prisma.scrapedJob.count({
         where: {
@@ -169,7 +149,14 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       prisma.resume.groupBy({ by: ["userId"], where: mine, _count: { _all: true } }),
       [] as { userId: number; _count: { _all: number } }[],
     ),
-    soft(prisma.$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Resume"') IS NOT NULL AS ok`.then((r) => !!r[0]?.ok), false),
+    // The newest table and column: both exist once /api/setup ran after the last upgrade.
+    soft(
+      prisma
+        .$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"ExtensionToken"') IS NOT NULL
+          AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ScrapedJob' AND column_name = 'reviewedAt') AS ok`
+        .then((r) => !!r[0]?.ok),
+      false,
+    ),
     // Any user's: an admin scanning for someone uses their own sign-in.
     soft(listExtensionBrowsers(null).then((b) => b.length), 0),
   ]);
@@ -329,6 +316,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
       browsers: extensionBrowsers,
     },
     counts: { pending, review, followUpsDue, approved24h, applied },
+    features: { review: reviewOn },
     warnings: { defaultPassword, cronSecretMissing, sessionSecretMissing },
     setup: { done: steps.filter((s) => s.done).length, total: steps.length, steps },
   };
