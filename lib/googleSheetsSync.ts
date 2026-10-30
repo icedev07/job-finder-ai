@@ -3,25 +3,31 @@ import type { ScrapedJob } from "../generated/prisma";
 import { getConfig, getSheetColumns } from "./config";
 import { stageText } from "./format";
 import { prisma } from "./prisma";
-import { activeUsers } from "./users";
-import { getUserSettings, type UserSettings } from "./userSettings";
+import { planFor, serviceAccountEmail, type SheetPlan, type SheetStatus } from "./sheetModel";
+import { activeUsers, listUsersWith } from "./users";
+import { getUserSettings, setUserConfig, USER_KEYS, type UserSettings } from "./userSettings";
 
 // Approved jobs go to the Google Sheet of the user they were found for: board
-// jobs to the Jobs tab, LinkedIn jobs to the LinkedIn tab. One service account
-// (app-wide) writes every sheet; each user names their own spreadsheet and
-// tabs, so several users can share one spreadsheet with separate tabs. A
-// missing tab is created on first use.
+// jobs to their Jobs tab, LinkedIn jobs to their LinkedIn tab. One service
+// account (app-wide) writes every sheet. A user's jobs go to the shared
+// spreadsheet the admin sets for everyone (their own two tabs there, named
+// after them), to a spreadsheet of their own, or nowhere (lib/sheetModel.ts).
+// A missing tab is created on first use.
 //
 // sheetSynced means "the job has a row in its user's sheet". The AI's
-// approvals are sent at the end of each scan (and LinkedIn ones as the
-// extension finds them); a job approved by hand is sent right away. Rows are
-// never deleted, so a job rejected later keeps its row and is not sent again
-// if approved once more.
+// approvals are sent when each scan ends (and LinkedIn ones as the extension
+// finds them); a job approved by hand is sent right away. Rows are never
+// deleted, so a job rejected later keeps its row and is not sent again if
+// approved once more.
 //
 // For users with Applications on, both tabs get a Stage column (found by its
 // header, added at the end when missing) that follows the board: a row is
 // written with the job's stage, and moving the job updates its cell. The row
 // is found by the job's link and title (or its title and company).
+//
+// Every delivery is noted in the user's settings (sheet_status): when, how many
+// jobs and where, or what went wrong and what to do about it. Settings, Setup,
+// the status bar and a job's panel show it.
 
 function getAuth(credentialsJson: string) {
   const credentials = JSON.parse(credentialsJson);
@@ -101,14 +107,103 @@ async function headerWithStage(target: SheetTarget, tab: string, fresh: string[]
   return { header, stageCol };
 }
 
-type SheetTarget = { sheets: sheets_v4.Sheets; spreadsheetId: string; settings: UserSettings };
+type SheetTarget = {
+  sheets: sheets_v4.Sheets;
+  spreadsheetId: string;
+  settings: UserSettings;
+  jobsTab: string;
+  linkedinTab: string;
+  /** The service account's e-mail: what to share the spreadsheet with. */
+  serviceAccount: string;
+};
 
-/** The user's sheet, or null when Sheets is not set up for them (no service account or no spreadsheet). */
+type SheetConfig = { googleSheetsCredentials: string; sharedSheetId: string };
+
+async function loadPlan(userId: number): Promise<{ plan: SheetPlan; settings: UserSettings; config: SheetConfig }> {
+  const [config, settings, everyone] = await Promise.all([getConfig(), getUserSettings(userId), listUsersWith(userId)]);
+  const user = everyone.find((u) => u.id === userId);
+  const plan: SheetPlan = user
+    ? planFor(user, settings, config, everyone)
+    : { ok: false, mode: settings.sheetMode, reason: "this user no longer exists." };
+  return { plan, settings, config };
+}
+
+/** Where this user's jobs go, or why nowhere. */
+export async function userSheetPlan(userId: number): Promise<SheetPlan> {
+  return (await loadPlan(userId)).plan;
+}
+
+/** The user's sheet, or null when their jobs go nowhere (Sheets is off for them, or not set up). */
 export async function sheetTargetFor(userId: number): Promise<SheetTarget | null> {
-  const [config, settings] = await Promise.all([getConfig(), getUserSettings(userId)]);
-  if (!config.googleSheetsCredentials || !settings.googleSheetId) return null;
-  const sheets = google.sheets({ version: "v4", auth: getAuth(config.googleSheetsCredentials) });
-  return { sheets, spreadsheetId: settings.googleSheetId, settings };
+  const { plan, settings, config } = await loadPlan(userId);
+  if (!plan.ok) return null;
+  return {
+    sheets: google.sheets({ version: "v4", auth: getAuth(config.googleSheetsCredentials) }),
+    spreadsheetId: plan.spreadsheetId,
+    settings,
+    jobsTab: plan.jobsTab,
+    linkedinTab: plan.linkedinTab,
+    serviceAccount: serviceAccountEmail(config.googleSheetsCredentials),
+  };
+}
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+function clipText(text: string, max = 160): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+/** What went wrong with a user's sheet, and what to do about it. */
+export function sheetProblem(err: unknown, serviceAccount: string): string {
+  const e = err as { status?: unknown; response?: { status?: unknown; data?: any }; message?: unknown } | null;
+  const status = Number(e?.response?.status ?? e?.status) || 0;
+  const data = e?.response?.data;
+  const raw = String(
+    (typeof data?.error === "object" ? data.error?.message : data?.error_description) ?? e?.message ?? err ?? "",
+  ).trim();
+  if (err instanceof SyntaxError) {
+    return "The service account JSON can't be read: paste the whole key file again (Settings → Google Sheets).";
+  }
+  if (/has not been used in project|it is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(raw)) {
+    const link = raw.match(/https:\/\/console\.(?:developers|cloud)\.google\.com\/\S+/)?.[0]?.replace(/[.,)]+$/, "");
+    return `The Google Sheets API is off in the service account's Google Cloud project: turn it on${link ? ` at ${link}` : " (APIs & Services → Library → Google Sheets API)"}, wait a minute and try again.`;
+  }
+  if (/not supported for this document/i.test(raw)) {
+    return "This is an Excel file in Google Drive, not a Google Sheet: open it, choose File → Save as Google Sheets, and use the new sheet's link.";
+  }
+  if (/invalid_grant|invalid_client|unauthorized_client|Invalid JWT|account not found/i.test(raw) || status === 401) {
+    return `Google refused the service account's key (${clipText(raw, 80)}): create a new key for it in Google Cloud and paste it under Settings → Google Sheets.`;
+  }
+  if (status === 403 || /caller does not have permission|PERMISSION_DENIED/i.test(raw)) {
+    return `The service account can't edit this spreadsheet: share it with ${serviceAccount || "the service account's e-mail (Settings → Google Sheets)"} as Editor.`;
+  }
+  if (status === 404 || /Requested entity was not found|NOT_FOUND/i.test(raw)) {
+    return "The spreadsheet was not found: check its link or ID, and that it still exists.";
+  }
+  if (status === 429 || /quota|rate limit/i.test(raw)) {
+    return "Google's limit on Sheets requests was reached: the jobs go with the next delivery.";
+  }
+  if (/ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|network|timed? ?out/i.test(raw)) {
+    return `Google could not be reached (${clipText(raw, 80)}): the jobs go with the next delivery.`;
+  }
+  return clipText(raw) || "Unknown error";
+}
+
+/** Note how the last delivery to the user's sheet went (never throws). */
+async function note(userId: number, status: Omit<SheetStatus, "at">): Promise<void> {
+  try {
+    const value: SheetStatus = { at: new Date().toISOString(), ...status };
+    await setUserConfig(userId, { [USER_KEYS.SHEET_STATUS]: JSON.stringify(value) });
+  } catch (err) {
+    console.error(`[sheets] noting the delivery of user #${userId} failed: ${(err as Error)?.message || err}`);
+  }
+}
+
+/** Note a failure for the user (the caller logs it); returns what went wrong and what to do. */
+async function noteFailure(userId: number, err: unknown, serviceAccount: string): Promise<string> {
+  const error = sheetProblem(err, serviceAccount);
+  await note(userId, { ok: false, sent: 0, tabs: [], error });
+  return error;
 }
 
 // Tabs known to exist, per spreadsheet (for the life of the server instance).
@@ -122,16 +217,18 @@ async function tabTitles(target: SheetTarget): Promise<Set<string>> {
   return new Set((meta.data.sheets ?? []).map((s) => s.properties?.title ?? ""));
 }
 
-async function ensureTab(target: SheetTarget, tab: string): Promise<void> {
+async function ensureTab(target: SheetTarget, tab: string): Promise<boolean> {
   const known = knownTabs.get(target.spreadsheetId);
-  if (known?.has(tab)) return;
+  if (known?.has(tab)) return false;
   const titles = await tabTitles(target);
+  let created = false;
   if (!titles.has(tab)) {
     try {
       await target.sheets.spreadsheets.batchUpdate({
         spreadsheetId: target.spreadsheetId,
         requestBody: { requests: [{ addSheet: { properties: { title: tab } } }] },
       });
+      created = true;
     } catch (err) {
       // Another server instance may have just added it.
       if (!(await tabTitles(target)).has(tab)) throw err;
@@ -139,6 +236,7 @@ async function ensureTab(target: SheetTarget, tab: string): Promise<void> {
     titles.add(tab);
   }
   knownTabs.set(target.spreadsheetId, titles);
+  return created;
 }
 
 const APPEND_BATCH = 50;
@@ -173,16 +271,12 @@ function getJobValue(job: Record<string, any>, key: string): string {
   return String(job[key] ?? "");
 }
 
-const NOT_CONFIGURED =
-  "Google Sheets is not set up for this user: add the service account in Settings → Google Sheets and the user's spreadsheet ID.";
-
 type SheetColumn = { key: string; label: string };
 
 /** Append board jobs to the user's Jobs tab, with the header row first on an empty tab. */
 async function appendToJobsTab(target: SheetTarget, jobs: ScrapedJob[]): Promise<void> {
-  const { settings } = target;
-  const tab = settings.jobsSheetTab;
-  const columns: SheetColumn[] = getSheetColumns(settings.sheetColumns);
+  const tab = target.jobsTab;
+  const columns: SheetColumn[] = getSheetColumns(target.settings.sheetColumns);
   await ensureTab(target, tab);
   const { stageCol } = await headerWithStage(target, tab, columns.map((c) => c.label));
 
@@ -190,13 +284,40 @@ async function appendToJobsTab(target: SheetTarget, jobs: ScrapedJob[]): Promise
   await appendRows(target, a1(tab, ALL_COLUMNS), rows, jobs.map((j) => j.id));
 }
 
-/** Approved jobs not in the sheet yet, each to its tab: LinkedIn jobs to the LinkedIn tab, the rest to the Jobs tab. */
-async function appendApproved(target: SheetTarget, jobs: ScrapedJob[]): Promise<number> {
-  const boards = jobs.filter((j) => j.platform !== "linkedin");
-  const linkedin = jobs.filter((j) => j.platform === "linkedin");
-  if (boards.length) await appendToJobsTab(target, boards);
-  if (linkedin.length) await appendToLinkedInTab(target, linkedin);
-  return jobs.length;
+/** Approved jobs not in the sheet yet, each to its tab: LinkedIn jobs to the LinkedIn tab, the rest to the Jobs tab. Returns the tabs written. */
+async function appendApproved(target: SheetTarget, jobs: ScrapedJob[]): Promise<string[]> {
+  const send = async (list: ScrapedJob[]) => {
+    const boards = list.filter((j) => j.platform !== "linkedin");
+    const linkedin = list.filter((j) => j.platform === "linkedin");
+    if (boards.length) await appendToJobsTab(target, boards);
+    if (linkedin.length) await appendToLinkedInTab(target, linkedin);
+  };
+  try {
+    await send(jobs);
+  } catch (err) {
+    // A tab deleted by hand since this server instance last saw it: look again, once.
+    if (!/Unable to parse range/i.test(String((err as Error)?.message ?? err))) throw err;
+    knownTabs.delete(target.spreadsheetId);
+    // Only the jobs not marked yet: the retry must not add a row twice.
+    const left = await prisma.scrapedJob.findMany({ where: { id: { in: jobs.map((j) => j.id) }, sheetSynced: false }, select: { id: true } });
+    const ids = new Set(left.map((j) => j.id));
+    await send(jobs.filter((j) => ids.has(j.id)));
+  }
+  const tabs: string[] = [];
+  if (jobs.some((j) => j.platform !== "linkedin")) tabs.push(target.jobsTab);
+  if (jobs.some((j) => j.platform === "linkedin")) tabs.push(target.linkedinTab);
+  return tabs;
+}
+
+/** Send jobs to the user's sheet and note how it went (a failure is noted, then thrown with what to do). */
+async function deliver(userId: number, target: SheetTarget, jobs: ScrapedJob[]): Promise<number> {
+  try {
+    const tabs = await appendApproved(target, jobs);
+    await note(userId, { ok: true, sent: jobs.length, tabs });
+    return jobs.length;
+  } catch (err) {
+    throw new Error(await noteFailure(userId, err, target.serviceAccount));
+  }
 }
 
 /** Send one user's approved jobs that are not in their sheet yet. */
@@ -205,7 +326,7 @@ async function syncUserApprovedJobs(userId: number, target: SheetTarget): Promis
     where: { userId, status: "APPROVED", sheetSynced: false },
     orderBy: { createdAt: "asc" },
   });
-  return jobs.length ? appendApproved(target, jobs) : 0;
+  return jobs.length ? deliver(userId, target, jobs) : 0;
 }
 
 // Every write to the sheets from this server instance runs after the one
@@ -226,7 +347,7 @@ function oneAtATime<T>(work: () => Promise<T>): Promise<T> {
  * Send these jobs to their users' sheets now, if they are approved and not in
  * a sheet yet (jobs approved by hand); `scope` limits them to one user's.
  * Users without a sheet are skipped: their jobs wait for the next sync. Never
- * throws: a failure is logged, and the next sync sends the job.
+ * throws: a failure is noted for the user, and the next sync sends the job.
  */
 export function sendApprovedJobsNow(ids: number[], scope: { userId?: number } = {}): Promise<number> {
   return oneAtATime(async () => (await sendNow(ids, scope)).size);
@@ -264,13 +385,16 @@ async function sendNow(ids: number[], scope: { userId?: number }): Promise<Set<n
     orderBy: { createdAt: "asc" },
   });
   for (const [userId, list] of byUser(jobs)) {
+    let target: SheetTarget | null = null;
     try {
-      const target = await sheetTargetFor(userId);
+      target = await sheetTargetFor(userId);
       if (!target) continue;
-      await appendApproved(target, list);
+      await deliver(userId, target, list);
       for (const job of list) sent.add(job.id);
     } catch (err) {
       console.error(`[sheets] sending ${list.length} approved job(s) of user #${userId} failed: ${(err as Error)?.message || err}`);
+      // A key that can't be read fails before there is a target to deliver to.
+      if (!target) await noteFailure(userId, err, "");
     }
   }
   return sent;
@@ -312,15 +436,21 @@ async function syncStages(ids: number[], scope: { userId?: number }): Promise<nu
   });
   let written = 0;
   for (const [userId, list] of byUser(jobs)) {
+    let target: SheetTarget | null = null;
     try {
-      const target = await sheetTargetFor(userId);
+      target = await sheetTargetFor(userId);
       if (!target?.settings.applicationsEnabled) continue;
       // LinkedIn jobs have their row in the LinkedIn tab (and, in a sheet synced before 4.8, one in the Jobs tab too).
       const linkedin = list.filter((j) => j.platform === "linkedin");
-      written += await writeStages(target, target.settings.jobsSheetTab, list, jobsTabRow(target.settings));
-      if (linkedin.length) written += await writeStages(target, target.settings.linkedinSheetTab, linkedin, linkedInTabRow);
+      written += await writeStages(target, target.jobsTab, list, jobsTabRow(target.settings));
+      if (linkedin.length) written += await writeStages(target, target.linkedinTab, linkedin, linkedInTabRow);
+      // It works again: the problem noted last time is gone.
+      if (target.settings.sheetStatus?.ok === false) {
+        await note(userId, { ok: true, sent: 0, tabs: [target.jobsTab, ...(linkedin.length ? [target.linkedinTab] : [])] });
+      }
     } catch (err) {
       console.error(`[sheets] updating the stage of ${list.length} job(s) of user #${userId} failed: ${(err as Error)?.message || err}`);
+      await noteFailure(userId, err, target?.serviceAccount ?? "");
     }
   }
   return written;
@@ -398,15 +528,16 @@ async function writeStages(target: SheetTarget, tab: string, jobs: RowJob[], mat
 
 /**
  * Export approved jobs that are not in a sheet yet. With a user: only theirs
- * (throws when their sheet is not set up). Without: every active user with a
- * sheet, one after another; a user whose sheet fails is skipped, the rest
- * still sync.
+ * (throws, with why, when their jobs go nowhere). Without: every active user
+ * with a sheet, one after another; a user whose sheet fails is skipped, the
+ * rest still sync.
  */
 export function syncApprovedJobsToSheet(userId?: number): Promise<{ synced: number }> {
   return oneAtATime(async () => {
     if (userId != null) {
-      const target = await sheetTargetFor(userId);
-      if (!target) throw new Error(NOT_CONFIGURED);
+      const { plan } = await loadPlan(userId);
+      if (!plan.ok) throw new Error(capitalize(plan.reason));
+      const target = await targetOrNote(userId);
       return { synced: await syncUserApprovedJobs(userId, target) };
     }
     let synced = 0;
@@ -420,6 +551,18 @@ export function syncApprovedJobsToSheet(userId?: number): Promise<{ synced: numb
     }
     return { synced };
   });
+}
+
+/** The user's sheet; a key that can't be read is noted for them, then thrown. */
+async function targetOrNote(userId: number): Promise<SheetTarget> {
+  let target: SheetTarget | null;
+  try {
+    target = await sheetTargetFor(userId);
+  } catch (err) {
+    throw new Error(await noteFailure(userId, err, ""));
+  }
+  if (!target) throw new Error("The Google Sheet is not set up for this user.");
+  return target;
 }
 
 const LINKEDIN_HEADER = ["No", "Date", "Platform", "Job Url", "Company", "Country", "Role", "Url", "Apply via"];
@@ -442,17 +585,15 @@ type LinkedInSheetJob = StagedJob & {
   createdAt: Date;
 };
 
-/** Add a LinkedIn job the AI just approved to its user's LinkedIn tab (no-op when their sheet is not set up). */
+/** Add a LinkedIn job the AI just approved to its user's LinkedIn tab (no-op when their jobs go nowhere). */
 export async function syncJobToLinkedInTab(job: Pick<LinkedInSheetJob, "id" | "userId">): Promise<void> {
   await sendApprovedJobsNow([job.id], { userId: job.userId });
 }
 
-/** Append LinkedIn jobs to the user's LinkedIn tab, numbered on from its last row. */
-async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]): Promise<void> {
-  const { sheets, spreadsheetId, settings } = target;
-  const tab = settings.linkedinSheetTab;
-  await ensureTab(target, tab);
-
+/** The LinkedIn tab's header (written on an empty tab, "Apply via" added to an old one), with its Stage column. */
+async function linkedInHeader(target: SheetTarget): Promise<{ stageCol: number }> {
+  const { sheets, spreadsheetId } = target;
+  const tab = target.linkedinTab;
   const existing = await sheets.spreadsheets.values
     .get({ spreadsheetId, range: a1(tab, "A1:I1") })
     .catch(() => null);
@@ -468,6 +609,15 @@ async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]
       .catch(() => {});
   }
   const { stageCol } = await headerWithStage(target, tab, LINKEDIN_HEADER);
+  return { stageCol };
+}
+
+/** Append LinkedIn jobs to the user's LinkedIn tab, numbered on from its last row. */
+async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]): Promise<void> {
+  const { sheets, spreadsheetId } = target;
+  const tab = target.linkedinTab;
+  await ensureTab(target, tab);
+  const { stageCol } = await linkedInHeader(target);
 
   const countRes = await sheets.spreadsheets.values
     .get({ spreadsheetId, range: a1(tab, "A:A") })
@@ -497,6 +647,58 @@ async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]
   await appendRows(target, a1(tab, ALL_COLUMNS), rows, jobs.map((j) => j.id));
 }
 
+export type SheetCheck =
+  | {
+      ok: true;
+      title: string;
+      spreadsheetId: string;
+      tabs: { name: string; created: boolean }[];
+      serviceAccount: string;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Test and set up: open the user's spreadsheet as the service account and
+ * make sure both of their tabs are there, with their header rows. It proves
+ * the service account can edit the sheet, and the result is noted like a
+ * delivery.
+ */
+export function prepareSheet(userId: number): Promise<SheetCheck> {
+  return oneAtATime(async () => {
+    const { plan } = await loadPlan(userId);
+    if (!plan.ok) return { ok: false, error: capitalize(plan.reason) };
+    let target: SheetTarget | null = null;
+    try {
+      target = await sheetTargetFor(userId);
+      if (!target) return { ok: false, error: "The Google Sheet is not set up for this user." };
+      const meta = await target.sheets.spreadsheets.get({
+        spreadsheetId: target.spreadsheetId,
+        fields: "properties.title,sheets.properties.title",
+      });
+      // What is there now (a tab deleted by hand is made again).
+      knownTabs.set(target.spreadsheetId, new Set((meta.data.sheets ?? []).map((s) => s.properties?.title ?? "")));
+      const columns: SheetColumn[] = getSheetColumns(target.settings.sheetColumns);
+      const jobsCreated = await ensureTab(target, target.jobsTab);
+      await headerWithStage(target, target.jobsTab, columns.map((c) => c.label));
+      const linkedinCreated = await ensureTab(target, target.linkedinTab);
+      await linkedInHeader(target);
+      await note(userId, { ok: true, sent: 0, tabs: [target.jobsTab, target.linkedinTab] });
+      return {
+        ok: true,
+        title: meta.data.properties?.title || "(untitled)",
+        spreadsheetId: target.spreadsheetId,
+        tabs: [
+          { name: target.jobsTab, created: jobsCreated },
+          { name: target.linkedinTab, created: linkedinCreated },
+        ],
+        serviceAccount: target.serviceAccount,
+      };
+    } catch (err) {
+      return { ok: false, error: await noteFailure(userId, err, target?.serviceAccount ?? "") };
+    }
+  });
+}
+
 /**
  * Sync Sheets: rewrite one user's Jobs tab with their approved board jobs,
  * newest first, and add to their LinkedIn tab every approved LinkedIn job it
@@ -504,22 +706,28 @@ async function appendToLinkedInTab(target: SheetTarget, jobs: LinkedInSheetJob[]
  */
 export function fullSyncToSheet(userId: number): Promise<{ synced: number }> {
   return oneAtATime(async () => {
-    const boards = await rewriteJobsTab(userId);
-    const linkedin = await completeLinkedInTab(userId);
-    return { synced: boards.synced + linkedin };
+    const { plan } = await loadPlan(userId);
+    if (!plan.ok) throw new Error(capitalize(plan.reason));
+    const target = await targetOrNote(userId);
+    try {
+      const boards = await rewriteJobsTab(userId, target);
+      const linkedin = await completeLinkedInTab(userId, target);
+      await note(userId, { ok: true, sent: boards.synced + linkedin, tabs: [target.jobsTab, target.linkedinTab] });
+      return { synced: boards.synced + linkedin };
+    } catch (err) {
+      throw new Error(await noteFailure(userId, err, target.serviceAccount));
+    }
   });
 }
 
 /** Add the approved LinkedIn jobs missing from the user's LinkedIn tab (found by their link); returns how many. */
-async function completeLinkedInTab(userId: number): Promise<number> {
-  const target = await sheetTargetFor(userId);
-  if (!target) throw new Error(NOT_CONFIGURED);
+async function completeLinkedInTab(userId: number, target: SheetTarget): Promise<number> {
   const jobs = await prisma.scrapedJob.findMany({
     where: { userId, status: "APPROVED", platform: "linkedin" },
     orderBy: { createdAt: "asc" },
   });
   if (jobs.length === 0) return 0;
-  const tab = target.settings.linkedinSheetTab;
+  const tab = target.linkedinTab;
   await ensureTab(target, tab);
   const res = await target.sheets.spreadsheets.values.get({ spreadsheetId: target.spreadsheetId, range: a1(tab, ALL_COLUMNS) });
   const rows = res.data.values ?? [];
@@ -533,11 +741,9 @@ async function completeLinkedInTab(userId: number): Promise<number> {
   return missing.length;
 }
 
-async function rewriteJobsTab(userId: number): Promise<{ synced: number }> {
-  const target = await sheetTargetFor(userId);
-  if (!target) throw new Error(NOT_CONFIGURED);
+async function rewriteJobsTab(userId: number, target: SheetTarget): Promise<{ synced: number }> {
   const { sheets, spreadsheetId, settings } = target;
-  const tab = settings.jobsSheetTab;
+  const tab = target.jobsTab;
   const columns: SheetColumn[] = getSheetColumns(settings.sheetColumns);
   await ensureTab(target, tab);
 

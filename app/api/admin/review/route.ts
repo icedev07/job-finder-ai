@@ -1,6 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { getConfig } from "@/lib/config";
 import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
+import { planFor } from "@/lib/sheetModel";
 import { prisma } from "@/lib/prisma";
 import {
   hasReview,
@@ -135,8 +136,9 @@ export async function POST(req: NextRequest) {
   // Stage (Saved) updated.
   let sheet = 0;
   const toSend = result.approved.filter((j) => !j.inSheet);
-  if (toSend.length && (await getConfig()).googleSheetsCredentials) {
-    const withSheet = new Set(users.filter((u) => u.settings.googleSheetId).map((u) => u.id));
+  if (toSend.length) {
+    const config = await getConfig();
+    const withSheet = new Set(users.filter((u) => planFor(u.user, u.settings, config, scope.users).ok).map((u) => u.id));
     sheet = toSend.filter((j) => withSheet.has(j.userId)).length;
   }
   if (result.approved.length) after(() => updateSheetsAfterChange(result.approved.map((j) => j.id)));

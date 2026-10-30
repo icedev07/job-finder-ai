@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.9.1](README.md#upgrading-from-491), [4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -77,9 +77,8 @@ Skip this step if you do not need the spreadsheet: everything is also in the adm
 
 1. Go to https://docs.google.com/spreadsheets and create a new spreadsheet
 2. Name it (e.g. `Job Finder Results`)
-3. Create two sheet tabs: `Jobs` and `LinkedIn`
-4. Click **Share** and add the `client_email` from step 12 above with **Editor** access
-5. Copy the spreadsheet ID from the URL: `https://docs.google.com/spreadsheets/d/`**THIS_PART**`/edit`
+3. Click **Share** and add the `client_email` from step 12 above with **Editor** access (Viewer is not enough)
+4. Copy the spreadsheet's link. In Step 5 (Settings) it becomes the **shared spreadsheet**: each user gets their own two tabs in it, named after them, made on the first delivery. A user can have a spreadsheet of their own instead; share it the same way.
 
 ---
 
@@ -230,10 +229,11 @@ The first sections belong to the user selected in the **Viewing** menu (with one
 | | Days without an answer before Next actions suggests closing (`0` = never) | `21` |
 | Job analysis prompt | (blank = built-in prompt) | |
 | Job boards | which boards' new jobs are judged for this user | all |
-| Google Sheet | Spreadsheet ID | the spreadsheet ID from Step 2 |
-| | Jobs / LinkedIn tab names | `Jobs` / `LinkedIn` |
+| Google Sheet | Where the approved jobs go | the shared spreadsheet (default), their own (paste its link) or nowhere |
+| | Jobs / LinkedIn tab names | blank: `<name> – Jobs` / `<name> – LinkedIn` in the shared spreadsheet, `Jobs` / `LinkedIn` in their own |
 | | Sheet columns | leave blank for defaults |
-| Google service account (all users) | Service Account JSON | paste the **entire** JSON key file content |
+| Google Sheets (all users) | Service Account JSON | paste the **entire** JSON key file content |
+| | Shared spreadsheet | the spreadsheet's link from Step 2 |
 | Your password | Current and new password | at least 8 characters |
 
 Click **Save** (or press `Ctrl+S`).
@@ -308,7 +308,7 @@ To check it works:
 - **Admin → Logs → Scan logs** shows each run. A run refused because `CRON_SECRET` is missing is logged there too.
 - The top bar of the admin panel shows when the last scan ran.
 
-Each scan checks every job with AI inline, stores only the suitable / not-suitable results, and syncs approved ones to Google Sheets in the same run. The **Analyze pending** button is only a fallback for clearing leftovers and normally shows `0`.
+Each scan checks every job with AI inline, stores only the suitable / not-suitable results, and sends approved ones to the Google Sheets right after the run. The **Analyze pending** button is only a fallback for clearing leftovers and normally shows `0`.
 
 ---
 
@@ -329,7 +329,7 @@ Once a job is analyzed (approved or rejected), it is **never analyzed again auto
 
 ## Google Sheet output
 
-The AI's approvals are sent at the end of each scan, LinkedIn ones as the extension finds them, and a job you approve by hand right away. Board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab, one row per job. For users with Applications on, a **Stage** column at the end of each tab follows the board (see the README's [Google Sheet output](README.md#google-sheet-output)).
+Each user's approved jobs go to their own two tabs in the shared spreadsheet, to a spreadsheet of their own, or nowhere (**Settings → Google Sheet**). The AI's approvals are sent as each scan ends, LinkedIn ones as the extension finds them, and a job you approve by hand right away. Board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab, one row per job. For users with Applications on, a **Stage** column at the end of each tab follows the board (see the README's [Google Sheet output](README.md#google-sheet-output)).
 
 ### "Jobs" tab (from scanners)
 
@@ -441,10 +441,10 @@ The AI's approvals are sent at the end of each scan, LinkedIn ones as the extens
 - Reload the extension after update: `chrome://extensions` then reload "Job Finder" (called "LinkedIn Job Scanner" before 2.1).
 
 **Google Sheets not updating**
-- Make sure the sheet tabs are named `Jobs` and `LinkedIn` (or the tab name set in Settings)
-- Make sure the service account email has Editor access to the sheet
-- Check that the Sheet ID is correct (from the URL)
-- Use **Sync Sheets** on the Dashboard to push pending rows by hand
+- Open **Settings → Google Sheet** with the user selected: it shows where their jobs go and the last delivery, or what went wrong and what to do.
+- Click **Test and set up the tabs**: it makes the user's tabs and proves the service account can edit the spreadsheet.
+- Share the spreadsheet with the service account's e-mail (**Settings → Google Sheets**, with **Copy**) as **Editor**; Viewer is not enough.
+- **Send N approved jobs now** sends the jobs waiting; **Sync Sheets** on the Dashboard rewrites the Jobs tab.
 
 **Jobs are being analyzed twice**
 - This should not happen. Scans only analyze new jobs, with an atomic status check. If you see duplicates, check **Admin → Logs**.

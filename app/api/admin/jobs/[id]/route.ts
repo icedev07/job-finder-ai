@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
 import { setSentResume } from "@/lib/resumes";
 import { adminActor, adminScope, userWhere } from "@/lib/scope";
+import { planFor, spreadsheetUrl } from "@/lib/sheetModel";
 import { getUserSettings } from "@/lib/userSettings";
 import { jobDrafts, writingResumes } from "@/lib/writing";
 
@@ -52,11 +53,18 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     getUserSettings(job.userId),
     getConfig(),
   ]);
-  // Its user's Google Sheet: whether there is one, and the tab the job goes to.
-  const sheet = {
-    configured: !!(config.googleSheetsCredentials && settings.googleSheetId),
-    tab: job.platform === "linkedin" ? settings.linkedinSheetTab : settings.jobsSheetTab,
-  };
+  // Its user's Google Sheet: the tab the job goes to (and a link), or why it
+  // goes nowhere, and what went wrong last time.
+  const owner = scope.users.find((u) => u.id === job.userId);
+  const plan = owner ? planFor(owner, settings, config, scope.users) : null;
+  const sheet = plan?.ok
+    ? {
+        configured: true,
+        tab: job.platform === "linkedin" ? plan.linkedinTab : plan.jobsTab,
+        url: spreadsheetUrl(plan.spreadsheetId),
+        problem: settings.sheetStatus?.ok === false ? (settings.sheetStatus.error ?? null) : null,
+      }
+    : { configured: false, reason: plan?.reason ?? "this user no longer exists." };
 
   let signals: Record<string, unknown> | null = null;
   try {

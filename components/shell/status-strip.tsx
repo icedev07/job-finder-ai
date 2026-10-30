@@ -119,13 +119,17 @@ export function statusChips(s: StatusSnapshot): Chip[] {
   });
 
   if (s.sheets.configured) {
+    const failing = s.sheets.failing ?? [];
     chips.push({
       key: 'sheets',
       label: 'Sheets',
-      value: s.sheets.unsynced ? `${s.sheets.unsynced} unsynced` : 'synced',
-      tone: s.sheets.unsynced > 50 ? 'warn' : 'ok',
-      href: '/admin',
-      details: [['Approved jobs not yet in the sheet', String(s.sheets.unsynced)]],
+      value: failing.length ? 'failing' : s.sheets.unsynced ? `${s.sheets.unsynced} unsynced` : 'synced',
+      tone: failing.length ? 'error' : s.sheets.unsynced > 50 ? 'warn' : 'ok',
+      href: '/admin/settings#sheets',
+      details: [
+        ['Approved jobs not yet in the sheet', String(s.sheets.unsynced)],
+        ...failing.map((f) => [`Failing for ${f.name}`, f.error] as [string, string]),
+      ],
     });
   }
 

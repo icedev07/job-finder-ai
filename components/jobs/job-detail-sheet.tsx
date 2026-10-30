@@ -84,8 +84,8 @@ type DetailResponse = {
   interviews: Interview[];
   drafts: Draft[];
   writing: WritingSetup;
-  /** Its user's Google Sheet: set up or not, and the tab the job goes to. */
-  sheet?: { configured: boolean; tab: string };
+  /** Its user's Google Sheet: the tab the job goes to (a problem with the last delivery), or why it goes nowhere. */
+  sheet?: { configured: true; tab: string; url: string; problem: string | null } | { configured: false; reason: string };
 };
 
 // The reasons an archived application can have (Rejected is its own stage).
@@ -254,11 +254,7 @@ export function JobDetailSheet({
                   {typeof signals.applicants === 'string' ? <li>Applicants: {signals.applicants}</li> : null}
                   {data.sheet && (job.sheetSynced || job.status === 'APPROVED') ? (
                     <li data-testid="sheet-line">
-                      {job.sheetSynced
-                        ? `In the Google Sheet (${data.sheet.tab} tab).`
-                        : data.sheet.configured
-                          ? `Approved, not in the Google Sheet yet: it goes to the ${data.sheet.tab} tab with the next sync.`
-                          : 'Approved, not in a Google Sheet: this user has none set up (Settings → Google Sheet).'}
+                      <SheetLine sheet={data.sheet} inSheet={job.sheetSynced} />
                     </li>
                   ) : null}
                 </ul>
@@ -457,5 +453,22 @@ export function JobDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** Where the job is (or goes) in its user's Google Sheet, or why it is not there. */
+function SheetLine({ sheet, inSheet }: { sheet: NonNullable<DetailResponse['sheet']>; inSheet: boolean }) {
+  if (!sheet.configured) return <>{inSheet ? 'In the Google Sheet.' : `Approved, not in a Google Sheet: ${sheet.reason}`}</>;
+  const tab = (
+    <a href={sheet.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+      “{sheet.tab}” tab
+    </a>
+  );
+  if (inSheet) return <>In the Google Sheet ({tab}).</>;
+  return (
+    <>
+      Approved, not in the Google Sheet yet: it goes to the {tab} with the next delivery.
+      {sheet.problem ? <span className="text-destructive"> The last one failed: {sheet.problem}</span> : null}
+    </>
   );
 }

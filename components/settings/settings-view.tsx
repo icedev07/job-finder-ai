@@ -1,14 +1,13 @@
 'use client';
 
-import { FlaskConicalIcon, RotateCcwIcon } from 'lucide-react';
+import { RotateCcwIcon } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { TestResultBox, type TestResult } from '@/components/ai/shared';
 import { SaveBar } from '@/components/common/save-bar';
-import { SecretField } from '@/components/common/secret-field';
 import { SectionCard } from '@/components/common/section-card';
 import { PasswordCard } from '@/components/settings/password-card';
+import { SheetsAppCard, UserSheetCard, type SheetInfo, type SheetKey } from '@/components/settings/sheet-settings';
 import { useStatus } from '@/components/shell/status-provider';
 import { ChooseUser, useViewing } from '@/components/shell/viewing';
 import { SOURCES } from '@/components/sources/catalog';
@@ -22,11 +21,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import { api, errorMessage } from '@/lib/clientApi';
 import { DEFAULT_ANALYSIS_PROMPT } from '@/lib/defaultPrompt';
-import { useAdminConfig } from '@/lib/useAdminConfig';
+import { spreadsheetIdFrom, SPREADSHEET_LINK_HINT } from '@/lib/sheetModel';
+import { useAdminConfig, type AdminConfig } from '@/lib/useAdminConfig';
 
 // Settings: the viewed user's own settings (what the AI judges their jobs
 // against, their job boards and Google Sheet), then the app-wide ones (the
-// Google service account, your password).
+// Google service account and the shared spreadsheet, your password).
 
 const KEYS = [
   'target_market',
@@ -41,6 +41,7 @@ const KEYS = [
   'no_answer_days',
   'job_analysis_prompt',
   'scan_boards',
+  'sheet_mode',
   'google_sheet_id',
   'jobs_sheet_tab',
   'linkedin_sheet_tab',
@@ -61,31 +62,36 @@ const LABEL: Record<Key, string> = {
   no_answer_days: 'Days without an answer',
   job_analysis_prompt: 'Analysis prompt',
   scan_boards: 'Job boards',
-  google_sheet_id: 'Sheet ID',
+  sheet_mode: 'Google Sheet',
+  google_sheet_id: 'Own spreadsheet',
   jobs_sheet_tab: 'Jobs tab',
   linkedin_sheet_tab: 'LinkedIn tab',
   sheet_columns: 'Sheet columns',
 };
 
-type UserSettings = Record<Key, string> & { user: { id: number; username: string; name: string } };
+type UserSettings = Record<Key, string> & { user: { id: number; username: string; name: string }; sheet: SheetInfo };
+
+const SHEET_KEYS: SheetKey[] = ['sheet_mode', 'google_sheet_id', 'jobs_sheet_tab', 'linkedin_sheet_tab', 'sheet_columns'];
 
 const ALL_BOARDS = SOURCES.map((s) => s.key);
 
 export function SettingsView() {
   const { viewing } = useViewing();
+  // The app-wide settings: the user's Google Sheet card reads the shared spreadsheet and the service account too.
+  const { config, reload } = useAdminConfig();
   return (
     <div className="space-y-4">
       {viewing === 'all' ? (
         <ChooseUser what="Search options, the analysis prompt, job boards and the Google Sheet" />
       ) : (
-        <UserSettingsForm />
+        <UserSettingsForm appConfig={config} />
       )}
-      <AppSettings />
+      <AppSettings config={config} reload={reload} />
     </div>
   );
 }
 
-function UserSettingsForm() {
+function UserSettingsForm({ appConfig }: { appConfig: AdminConfig | null }) {
   const { multiUser } = useViewing();
   // Review and Applications on/off, the band and the sheet change the sidebar badges and Setup.
   const { refresh } = useStatus();
@@ -108,8 +114,6 @@ function UserSettingsForm() {
   const [draft, setDraft] = useState(saved);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [sheetsTest, setSheetsTest] = useState<TestResult>(null);
-  const [testingSheets, setTestingSheets] = useState(false);
 
   // Fresh settings from the server replace the draft.
   const [lastSaved, setLastSaved] = useState(saved);
@@ -149,6 +153,14 @@ function UserSettingsForm() {
       setSaveError('The review band must be two scores 0–100 with min ≤ max.');
       return;
     }
+    if (spreadsheetIdFrom(draft.google_sheet_id) === null) {
+      setSaveError(`Own spreadsheet: ${SPREADSHEET_LINK_HINT}`);
+      return;
+    }
+    if (draft.sheet_mode === 'own' && !draft.google_sheet_id.trim()) {
+      setSaveError('Paste the link of their own spreadsheet, or choose the shared spreadsheet.');
+      return;
+    }
     if (draft.sheet_columns.trim()) {
       try {
         JSON.parse(draft.sheet_columns);
@@ -170,18 +182,6 @@ function UserSettingsForm() {
       setSaveError(errorMessage(e));
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function testSheets() {
-    setTestingSheets(true);
-    setSheetsTest(null);
-    try {
-      setSheetsTest(await api<TestResult>('/api/admin/test-connection', { method: 'POST', json: { target: 'sheets' } }));
-    } catch (e) {
-      setSheetsTest({ ok: false, error: errorMessage(e) });
-    } finally {
-      setTestingSheets(false);
     }
   }
 
@@ -385,54 +385,19 @@ function UserSettingsForm() {
         </SectionCard>
       </div>
 
-      <div id="sheets" className="scroll-mt-20">
-        <SectionCard
-          title="Google Sheet"
-          description={`Optional export of ${whose} approved jobs: board jobs go to the Jobs tab, LinkedIn jobs to the LinkedIn tab. Missing tabs are created.`}
-        >
-          <FieldGroup className="grid gap-4 sm:grid-cols-3">
-            <Field className="sm:col-span-3">
-              <FieldLabel htmlFor="sheet-id">Spreadsheet ID</FieldLabel>
-              <Input id="sheet-id" value={draft.google_sheet_id} onChange={(e) => set('google_sheet_id')(e.target.value)} placeholder="1BxiMVs…" className="font-mono" />
-              <FieldDescription>
-                From the sheet URL: /spreadsheets/d/<strong>this part</strong>/edit. Several users can share one spreadsheet with
-                their own tab names.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="jobs-tab">Jobs tab name</FieldLabel>
-              <Input id="jobs-tab" value={draft.jobs_sheet_tab} onChange={(e) => set('jobs_sheet_tab')(e.target.value)} placeholder="Jobs" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="li-tab">LinkedIn tab name</FieldLabel>
-              <Input id="li-tab" value={draft.linkedin_sheet_tab} onChange={(e) => set('linkedin_sheet_tab')(e.target.value)} placeholder="LinkedIn" />
-            </Field>
-          </FieldGroup>
-          <Field>
-            <FieldLabel htmlFor="columns">Jobs tab columns (JSON, blank = defaults)</FieldLabel>
-            <Textarea
-              id="columns"
-              value={draft.sheet_columns}
-              onChange={(e) => set('sheet_columns')(e.target.value)}
-              rows={3}
-              spellCheck={false}
-              className="font-mono text-xs"
-              placeholder='[{"key":"title","label":"Title"},{"key":"applyMethod","label":"Apply via"}, …]'
-            />
-            <FieldDescription>
-              Keys: title, company, location, url, platform, aiScore, techStack, salary, createdAt, applyMethod, eligibility, stage.
-            </FieldDescription>
-          </Field>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => void testSheets()} disabled={testingSheets}>
-              {testingSheets ? <Spinner /> : <FlaskConicalIcon />}
-              Test the connection
-            </Button>
-            <span className="text-xs text-muted-foreground">Uses the saved values and the service account below — save first.</span>
-          </div>
-          <TestResultBox result={sheetsTest} />
-        </SectionCard>
-      </div>
+      <UserSheetCard
+        draft={draft}
+        set={set}
+        sheet={loaded.sheet}
+        appConfig={appConfig}
+        whose={whose}
+        they={they}
+        dirty={dirty.some((k) => (SHEET_KEYS as string[]).includes(k))}
+        onChanged={async () => {
+          await reload();
+          refresh();
+        }}
+      />
 
       <SaveBar
         dirtyLabels={[...new Set(dirty.map((k) => LABEL[k]))]}
@@ -448,35 +413,11 @@ function UserSettingsForm() {
   );
 }
 
-// App-wide: the one Google service account that writes every user's sheet, and your password.
-function AppSettings() {
-  const { config, reload } = useAdminConfig();
+// App-wide: the Google service account and the shared spreadsheet, and your password.
+function AppSettings({ config, reload }: { config: AdminConfig | null; reload: () => Promise<unknown> }) {
   return (
     <>
-      <div id="service-account" className="scroll-mt-20">
-        <SectionCard
-          title="Google service account"
-          description="One service account writes every user's sheet. Paste its whole key file, then share each spreadsheet with its client_email as Editor."
-        >
-          {config ? (
-            <SecretField
-              configKey="google_sheets_credentials"
-              label="Service account JSON"
-              description={
-                config.secrets?.google_sheets_credentials?.set
-                  ? `Share each user's spreadsheet with ${config.secrets.google_sheets_credentials.hint} as Editor.`
-                  : 'Not set yet.'
-              }
-              placeholder='{"type":"service_account", …}'
-              state={config.secrets?.google_sheets_credentials}
-              multiline
-              onSaved={() => void reload()}
-            />
-          ) : (
-            <Spinner />
-          )}
-        </SectionCard>
-      </div>
+      <SheetsAppCard config={config} reload={reload} />
 
       <div id="password" className="scroll-mt-20">
         <PasswordCard />

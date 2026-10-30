@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "./prisma";
 import { DEFAULT_ANALYSIS_PROMPT } from "./defaultPrompt";
+import { parseSheetStatus, resolveSheetMode, type SheetMode, type SheetStatus } from "./sheetModel";
 
 // A user's own settings: what the AI judges their jobs against, their Google
 // Sheet, their profile and which job boards they get results from. One
@@ -30,10 +31,16 @@ export const USER_KEYS = {
   // days without an answer after applying before "close it?" (0 = never).
   SAVED_REMINDER_DAYS: "saved_reminder_days",
   NO_ANSWER_DAYS: "no_answer_days",
+  // Where their approved jobs go: "shared" (the app-wide spreadsheet), "own"
+  // (google_sheet_id) or "off". Missing: own when they have one, else shared.
+  SHEET_MODE: "sheet_mode",
   GOOGLE_SHEET_ID: "google_sheet_id",
   JOBS_SHEET_TAB: "jobs_sheet_tab",
   LINKEDIN_SHEET_TAB: "linkedin_sheet_tab",
   SHEET_COLUMNS: "sheet_columns",
+  // JSON SheetStatus (lib/sheetModel.ts): the last delivery to their sheet,
+  // written by the app (never by Settings).
+  SHEET_STATUS: "sheet_status",
   // JSON array of the board keys this user gets results from; missing = every board.
   SCAN_BOARDS: "scan_boards",
   // JSON ExtensionSettings (lib/extensionSettings.ts): how the Chrome extension
@@ -82,10 +89,16 @@ export type UserSettings = {
   savedReminderDays: number;
   /** Next actions: an application with no answer this many days after applying is due to be closed (0 = never). */
   noAnswerDays: number;
+  /** Where their approved jobs go (lib/sheetModel.ts). */
+  sheetMode: SheetMode;
+  /** Their own spreadsheet (used when sheetMode is "own"). */
   googleSheetId: string;
+  /** Tab names as saved; "" = the default for the mode (sheetTabs). */
   jobsSheetTab: string;
   linkedinSheetTab: string;
   sheetColumns: string;
+  /** The last delivery to their sheet, or null before the first one. */
+  sheetStatus: SheetStatus | null;
   /** Board keys this user gets results from; null = every board. */
   scanBoards: string[] | null;
 };
@@ -159,10 +172,12 @@ export async function getUserSettings(userId: number): Promise<UserSettings> {
     followUpDays: clampInt(v[USER_KEYS.FOLLOWUP_DAYS], 1, 60, 7),
     savedReminderDays: clampInt(v[USER_KEYS.SAVED_REMINDER_DAYS], 0, 90, 7),
     noAnswerDays: clampInt(v[USER_KEYS.NO_ANSWER_DAYS], 0, 180, 21),
+    sheetMode: resolveSheetMode(v[USER_KEYS.SHEET_MODE], (v[USER_KEYS.GOOGLE_SHEET_ID] || "").trim()),
     googleSheetId: (v[USER_KEYS.GOOGLE_SHEET_ID] || "").trim(),
-    jobsSheetTab: (v[USER_KEYS.JOBS_SHEET_TAB] || "").trim() || "Jobs",
-    linkedinSheetTab: (v[USER_KEYS.LINKEDIN_SHEET_TAB] || "").trim() || "LinkedIn",
+    jobsSheetTab: (v[USER_KEYS.JOBS_SHEET_TAB] || "").trim(),
+    linkedinSheetTab: (v[USER_KEYS.LINKEDIN_SHEET_TAB] || "").trim(),
     sheetColumns: v[USER_KEYS.SHEET_COLUMNS] || "",
+    sheetStatus: parseSheetStatus(v[USER_KEYS.SHEET_STATUS]),
     scanBoards: parseScanBoards(v[USER_KEYS.SCAN_BOARDS]),
   };
 }

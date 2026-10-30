@@ -9,6 +9,7 @@ import {
   setConfigValue,
 } from "@/lib/config";
 import { parseAiRoutes } from "@/lib/aiRoutes";
+import { SPREADSHEET_LINK_HINT, spreadsheetIdFrom } from "@/lib/sheetModel";
 import { requireAdmin } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
     cerebras_model: all.cerebras_model || "llama-3.3-70b",
     cloudflare_account_id: all.cloudflare_account_id || "",
     cloudflare_model: all.cloudflare_model || "@cf/meta/llama-3.1-8b-instruct",
+    shared_sheet_id: config.sharedSheetId,
     secrets,
   });
 }
@@ -105,6 +107,13 @@ export async function PUT(req: NextRequest) {
       if (value.trim() !== "" && (!Number.isFinite(n) || n < 0)) {
         return badRequest("The monthly Claude budget must be a number ≥ 0 (0 = no cap).");
       }
+    }
+    if (key === CONFIG_KEYS.SHARED_SHEET_ID) {
+      // A pasted link is kept as the spreadsheet's id.
+      const id = spreadsheetIdFrom(value);
+      if (id === null) return badRequest(`Shared spreadsheet: ${SPREADSHEET_LINK_HINT}`);
+      writes.push([key, id]);
+      continue;
     }
     if (key === CONFIG_KEYS.AI_ROUTES && value.trim()) {
       try {

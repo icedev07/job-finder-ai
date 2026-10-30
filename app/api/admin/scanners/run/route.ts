@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { FEED_KEYS, getFeed, runFeedScan } from "@/lib/scrapers";
 import { analyzeAllPending } from "@/lib/jobAnalyzer";
@@ -9,16 +9,14 @@ import { adminScope, viewingUserId } from "@/lib/scope";
 
 export const dynamic = "force-dynamic";
 
-// Vercel caps this route at 60s. Keep the working window under that.
-const FUNCTION_BUDGET_MS = 55_000;
-// A single board scan now scrapes AND analyzes inline, so it needs a real
-// working window — but leave headroom for the response + sheet sync.
-const SINGLE_BOARD_BUDGET_MS = 48_000;
+// Vercel caps this route at 60s. The scan keeps under 52s, so sending its
+// approvals to the Google Sheets after the response (about 8s) fits too.
+const FUNCTION_BUDGET_MS = 52_000;
+// A single board scan scrapes AND analyzes inline, so it needs a real working
+// window, with headroom for the response and the sheets.
+const SINGLE_BOARD_BUDGET_MS = 46_000;
 // A board needs at least this much wall-clock to scrape + run one AI batch.
 const MIN_BOARD_BUDGET_MS = 24_000;
-// Don't start the (optional) Google Sheets sync once we're this deep into the
-// function — a slow sync must never push the request past the 60s cap.
-const SYNC_CUTOFF_MS = 50_000;
 
 type RunOutcome = {
   board: string;
@@ -126,18 +124,12 @@ async function runAllSequential(
   return outcomes;
 }
 
-// Push freshly-approved jobs to Google Sheets — but only when there is enough
-// of the 60s function budget left to finish safely. When skipped, the next
-// scan run (or the analyze route) picks the rows up.
-async function maybeSheetSync(functionStartedAt: number, userId?: number): Promise<number> {
-  if (Date.now() - functionStartedAt > SYNC_CUTOFF_MS) return 0;
-  try {
-    const r = await syncApprovedJobsToSheet(userId);
-    return r.synced;
-  } catch {
-    // Sheets sync is optional — never block a scan on it.
-    return 0;
-  }
+// The approved jobs go to the users' Google Sheets right after the response:
+// every approved job not in a sheet yet, so one a run could not send goes with
+// the next. A failure is noted for the user (Settings → Google Sheet) and
+// never fails the scan.
+function sendToSheetsAfter(userId?: number): void {
+  after(() => syncApprovedJobsToSheet(userId).catch(() => undefined));
 }
 
 function sumOutcomes(outcomes: RunOutcome[]) {
@@ -188,26 +180,22 @@ export async function POST(req: NextRequest) {
   if (board === "all") {
     const sharedConfig = await getAllConfig();
     const outcomes = await runAllSequential(sharedConfig, functionStartedAt, userIds);
-    const sheetsSynced = await maybeSheetSync(functionStartedAt, one ?? undefined);
+    sendToSheetsAfter(one ?? undefined);
     const errors = outcomes.filter((o) => o.error).map((o) => `${o.board}: ${o.error}`);
     return NextResponse.json({
       success: errors.length === 0,
       ...sumOutcomes(outcomes),
-      sheetsSynced,
       outcomes,
       ...(errors.length ? { error: errors.join("; ") } : {}),
     });
   }
 
   const outcome = await runOne(board, undefined, SINGLE_BOARD_BUDGET_MS, userIds);
-  const sheetsSynced = await maybeSheetSync(functionStartedAt, one ?? undefined);
+  sendToSheetsAfter(one ?? undefined);
   if (outcome.error) {
-    return NextResponse.json(
-      { success: false, error: outcome.error, ...outcomeBody(outcome), sheetsSynced },
-      { status: 500 },
-    );
+    return NextResponse.json({ success: false, error: outcome.error, ...outcomeBody(outcome) }, { status: 500 });
   }
-  return NextResponse.json({ success: true, ...outcomeBody(outcome), sheetsSynced });
+  return NextResponse.json({ success: true, ...outcomeBody(outcome) });
 }
 
 export async function GET(req: NextRequest) {
@@ -259,13 +247,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const sheetsSynced = await maybeSheetSync(functionStartedAt);
+  sendToSheetsAfter();
 
   return NextResponse.json({
     success: true,
     ...sumOutcomes(outcomes),
     outcomes,
     analyzed,
-    sheetsSynced,
   });
 }

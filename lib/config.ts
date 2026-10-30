@@ -31,6 +31,8 @@ export const CONFIG_KEYS = {
   CLOUDFLARE_MODEL: "cloudflare_model",
   // One service account for everyone; each user shares their own sheet with it.
   GOOGLE_SHEETS_CREDENTIALS: "google_sheets_credentials",
+  // The spreadsheet for everyone: users set to it get their own tabs there.
+  SHARED_SHEET_ID: "shared_sheet_id",
   // The old shared extension key: it still works and acts as the first admin.
   EXTENSION_API_KEY: "extension_api_key",
   ANALYZER_REQUEST_DELAY_MS: "analyzer_request_delay_ms",
@@ -210,6 +212,7 @@ export async function getConfig() {
     cloudflareApiKey: all[CONFIG_KEYS.CLOUDFLARE_API_KEY] || "",
     cloudflareModel: all[CONFIG_KEYS.CLOUDFLARE_MODEL] || "@cf/meta/llama-3.1-8b-instruct",
     googleSheetsCredentials: all[CONFIG_KEYS.GOOGLE_SHEETS_CREDENTIALS] || "",
+    sharedSheetId: (all[CONFIG_KEYS.SHARED_SHEET_ID] || "").trim(),
     extensionApiKey: all[CONFIG_KEYS.EXTENSION_API_KEY] || "",
     anthropicApiKey: all[CONFIG_KEYS.ANTHROPIC_API_KEY] || "",
     aiRoutesRaw: all[CONFIG_KEYS.AI_ROUTES] || "",

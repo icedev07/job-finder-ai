@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { google } from "googleapis";
 import { getConfig, maskApiKey } from "@/lib/config";
 import {
   fetchOpenRouterFreeModels,
@@ -14,7 +13,7 @@ import {
 import { callClaude, listClaudeModels } from "@/lib/claudeClient";
 import { recordAiUsage } from "@/lib/aiUsage";
 import { adminScope, CHOOSE_USER_MESSAGE, viewingUserId } from "@/lib/scope";
-import { getUserSettings } from "@/lib/userSettings";
+import { prepareSheet } from "@/lib/googleSheetsSync";
 
 export const dynamic = "force-dynamic";
 
@@ -423,36 +422,18 @@ export async function POST(req: NextRequest) {
     }
 
     if (target === "sheets") {
-      if (!config.googleSheetsCredentials) {
-        return NextResponse.json({ ok: false, error: "Service Account JSON is empty" });
-      }
+      // Test and set up: the service account opens the viewed user's
+      // spreadsheet and makes sure both of their tabs are there.
       const userId = viewingUserId(scope);
       if (userId == null) return NextResponse.json({ ok: false, error: CHOOSE_USER_MESSAGE });
-      const googleSheetId = (await getUserSettings(userId)).googleSheetId;
-      if (!googleSheetId) {
-        return NextResponse.json({ ok: false, error: "This user's Google Sheet ID is empty" });
-      }
-      try {
-        const credentials = JSON.parse(config.googleSheetsCredentials);
-        const auth = new google.auth.GoogleAuth({
-          credentials,
-          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-        });
-        const sheets = google.sheets({ version: "v4", auth });
-        const meta = await withTimeout(
-          sheets.spreadsheets.get({ spreadsheetId: googleSheetId }),
-          TEST_DEADLINE_MS,
-          "Google Sheets request",
-        );
-        return NextResponse.json({
-          ok: true,
-          sheetTitle: meta.data.properties?.title || "(unknown)",
-          tabs: meta.data.sheets?.map((s) => s.properties?.title).filter(Boolean) || [],
-          serviceAccount: credentials.client_email || "(no client_email field)",
-        });
-      } catch (e: any) {
-        return NextResponse.json({ ok: false, error: String(e?.message || e) });
-      }
+      const check = await withTimeout(prepareSheet(userId), TEST_DEADLINE_MS, "Google Sheets request");
+      if (!check.ok) return NextResponse.json(check);
+      return NextResponse.json({
+        ok: true,
+        sheetTitle: check.title,
+        tabs: check.tabs.map((t) => (t.created ? `${t.name} (created)` : t.name)),
+        serviceAccount: check.serviceAccount,
+      });
     }
 
     return NextResponse.json({ ok: false, error: "Unknown target" }, { status: 400 });

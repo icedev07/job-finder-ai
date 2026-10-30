@@ -13,6 +13,7 @@ import { nextActionCounts } from "./nextActions";
 import type { CandidateProfile } from "./profileModel";
 import { hasReview, reviewQueueWhere } from "./review";
 import { scopedUsers, type AdminScope, type ScopedUser } from "./scope";
+import { planFor } from "./sheetModel";
 import { markStatusStale, slowStore } from "./statusCache";
 import { usesDefaultPassword } from "./users";
 
@@ -40,7 +41,8 @@ export type StatusSnapshot = {
   ai: { calls24h: number; failures24h: number };
   /** latencyMs: one query's round trip; the regions when known (lib/dbLatency.ts). */
   db: { sizeBytes: number | null; limitBytes: number } & DbPlacement;
-  sheets: { configured: boolean; unsynced: number };
+  /** unsynced: approved jobs of users whose jobs go to a sheet, not in it yet; failing: users whose last delivery failed. */
+  sheets: { configured: boolean; unsynced: number; failing: { name: string; error: string }[] };
   /** browsers: signed in to the extension, any user; keySet: the old shared key (extension 2.0) is on. */
   extension: { keySet: boolean; lastSeen: string | null; browsers: number };
   /** nextActions: follow-ups due, interviews coming up and the rest of Next actions (lib/nextActions.ts). */
@@ -191,11 +193,12 @@ async function loadSlowPart(scope: AdminScope, activeScoped: ScopedUser[], now: 
 type JobCounts = { pending: number; unsynced: number; approved24h: number; applied: number };
 
 // The jobs' counts in one pass; an older database (before /api/setup) one at a time, each failing on its own.
-async function jobCounts(userId: number | null, dayAgo: Date): Promise<JobCounts> {
+// unsynced counts only the users in sheetUsers (their jobs go to a sheet).
+async function jobCounts(userId: number | null, dayAgo: Date, sheetUsers: number[]): Promise<JobCounts> {
   try {
     const rows = await prisma.$queryRaw<{ pending: bigint; unsynced: bigint; approved24h: bigint; applied: bigint }[]>`
       SELECT COUNT(*) FILTER (WHERE status = 'PENDING') AS pending,
-             COUNT(*) FILTER (WHERE status = 'APPROVED' AND NOT "sheetSynced") AS unsynced,
+             COUNT(*) FILTER (WHERE status = 'APPROVED' AND NOT "sheetSynced" AND "userId" = ANY(${sheetUsers}::int[])) AS unsynced,
              COUNT(*) FILTER (WHERE status = 'APPROVED' AND "createdAt" >= ${dayAgo}) AS approved24h,
              COUNT(*) FILTER (WHERE stage IN ('APPLIED', 'INTERVIEW', 'OFFER')) AS applied
       FROM "ScrapedJob" WHERE ${userId}::int IS NULL OR "userId" = ${userId}::int`;
@@ -205,7 +208,7 @@ async function jobCounts(userId: number | null, dayAgo: Date): Promise<JobCounts
     const mine = userId == null ? {} : { userId };
     const [pending, unsynced, approved24h, applied] = await Promise.all([
       soft(prisma.scrapedJob.count({ where: { ...mine, status: "PENDING" } }), 0),
-      soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", sheetSynced: false } }), 0),
+      soft(prisma.scrapedJob.count({ where: { ...mine, userId: { in: sheetUsers }, status: "APPROVED", sheetSynced: false } }), 0),
       soft(prisma.scrapedJob.count({ where: { ...mine, status: "APPROVED", createdAt: { gte: dayAgo } } }), 0),
       soft(prisma.scrapedJob.count({ where: { ...mine, stage: { in: ["APPLIED", "INTERVIEW", "OFFER"] } } }), 0),
     ]);
@@ -238,9 +241,13 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
   const pipelineUsers = users.filter((u) => u.settings.applicationsEnabled);
   const applicationsOn = pipelineUsers.length > 0;
 
+  // Where each user's approved jobs go (lib/sheetModel.ts).
+  const sheetPlans = users.map((u) => ({ u, plan: planFor(u.user, u.settings, config, scope.users) }));
+  const sheetUsers = sheetPlans.filter((p) => p.plan.ok).map((p) => p.u.id);
+
   const [slow, counts, review, nextActions] = await Promise.all([
     loadSlowPart(scope, activeScoped, now),
-    jobCounts(scope.viewing === "all" ? null : scope.viewing, dayAgo),
+    jobCounts(scope.viewing === "all" ? null : scope.viewing, dayAgo, sheetUsers),
     soft(reviewOn ? prisma.scrapedJob.count({ where: reviewWhere }) : Promise.resolve(0), 0),
     soft(
       nextActionCounts(pipelineUsers, now).then((c) => [...c.values()].reduce((s, n) => s + n, 0)),
@@ -266,8 +273,12 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     return c.filled >= Math.ceil(c.total * 0.6);
   });
   const noResume = missing((u) => resumeUsers.has(u.id));
-  const noSheet = missing((u) => !!(config.googleSheetsCredentials && u.settings.googleSheetId));
-  const sheetsConfigured = !!config.googleSheetsCredentials && users.some((u) => !!u.settings.googleSheetId);
+  // A user set to "off" needs nothing; the others need a sheet, and the last delivery to have worked.
+  const noSheet = missing((u) => u.settings.sheetMode === "off" || !!sheetPlans.find((p) => p.u.id === u.id)?.plan.ok);
+  const failingSheets = sheetPlans
+    .filter(({ u, plan }) => plan.ok && u.user.active && u.settings.sheetStatus?.ok === false)
+    .map(({ u }) => ({ name: u.user.name, error: u.settings.sheetStatus?.error ?? "" }));
+  const sheetsConfigured = sheetPlans.some((p) => p.plan.ok);
 
   const steps: SetupStep[] = [
     {
@@ -377,10 +388,12 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     {
       key: "sheets",
       title: "Connect Google Sheets",
-      done: noSheet.length === 0,
+      done: noSheet.length === 0 && failingSheets.length === 0,
       optional: true,
       href: "/admin/settings#sheets",
-      hint: hintFor("Optional export of approved jobs to each user's own spreadsheet.", noSheet),
+      hint: failingSheets.length
+        ? `The last delivery failed for ${failingSheets.map((f) => `${f.name} (${f.error})`).join("; ")}`
+        : hintFor("Optional: each user's approved jobs go to the shared spreadsheet (their own tabs) or to their own.", noSheet),
     },
     {
       key: "users",
@@ -400,7 +413,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     claude: { keySet: !!config.anthropicApiKey, spendUsd, budgetUsd: config.claudeMonthlyBudgetUsd },
     ai: { calls24h, failures24h },
     db: { sizeBytes: dbSize, limitBytes: SUPABASE_FREE_DB_BYTES, ...placement },
-    sheets: { configured: sheetsConfigured, unsynced },
+    sheets: { configured: sheetsConfigured, unsynced, failing: failingSheets },
     extension: {
       keySet: !!config.extensionApiKey,
       lastSeen: extensionLastSeen?.toISOString() ?? null,
