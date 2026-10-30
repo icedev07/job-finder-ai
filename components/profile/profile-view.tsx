@@ -1,54 +1,21 @@
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { SaveBar } from '@/components/common/save-bar';
 import { AnswersPanel } from '@/components/profile/answers-panel';
 import { ProfileForm } from '@/components/profile/profile-form';
+import { ResumeFill, type FillResult } from '@/components/profile/resume-fill';
 import { ResumesPanel, type MergeMode } from '@/components/profile/resumes-panel';
 import { ChooseUser, useViewing } from '@/components/shell/viewing';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { api, errorMessage } from '@/lib/clientApi';
-import { normalizeProfile, profileCompleteness, type CandidateProfile } from '@/lib/profileModel';
+import { mergeResumeProfile, profileCompleteness, type CandidateProfile } from '@/lib/profileModel';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
-
-function isEmpty(v: unknown): boolean {
-  return v == null || v === '' || (Array.isArray(v) && v.length === 0);
-}
-
-// Resume facts merged into the draft profile. Work terms, self-ID and extra
-// facts never come from a resume, so they are always kept.
-function merge(current: CandidateProfile, extracted: CandidateProfile, mode: MergeMode): CandidateProfile {
-  const keys: (keyof CandidateProfile)[] = [
-    'firstName',
-    'lastName',
-    'email',
-    'phone',
-    'city',
-    'country',
-    'linkedin',
-    'github',
-    'portfolio',
-    'headline',
-    'summary',
-    'yearsExperience',
-    'skills',
-    'languages',
-    'experience',
-    'education',
-  ];
-  const next = { ...current };
-  for (const k of keys) {
-    const value = extracted[k];
-    if (isEmpty(value)) continue;
-    if (mode === 'replace' || isEmpty(current[k])) (next as Record<string, unknown>)[k] = value;
-  }
-  return normalizeProfile(next);
-}
 
 const TABS = ['profile', 'resumes', 'answers'] as const;
 
@@ -68,6 +35,12 @@ function ProfileEditor() {
   const [draft, setDraft] = useState<CandidateProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFill, setLastFill] = useState<FillResult | null>(null);
+  // The draft a resume reading lands on (it comes back after an await, maybe after more typing).
+  const draftRef = useRef(draft);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +55,23 @@ function ProfileEditor() {
 
   const dirty = useMemo(() => !!draft && !!saved && JSON.stringify(draft) !== JSON.stringify(saved), [draft, saved]);
   const completeness = draft ? profileCompleteness(draft) : null;
+
+  const showTab = (value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set('tab', value);
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
+
+  // A resume's facts into the draft, for the admin to review and save.
+  function applyResume(extracted: CandidateProfile, mode: MergeMode, from: string): string[] {
+    const current = draftRef.current;
+    if (!current) return [];
+    const { profile, filled } = mergeResumeProfile(current, extracted, mode);
+    draftRef.current = profile;
+    setDraft(profile);
+    setLastFill({ from, filled, mode });
+    return filled;
+  }
 
   async function save() {
     if (!draft) return;
@@ -120,30 +110,18 @@ function ProfileEditor() {
           <span className="text-emerald-700 dark:text-emerald-400">Complete</span>
         )}
       </div>
-      <Tabs
-        value={tab}
-        onValueChange={(v) => {
-          const next = new URLSearchParams(params.toString());
-          next.set('tab', String(v));
-          router.replace(`${pathname}?${next.toString()}`, { scroll: false });
-        }}
-        className="gap-4"
-      >
+      <Tabs value={tab} onValueChange={(v) => showTab(String(v))} className="gap-4">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="resumes">Resumes</TabsTrigger>
           <TabsTrigger value="answers">Answer bank</TabsTrigger>
         </TabsList>
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-4">
+          <ResumeFill onApply={applyResume} last={lastFill} />
           <ProfileForm profile={draft} onChange={setDraft} />
         </TabsContent>
         <TabsContent value="resumes">
-          <ResumesPanel
-            onMerge={(extracted, mode) => {
-              setDraft((d) => (d ? merge(d, extracted, mode) : d));
-              toast.success('Copied into your profile — review it on the Profile tab and save');
-            }}
-          />
+          <ResumesPanel onApply={applyResume} profileIncomplete={completeness.missing.length > 0} onShowProfile={() => showTab('profile')} />
         </TabsContent>
         <TabsContent value="answers">
           <AnswersPanel />

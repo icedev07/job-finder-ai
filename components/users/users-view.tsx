@@ -1,11 +1,14 @@
 'use client';
 
 import { KeyRoundIcon, LogOutIcon, MoreHorizontalIcon, PencilIcon, PowerIcon, Trash2Icon, UserPlusIcon } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { PageHeader } from '@/components/common/page-header';
 import { StatusDot } from '@/components/common/status-dot';
+import { ResumeFilePicker } from '@/components/profile/resume-file-picker';
+import { useViewing } from '@/components/shell/viewing';
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,6 +38,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import { api, errorMessage } from '@/lib/clientApi';
 import { formatDate, timeAgo } from '@/lib/format';
+import { fullName, type CandidateProfile } from '@/lib/profileModel';
+import { readResumeFile, uploadResume, type ResumeReading } from '@/lib/resumeClient';
 
 type Role = 'ADMIN' | 'USER';
 
@@ -72,19 +77,23 @@ type DialogState =
 
 /** The Users page: everyone who can sign in, with add, edit, password, disable, sign-out-everywhere and delete. */
 export function UsersView() {
+  const router = useRouter();
+  const { setViewing, setUsers: setViewingUsers } = useViewing();
   const [users, setUsers] = useState<UserItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dialog, setDialog] = useState<DialogState>(null);
 
+  // The users table, and the Viewing menu in the top bar with it: someone just added is there at once.
   const load = useCallback(async () => {
     try {
       const r = await api<{ users: UserItem[] }>('/api/admin/users');
       setUsers(r.users);
+      setViewingUsers(r.users.map(({ id, username, name, role, active }) => ({ id, username, name, role, active })));
       setError(null);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, []);
+  }, [setViewingUsers]);
   useLoadOnMount(load);
 
   async function patch(user: UserItem, body: Record<string, unknown>, success: string) {
@@ -244,9 +253,18 @@ export function UsersView() {
         users={users}
         open={dialog?.kind === 'add'}
         onClose={() => setDialog(null)}
-        onDone={async (name) => {
+        onDone={async ({ id, name, resume }) => {
           setDialog(null);
-          toast.success(`${name} can sign in now`);
+          const openProfile = () => {
+            setViewing(id);
+            router.push('/admin/profile');
+          };
+          if (!resume) toast.success(`${name} can sign in now`);
+          else {
+            const notice = { description: resume.note, action: { label: 'Open profile', onClick: openProfile }, duration: 10_000 };
+            if (resume.added) toast.success(`${name} can sign in now`, notice);
+            else toast.warning(`${name} can sign in now`, notice);
+          }
           await load();
         }}
       />
@@ -310,6 +328,27 @@ function passwordProblem(password: string, repeat: string): string | null {
 
 const NO_COPY = 'none';
 
+/** What became of the resume chosen in Add user. */
+type ResumeOutcome = { added: boolean; note: string };
+type Added = { id: number; name: string; resume?: ResumeOutcome };
+type Reading = { result: ResumeReading & { text: string } } | { error: string };
+
+// A user ID from the name on a resume: "Jane Doe" → "jane", else "jane.doe" when "jane" is taken or too short.
+function suggestedId(profile: CandidateProfile, taken: Set<string>): string {
+  const plain = (s: string) =>
+    s
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '');
+  const first = plain(profile.firstName);
+  const last = plain(profile.lastName);
+  for (const id of [first, first && last ? `${first}.${last}` : '', last]) {
+    if (id && USERNAME_RE.test(id) && !taken.has(id)) return id;
+  }
+  return '';
+}
+
 function AddUserDialog({
   users,
   open,
@@ -319,7 +358,7 @@ function AddUserDialog({
   users: UserItem[];
   open: boolean;
   onClose: () => void;
-  onDone: (name: string) => Promise<void>;
+  onDone: (added: Added) => Promise<void>;
 }) {
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
@@ -332,6 +371,11 @@ function AddUserDialog({
   const [copy, setCopy] = useState({ search: true, rules: true, profile: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Their resume: Claude reads it while the rest is filled in; it is stored with the new user.
+  const [resume, setResume] = useState<File | null>(null);
+  const [reading, setReading] = useState<Reading | 'reading' | null>(null);
+  const resumeRef = useRef<File | null>(null);
+  const readingRef = useRef<Promise<Reading> | null>(null);
   const source = users.find((u) => String(u.id) === copyFrom);
   const copiesSearch = !!source && copy.search;
   const copyItems = [
@@ -353,6 +397,56 @@ function AddUserDialog({
     setCopyFrom(NO_COPY);
     setCopy({ search: true, rules: true, profile: false });
     setError(null);
+    chooseResume(null);
+  }
+
+  // Claude reads the resume at once; what it finds fills the name, user ID and Based in that are still empty.
+  function chooseResume(file: File | null) {
+    setResume(file);
+    resumeRef.current = file;
+    if (!file) {
+      setReading(null);
+      readingRef.current = null;
+      return;
+    }
+    setReading('reading');
+    const taken = new Set(users.map((u) => u.username));
+    readingRef.current = readResumeFile(file).then(
+      (result): Reading => {
+        if (resumeRef.current !== file) return { result };
+        const p = result.profile;
+        setReading({ result });
+        setName((n) => (n.trim() ? n : fullName(p)));
+        setUsername((u) => (u.trim() ? u : suggestedId(p, taken)));
+        setLocation((l) => (l.trim() ? l : [p.city, p.country].filter(Boolean).join(', ')));
+        return { result };
+      },
+      (e): Reading => {
+        if (resumeRef.current === file) setReading({ error: errorMessage(e) });
+        return { error: errorMessage(e) };
+      },
+    );
+  }
+
+  // After the user is added: their resume (their default), with the reading, which fills in their profile.
+  async function addTheirResume(userId: number, file: File): Promise<ResumeOutcome> {
+    const read = (await readingRef.current) ?? { error: 'not read' };
+    try {
+      const up = await uploadResume(file, {
+        userId,
+        makeDefault: true,
+        ...('result' in read ? { reading: { profile: read.result.profile, text: read.result.text }, fillProfile: true } : {}),
+      });
+      if (!('result' in read)) return { added: true, note: `Their resume is added; Claude could not read it (${read.error}), so fill in their profile by hand.` };
+      return {
+        added: true,
+        note: up.filled.length
+          ? `Their profile is filled in from the resume (${up.filled.length} fields): review it.`
+          : 'The resume is their default; it had nothing for their profile.',
+      };
+    } catch (e) {
+      return { added: false, note: `Their resume was not added (${errorMessage(e)}): upload it in Profile & resumes.` };
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -370,7 +464,7 @@ function AddUserDialog({
     setBusy(true);
     setError(null);
     try {
-      await api('/api/admin/users', {
+      const created = await api<{ user: { id: number } }>('/api/admin/users', {
         method: 'POST',
         json: {
           name: name.trim() || id,
@@ -383,14 +477,31 @@ function AddUserDialog({
         },
       });
       const shown = name.trim() || id;
+      const file = resumeRef.current;
+      const outcome = file ? await addTheirResume(created.user.id, file) : undefined;
       reset();
-      await onDone(shown);
+      await onDone({ id: created.user.id, name: shown, resume: outcome });
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
   }
+
+  const found = reading && reading !== 'reading' && 'result' in reading ? reading.result.profile : null;
+  const resumeHint =
+    reading === 'reading' ? (
+      <span className="flex items-center gap-2">
+        <Spinner />
+        Claude is reading it — fill in the rest meanwhile.
+      </span>
+    ) : found ? (
+      `Read: ${[fullName(found), found.headline, [found.city, found.country].filter(Boolean).join(', '), `${found.skills.length} skills`, `${found.experience.length} roles`].filter(Boolean).join(' · ')}. Their profile is filled in from it.`
+    ) : reading && 'error' in reading ? (
+      <span className="text-amber-700 dark:text-amber-400">Claude could not read it: {reading.error} It is still added as their resume.</span>
+    ) : (
+      'Optional. Claude reads it to fill in the name, user ID and where they are based, then their profile. It becomes their default resume.'
+    );
 
   return (
     <Dialog
@@ -412,6 +523,11 @@ function AddUserDialog({
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
+            <Field>
+              <FieldLabel>Resume</FieldLabel>
+              <ResumeFilePicker file={resume} onFile={chooseResume} disabled={busy} compact label="Choose their resume" />
+              <FieldDescription>{resumeHint}</FieldDescription>
+            </Field>
             <Field>
               <FieldLabel htmlFor="u-name">Name</FieldLabel>
               <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Anna Petrosyan" maxLength={80} />
@@ -519,12 +635,19 @@ function AddUserDialog({
           </FieldGroup>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+            >
               Cancel
             </Button>
             <Button type="submit" disabled={busy || !id || !password}>
               {busy ? <Spinner /> : null}
-              Add user
+              {busy && reading === 'reading' ? 'Reading the resume…' : 'Add user'}
             </Button>
           </DialogFooter>
         </form>

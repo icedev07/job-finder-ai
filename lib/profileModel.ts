@@ -222,6 +222,50 @@ export function isProfileEmpty(p: CandidateProfile): boolean {
   return profileCompleteness(p).filled === 0;
 }
 
+// The facts a resume states, in the order a summary of what was filled names them.
+const RESUME_FACTS: [keyof CandidateProfile, string][] = [
+  ["firstName", "first name"],
+  ["lastName", "last name"],
+  ["email", "e-mail"],
+  ["phone", "phone"],
+  ["city", "city"],
+  ["country", "country"],
+  ["linkedin", "LinkedIn"],
+  ["github", "GitHub"],
+  ["portfolio", "website"],
+  ["headline", "headline"],
+  ["summary", "summary"],
+  ["yearsExperience", "years of experience"],
+  ["skills", "skill"],
+  ["languages", "language"],
+  ["experience", "role"],
+  ["education", "school"],
+];
+
+const isBlank = (v: unknown): boolean => v == null || v === "" || (Array.isArray(v) && v.length === 0);
+
+/**
+ * A resume's facts copied into a profile: only into its empty fields ("fill"), or over what is there ("replace").
+ * Work terms, self-identification and other facts never come from a resume, so they are kept. `filled` names what
+ * changed ("e-mail", "12 skills").
+ */
+export function mergeResumeProfile(
+  current: CandidateProfile,
+  extracted: CandidateProfile,
+  mode: "fill" | "replace",
+): { profile: CandidateProfile; filled: string[] } {
+  const next: Record<string, unknown> = { ...current };
+  const filled: string[] = [];
+  for (const [key, label] of RESUME_FACTS) {
+    const value = extracted[key];
+    if (isBlank(value) || (mode === "fill" && !isBlank(current[key]))) continue;
+    if (JSON.stringify(value) === JSON.stringify(current[key])) continue;
+    next[key] = value;
+    filled.push(Array.isArray(value) ? `${value.length} ${label}${value.length === 1 ? "" : "s"}` : label);
+  }
+  return { profile: normalizeProfile(next), filled };
+}
+
 // Compact text block for the AI: matching prompts and answer drafting.
 export function profileSummary(p: CandidateProfile, opts: { includeContact?: boolean } = {}): string {
   const lines: string[] = [];

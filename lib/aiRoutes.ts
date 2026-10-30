@@ -21,7 +21,7 @@ export const AI_TASK_INFO: Record<AiTask, { label: string; description: string }
   },
   resume: {
     label: "Resume reading",
-    description: "Turns an uploaded resume PDF into your structured profile. Needs Claude (reads PDFs).",
+    description: "Reads an uploaded resume (PDF, Word or text) into the profile's facts. Needs Claude (it reads PDFs).",
   },
   answers: {
     label: "Form answers",
@@ -162,9 +162,9 @@ const LEGACY_ORDER: Record<"scan" | "extension", ProviderId[]> = {
 const DEFAULT_EFFORT: Record<AiTask, ClaudeEffort> = {
   scan: "low",
   extension: "low",
-  resume: "medium",
+  // A reading, like a draft, has to be ready within the minute a request may take.
+  resume: "low",
   answers: "medium",
-  // A draft has to be ready within the minute a request may take.
   writing: "low",
 };
 

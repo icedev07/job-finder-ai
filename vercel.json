@@ -32,6 +32,9 @@
     "app/api/admin/resumes/[id]/parse/route.ts": {
       "maxDuration": 60
     },
+    "app/api/admin/resumes/read/route.ts": {
+      "maxDuration": 60
+    },
     "app/api/admin/jobs/[id]/drafts/[kind]/route.ts": {
       "maxDuration": 60
     },

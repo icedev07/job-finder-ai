@@ -35,7 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-full flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <TooltipProvider>{children}</TooltipProvider>
-          <Toaster richColors closeButton />
+          {/* Above a page's save bar (sticky at the bottom), so a message never covers Save. */}
+          <Toaster richColors closeButton offset={{ bottom: 84 }} mobileOffset={{ bottom: 116 }} />
         </ThemeProvider>
       </body>
     </html>

@@ -71,6 +71,24 @@ export async function listUsers(): Promise<UserRow[]> {
   return inflight;
 }
 
+// The list a re-read found without the id asked for: that id is not looked for again until the list is replaced.
+let checkedWithout: { id: number; rows: UserRow[] } | null = null;
+
+/**
+ * The user list, read again when it lacks this user: one added a moment ago through another bundle or server
+ * instance, whose data the next request already asks for (Add user uploads the new user's resume right away). An
+ * id that really is gone (a stale Viewing cookie) costs one re-read per cache period.
+ */
+export async function listUsersWith(id: number | null): Promise<UserRow[]> {
+  const rows = await listUsers();
+  if (id == null || rows.some((u) => u.id === id)) return rows;
+  if (checkedWithout?.id === id && checkedWithout.rows === rows) return rows;
+  invalidateUserCache();
+  const fresh = await listUsers();
+  if (!fresh.some((u) => u.id === id)) checkedWithout = { id, rows: fresh };
+  return fresh;
+}
+
 export async function getUser(id: number): Promise<UserRow | null> {
   return (await listUsers()).find((u) => u.id === id) ?? null;
 }

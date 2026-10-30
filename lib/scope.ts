@@ -7,7 +7,7 @@ import type { Actor } from "./applicationEvents";
 import { describeDbError } from "./dbErrors";
 import { PATH_HEADER, SESSION_COOKIE, readSessionToken, type SessionPayload } from "./session";
 import { isWrite, markStatusStale } from "./statusCache";
-import { getUserFresh, invalidateUserCache, listUsers, type UserRow } from "./users";
+import { getUserFresh, invalidateUserCache, listUsers, listUsersWith, type UserRow } from "./users";
 import { getUserSettings, type UserSettings } from "./userSettings";
 
 // Who is signed in, and whose data a request works on.
@@ -42,6 +42,12 @@ export function parseViewing(raw: string | null | undefined): Viewing | null {
   if (raw === "all") return "all";
   const n = Number(raw);
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** The one user a Viewing value names, if any. */
+function viewedId(raw: string | null | undefined): number | null {
+  const v = parseViewing(raw);
+  return typeof v === "number" ? v : null;
 }
 
 export function resolveViewing(raw: string | null | undefined, users: UserRow[]): Viewing {
@@ -89,13 +95,13 @@ export async function requireAdmin(req: NextRequest): Promise<UserRow | NextResp
 export async function adminScope(req: NextRequest): Promise<AdminScope | NextResponse> {
   const admin = await requireAdmin(req);
   if (admin instanceof NextResponse) return admin;
+  const raw = req.headers.get(VIEW_HEADER) ?? req.nextUrl.searchParams.get("user") ?? req.cookies.get(VIEW_COOKIE)?.value;
   let users: UserRow[];
   try {
-    users = await listUsers();
+    users = await listUsersWith(viewedId(raw));
   } catch (e) {
     return NextResponse.json({ error: describeDbError(e) }, { status: 503 });
   }
-  const raw = req.headers.get(VIEW_HEADER) ?? req.nextUrl.searchParams.get("user") ?? req.cookies.get(VIEW_COOKIE)?.value;
   return { admin, users, viewing: resolveViewing(raw, users) };
 }
 
@@ -147,14 +153,15 @@ export const pageAdmin = cache(loadPageAdmin);
 async function loadPageScope(): Promise<AdminScope> {
   const admin = await pageAdmin();
   if (admin.degraded) return { admin, users: [admin], viewing: admin.id, degraded: true };
+  const jar = await cookies();
+  const raw = jar.get(VIEW_COOKIE)?.value;
   let users: UserRow[];
   try {
-    users = await listUsers();
+    users = await listUsersWith(viewedId(raw));
   } catch {
     return { admin, users: [admin], viewing: admin.id, degraded: true };
   }
-  const jar = await cookies();
-  return { admin, users, viewing: resolveViewing(jar.get(VIEW_COOKIE)?.value, users) };
+  return { admin, users, viewing: resolveViewing(raw, users) };
 }
 
 /** For server components: the admin and whose data this render shows (from the jf_view cookie). */

@@ -25,6 +25,8 @@ type ViewingContextValue = {
   /** The signed-in admin. */
   me: number;
   setViewing: (v: Viewing) => void;
+  /** The Users page's fresh list, so a user added a moment ago is in the menu at once. */
+  setUsers: (users: ViewingUser[]) => void;
   userName: (id: number | null | undefined) => string;
   /** More than one user exists, so whose data it is matters. */
   multiUser: boolean;
@@ -35,6 +37,7 @@ const ViewingContext = createContext<ViewingContextValue>({
   users: [],
   me: 0,
   setViewing: () => {},
+  setUsers: () => {},
   userName: () => '',
   multiUser: false,
 });
@@ -47,7 +50,7 @@ const YEAR_S = 365 * 24 * 60 * 60;
 
 export function ViewingProvider({
   initial,
-  users,
+  users: rendered,
   me,
   children,
 }: {
@@ -58,6 +61,14 @@ export function ViewingProvider({
 }) {
   const router = useRouter();
   const [viewing, setState] = useState<Viewing>(initial);
+  // The users the server rendered, until the Users page hands over a fresher list (the server's list is cached for a
+  // few seconds per instance); a new server render replaces it again.
+  const [users, setUsers] = useState(rendered);
+  const [renderedBefore, setRenderedBefore] = useState(rendered);
+  if (rendered !== renderedBefore) {
+    setRenderedBefore(rendered);
+    setUsers(rendered);
+  }
   // Set while rendering, not in an effect: the pages' first requests (their
   // mount effects run before this component's) must already carry it.
   setApiViewing(viewing);
@@ -80,6 +91,7 @@ export function ViewingProvider({
       users,
       me,
       setViewing,
+      setUsers,
       userName: (id) => (id == null ? 'Everyone' : (byId.get(id)?.name ?? `User #${id}`)),
       multiUser: users.length > 1,
     };

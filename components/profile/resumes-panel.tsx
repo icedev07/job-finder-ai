@@ -1,11 +1,12 @@
 'use client';
 
-import { DownloadIcon, FileTextIcon, SparklesIcon, StarIcon, Trash2Icon, UploadIcon } from 'lucide-react';
+import { CheckIcon, DownloadIcon, FileTextIcon, PencilIcon, SparklesIcon, StarIcon, Trash2Icon, UploadIcon, XIcon } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { ConfirmButton } from '@/components/common/confirm-button';
 import { SectionCard } from '@/components/common/section-card';
+import { ResumeFilePicker } from '@/components/profile/resume-file-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,43 +22,56 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { modelLabel } from '@/lib/aiRoutes';
 import { api, errorMessage, viewingParam } from '@/lib/clientApi';
 import { formatBytes, formatUsd, timeAgo } from '@/lib/format';
 import { fullName, type CandidateProfile } from '@/lib/profileModel';
+import { listResumes, readStoredResume, uploadResume, type ResumeItem, type ResumeReading } from '@/lib/resumeClient';
+import { resumeNameOf } from '@/lib/resumeFiles';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
-
-type Resume = {
-  id: number;
-  name: string;
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-  tags: string | null;
-  isDefault: boolean;
-  parsed: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type ParseResult = { profile: CandidateProfile; textPreview: string; model: string; costUsd: number | null };
 
 export type MergeMode = 'fill' | 'replace';
 
-/** Resume variants: upload, tags for auto-pick, default, read with Claude into the profile. */
-export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfile, mode: MergeMode) => void }) {
-  const [resumes, setResumes] = useState<Resume[] | null>(null);
+/** Copies a resume's facts into the profile being edited; returns what it filled. */
+export type ApplyResume = (extracted: CandidateProfile, mode: MergeMode, from: string) => string[];
+
+/** "Filled 11 fields from …: review them on the Profile tab, then save", or why nothing was. */
+export function filledMessage(filled: string[], from: string, mode: MergeMode): string {
+  if (filled.length) return `Filled ${filled.length} ${filled.length === 1 ? 'field' : 'fields'} from “${from}”: review them on the Profile tab, then save`;
+  return mode === 'fill'
+    ? `“${from}” has nothing the profile is missing: Replace profile fields copies its facts over what is there`
+    : `The profile already has everything in “${from}”`;
+}
+
+/** Resume variants: upload, the default, names and tags for auto-pick, and what Claude reads in one into the profile. */
+export function ResumesPanel({
+  onApply,
+  profileIncomplete,
+  onShowProfile,
+}: {
+  onApply: ApplyResume;
+  /** The profile misses key fields: fill it from the next upload unless unticked. */
+  profileIncomplete: boolean;
+  onShowProfile: () => void;
+}) {
+  const [resumes, setResumes] = useState<ResumeItem[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState('');
+  // The name the last chosen file gave the variant: a new file replaces it, a name typed in stays.
+  const [autoName, setAutoName] = useState('');
   const [tags, setTags] = useState('');
   const [makeDefault, setMakeDefault] = useState(false);
-  const [parsing, setParsing] = useState<number | null>(null);
-  const [parsed, setParsed] = useState<ParseResult | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [fillProfile, setFillProfile] = useState(profileIncomplete);
+  const [uploading, setUploading] = useState(false);
+  const [reading, setReading] = useState<number | null>(null);
+  const [found, setFound] = useState<(ResumeReading & { id: number; name: string }) | null>(null);
+  const [renaming, setRenaming] = useState<{ id: number; name: string } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const r = await api<{ resumes: Resume[]; error?: string }>('/api/admin/resumes');
+      const r = await listResumes();
       setResumes(r.resumes);
       setLoadError(r.error ?? null);
     } catch (e) {
@@ -66,30 +80,59 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
   }, []);
   useLoadOnMount(load);
 
+  const first = resumes !== null && resumes.length === 0;
+
+  function chooseFile(f: File | null) {
+    setFile(f);
+    if (f && (!name.trim() || name === autoName)) {
+      const n = resumeNameOf(f.name);
+      setName(n);
+      setAutoName(n);
+    }
+  }
+
+  function apply(extracted: CandidateProfile, mode: MergeMode, from: string) {
+    const filled = onApply(extracted, mode, from);
+    const message = filledMessage(filled, from, mode);
+    if (filled.length) toast.success(message, { action: { label: 'Review', onClick: onShowProfile } });
+    else toast.info(message);
+  }
+
   async function upload() {
-    const file = fileRef.current?.files?.[0];
+    // Upload with no file chosen opens the file dialog instead of refusing.
     if (!file) {
-      toast.error('Choose a file first');
+      fileInput.current?.click();
       return;
     }
-    const form = new FormData();
-    form.set('file', file);
-    if (name.trim()) form.set('name', name.trim());
-    if (tags.trim()) form.set('tags', tags.trim());
-    if (makeDefault) form.set('makeDefault', 'true');
+    const shown = name.trim() || resumeNameOf(file.name);
+    const fill = fillProfile;
     setUploading(true);
+    let added;
     try {
-      await api('/api/admin/resumes', { method: 'POST', body: form });
-      toast.success('Resume uploaded');
-      setName('');
-      setTags('');
-      setMakeDefault(false);
-      if (fileRef.current) fileRef.current.value = '';
-      await load();
+      added = await uploadResume(file, { name: shown, tags, makeDefault });
     } catch (e) {
       toast.error(errorMessage(e));
-    } finally {
       setUploading(false);
+      return;
+    }
+    toast.success(added.isDefault ? `“${shown}” uploaded — the default resume` : `“${shown}” uploaded`);
+    setFile(null);
+    setName('');
+    setAutoName('');
+    setTags('');
+    setMakeDefault(false);
+    setUploading(false);
+    await load();
+    if (!fill) return;
+    setReading(added.id);
+    try {
+      const r = await readStoredResume(added.id, false);
+      apply(r.profile, 'fill', shown);
+    } catch (e) {
+      toast.error(`Claude could not read “${shown}”: ${errorMessage(e)}`);
+    } finally {
+      setReading(null);
+      await load();
     }
   }
 
@@ -103,16 +146,25 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
     }
   }
 
-  async function parse(id: number) {
-    setParsing(id);
+  async function rename() {
+    if (!renaming) return;
+    const current = resumes?.find((r) => r.id === renaming.id);
+    const next = renaming.name.trim();
+    setRenaming(null);
+    if (!current || !next || next === current.name) return;
+    await patch(current.id, { name: next }, `Renamed to “${next}”`);
+  }
+
+  // Claude reads the resume (or an earlier reading comes back), then the dialog shows what it found.
+  async function read(r: ResumeItem, reuse: boolean) {
+    setReading(r.id);
     try {
-      const r = await api<ParseResult & { ok: boolean; error?: string }>(`/api/admin/resumes/${id}/parse`, { method: 'POST' });
-      setParsed(r);
-      await load();
+      setFound({ ...(await readStoredResume(r.id, reuse)), id: r.id, name: r.name });
+      if (!reuse || !r.parsed) await load();
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
-      setParsing(null);
+      setReading(null);
     }
   }
 
@@ -120,33 +172,37 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
     <div className="space-y-4">
       <SectionCard
         title="Upload a resume"
-        description="Keep one file per variant (e.g. “.NET backend”, “Full-stack JS”). Tags pick the variant for a job automatically: the variant whose tags appear most in the job text wins, else the default. PDF, DOCX or text, up to 4 MB."
+        description="Keep one file per variant (e.g. “.NET backend”, “Full-stack JS”). The default goes with every application unless another variant’s tags fit the job better: the variant whose tags appear most in the job text wins."
       >
+        <ResumeFilePicker file={file} onFile={chooseFile} inputRef={fileInput} disabled={uploading} />
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="resume-file">File</Label>
-            <Input id="resume-file" ref={fileRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,application/pdf" />
-          </div>
           <div className="space-y-1.5">
             <Label htmlFor="resume-name">Variant name</Label>
-            <Input id="resume-name" value={name} onChange={(e) => setName(e.target.value)} placeholder=".NET backend" />
+            <Input id="resume-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. .NET backend" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="resume-tags">Tags (comma-separated)</Label>
-            <Input id="resume-tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder=".net, c#, azure, sql server" />
+            <Input id="resume-tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="e.g. .net, c#, azure, sql server" />
           </div>
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={makeDefault} onCheckedChange={(v) => setMakeDefault(!!v)} />
-            Make it the default
+            <Checkbox checked={first || makeDefault} disabled={first} onCheckedChange={(v) => setMakeDefault(!!v)} />
+            {first ? 'The default (the first resume always is)' : 'Make it the default'}
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={fillProfile} onCheckedChange={(v) => setFillProfile(!!v)} />
+            Fill the profile’s empty fields from it (Claude reads it)
           </label>
         </div>
-        <Button onClick={() => void upload()} disabled={uploading}>
+        <Button onClick={() => void upload()} disabled={uploading || reading !== null}>
           {uploading ? <Spinner /> : <UploadIcon />}
-          Upload
+          {file ? 'Upload' : 'Choose a file to upload'}
         </Button>
       </SectionCard>
 
-      <SectionCard title="Your resumes" description="“Read with Claude” extracts your profile from a PDF so you do not have to type it (uses the Resume reading route).">
+      <SectionCard
+        title="Resumes"
+        description="Each user has their own. The extension attaches the default, or the variant whose tags fit the job. Read with Claude shows what Claude finds in a PDF, Word or text resume and copies it into the profile."
+      >
         {loadError ? <p className="text-sm text-destructive">{loadError}</p> : null}
         {!resumes ? (
           <Spinner />
@@ -154,16 +210,52 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
           <Empty className="py-8">
             <EmptyHeader>
               <EmptyTitle>No resumes yet</EmptyTitle>
-              <EmptyDescription>Upload one above — autofill attaches it to application forms.</EmptyDescription>
+              <EmptyDescription>Upload one above: the first is the default, which autofill attaches to application forms.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         ) : (
           <ul className="space-y-3">
             {resumes.map((r) => (
-              <li key={r.id} className="space-y-2 rounded-lg border p-3">
+              <li key={r.id} className="space-y-2 rounded-lg border p-3" data-testid="resume-item">
                 <div className="flex flex-wrap items-center gap-2">
                   <FileTextIcon className="size-4 text-muted-foreground" />
-                  <span className="font-medium">{r.name}</span>
+                  {renaming?.id === r.id ? (
+                    <form
+                      className="flex items-center gap-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        void rename();
+                      }}
+                    >
+                      <Input
+                        autoFocus
+                        value={renaming.name}
+                        maxLength={120}
+                        className="h-7 w-56"
+                        aria-label={`New name for ${r.name}`}
+                        onChange={(e) => setRenaming({ id: r.id, name: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault();
+                            setRenaming(null);
+                          }
+                        }}
+                      />
+                      <Button type="submit" size="icon-sm" variant="ghost" aria-label="Save the name">
+                        <CheckIcon />
+                      </Button>
+                      <Button type="button" size="icon-sm" variant="ghost" aria-label="Keep the name" onClick={() => setRenaming(null)}>
+                        <XIcon />
+                      </Button>
+                    </form>
+                  ) : (
+                    <>
+                      <span className="font-medium">{r.name}</span>
+                      <Button size="icon-xs" variant="ghost" aria-label={`Rename ${r.name}`} onClick={() => setRenaming({ id: r.id, name: r.name })}>
+                        <PencilIcon />
+                      </Button>
+                    </>
+                  )}
                   {r.isDefault ? <Badge>Default</Badge> : null}
                   {r.parsed ? <Badge variant="secondary">Read by Claude</Badge> : null}
                   <span className="text-xs text-muted-foreground">
@@ -180,16 +272,16 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
                       if (e.target.value.trim() !== (r.tags ?? '')) void patch(r.id, { tags: e.target.value }, 'Tags saved');
                     }}
                   />
-                  <Button size="sm" variant="outline" onClick={() => void parse(r.id)} disabled={parsing !== null}>
-                    {parsing === r.id ? <Spinner /> : <SparklesIcon />}
-                    Read with Claude
-                  </Button>
                   {!r.isDefault ? (
-                    <Button size="sm" variant="ghost" onClick={() => void patch(r.id, { isDefault: true }, `${r.name} is now the default`)}>
+                    <Button size="sm" variant="outline" onClick={() => void patch(r.id, { isDefault: true }, `“${r.name}” is now the default`)}>
                       <StarIcon />
                       Make default
                     </Button>
                   ) : null}
+                  <Button size="sm" variant="outline" onClick={() => void read(r, true)} disabled={reading !== null || uploading}>
+                    {reading === r.id ? <Spinner /> : <SparklesIcon />}
+                    {reading === r.id ? 'Reading…' : r.parsed ? 'Fill profile' : 'Read with Claude'}
+                  </Button>
                   <Button size="sm" variant="ghost" nativeButton={false} render={<a href={`/api/admin/resumes/${r.id}/file?${viewingParam()}`} target="_blank" rel="noopener noreferrer" />}>
                     <DownloadIcon />
                     Open
@@ -199,7 +291,7 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
                     variant="ghost"
                     destructive
                     title={`Delete “${r.name}”?`}
-                    description="The file is removed from the database."
+                    description={r.isDefault && resumes.length > 1 ? 'The file is removed from the database, and the newest other resume becomes the default.' : 'The file is removed from the database.'}
                     confirmLabel="Delete"
                     onConfirm={async () => {
                       try {
@@ -220,47 +312,66 @@ export function ResumesPanel({ onMerge }: { onMerge: (extracted: CandidateProfil
         )}
       </SectionCard>
 
-      <Dialog open={!!parsed} onOpenChange={(o) => !o && setParsed(null)}>
+      <Dialog open={!!found} onOpenChange={(o) => !o && setFound(null)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Claude read your resume</DialogTitle>
+            <DialogTitle>What Claude read in “{found?.name}”</DialogTitle>
             <DialogDescription>
-              {parsed ? `${parsed.model}${parsed.costUsd != null ? ` · ${formatUsd(parsed.costUsd)}` : ''}` : ''}. Copy what it found into
-              your profile, then review and save the profile.
+              {found?.reused
+                ? 'Read before, so nothing was spent.'
+                : found
+                  ? `Read by ${found.model ? modelLabel(found.model) : 'Claude'}${found.costUsd != null ? ` · ${formatUsd(found.costUsd)}` : ''}.`
+                  : ''}{' '}
+              Copy it into the profile, then review the profile and save it.
             </DialogDescription>
           </DialogHeader>
-          {parsed ? (
+          {found ? (
             <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt className="text-muted-foreground">Name</dt>
-              <dd>{fullName(parsed.profile) || '—'}</dd>
+              <dd>{fullName(found.profile) || '—'}</dd>
               <dt className="text-muted-foreground">E-mail</dt>
-              <dd>{parsed.profile.email || '—'}</dd>
+              <dd>{found.profile.email || '—'}</dd>
+              <dt className="text-muted-foreground">Based in</dt>
+              <dd>{[found.profile.city, found.profile.country].filter(Boolean).join(', ') || '—'}</dd>
               <dt className="text-muted-foreground">Headline</dt>
-              <dd>{parsed.profile.headline || '—'}</dd>
+              <dd>{found.profile.headline || '—'}</dd>
               <dt className="text-muted-foreground">Experience</dt>
               <dd>
-                {parsed.profile.yearsExperience ?? '?'} years · {parsed.profile.experience.length} roles
+                {found.profile.yearsExperience ?? '?'} years · {found.profile.experience.length} roles
               </dd>
               <dt className="text-muted-foreground">Skills</dt>
-              <dd className="line-clamp-3">{parsed.profile.skills.map((s) => s.name).join(', ') || '—'}</dd>
+              <dd className="line-clamp-3">{found.profile.skills.map((s) => s.name).join(', ') || '—'}</dd>
               <dt className="text-muted-foreground">Languages</dt>
-              <dd>{parsed.profile.languages.map((l) => l.name).join(', ') || '—'}</dd>
+              <dd>{found.profile.languages.map((l) => l.name).join(', ') || '—'}</dd>
             </dl>
           ) : null}
           <DialogFooter>
+            {found?.reused ? (
+              <Button
+                variant="ghost"
+                className="sm:mr-auto"
+                onClick={() => {
+                  const r = resumes?.find((x) => x.id === found.id);
+                  setFound(null);
+                  if (r) void read(r, false);
+                }}
+              >
+                Read it again
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               onClick={() => {
-                if (parsed) onMerge(parsed.profile, 'replace');
-                setParsed(null);
+                if (found) apply(found.profile, 'replace', found.name);
+                setFound(null);
               }}
             >
               Replace profile fields
             </Button>
             <Button
               onClick={() => {
-                if (parsed) onMerge(parsed.profile, 'fill');
-                setParsed(null);
+                if (found) apply(found.profile, 'fill', found.name);
+                setFound(null);
               }}
             >
               Fill empty fields
