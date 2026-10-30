@@ -178,6 +178,28 @@ const EVOLUTION_STATEMENTS = [
       ALTER TABLE "Interview" ADD CONSTRAINT "Interview_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
   END $$;`,
+  // Writing: what the AI wrote for each application, one draft of each kind.
+  `CREATE TABLE IF NOT EXISTS "Draft" (
+    "id" SERIAL NOT NULL,
+    "jobId" INTEGER NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "kind" VARCHAR(20) NOT NULL,
+    "text" TEXT NOT NULL,
+    "instructions" TEXT,
+    "resumeId" INTEGER,
+    "model" VARCHAR(160),
+    "edited" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Draft_pkey" PRIMARY KEY ("id")
+  );`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "Draft_jobId_kind_key" ON "Draft"("jobId", "kind");`,
+  `CREATE INDEX IF NOT EXISTS "Draft_userId_idx" ON "Draft"("userId");`,
+  `DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'Draft_jobId_fkey') THEN
+      ALTER TABLE "Draft" ADD CONSTRAINT "Draft_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "ScrapedJob"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+  END $$;`,
 ];
 
 // Once every job has its user: close reasons and timelines for the

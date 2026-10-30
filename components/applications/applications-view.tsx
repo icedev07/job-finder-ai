@@ -91,7 +91,8 @@ export function ApplicationsView() {
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [only, setOnly] = useState<number | null>(null);
-  const [source, setSource] = useState(ALL);
+  // ?source= from the Dashboard's insights.
+  const [source, setSource] = useState(() => params.get('source') || ALL);
   const [minScore, setMinScore] = useState(ANY);
   const [showArchived, setShowArchived] = useState(false);
   const [selected, setSelected] = useState<Set<number>>(new Set());

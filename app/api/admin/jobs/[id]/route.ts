@@ -4,15 +4,18 @@ import { updateSheetsAfterChange } from "@/lib/googleSheetsSync";
 import { jobInterviews } from "@/lib/interviews";
 import { prisma } from "@/lib/prisma";
 import { parseJobPatch, touchesSheet, updateJobs } from "@/lib/jobActions";
+import { setSentResume } from "@/lib/resumes";
 import { adminActor, adminScope, userWhere } from "@/lib/scope";
+import { jobDrafts, writingResumes } from "@/lib/writing";
 
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 // Full job for the detail panel: description, AI history, apply links, its
-// application's interviews and timeline, and how often the same company has
-// shown up (a ghost-job / spam signal).
+// application's interviews, drafts (with the user's resumes to write from) and
+// timeline, and how often the same company has shown up (a ghost-job / spam
+// signal).
 export async function GET(req: NextRequest, { params }: Ctx) {
   const scope = await adminScope(req);
   if (scope instanceof NextResponse) return scope;
@@ -25,7 +28,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60_000);
-  const [sameCompany, resume, events, interviews] = await Promise.all([
+  const [sameCompany, resume, events, interviews, drafts, writing] = await Promise.all([
     prisma.scrapedJob.count({
       where: {
         userId: job.userId,
@@ -39,6 +42,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
       : Promise.resolve(null),
     jobTimeline(id),
     jobInterviews(id),
+    jobDrafts(id),
+    writingResumes(job),
   ]);
 
   let signals: Record<string, unknown> | null = null;
@@ -60,6 +65,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     resume,
     events,
     interviews,
+    drafts,
+    writing,
   });
 }
 
@@ -76,6 +83,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   const patch = parseJobPatch(body);
   if (typeof patch === "string") return NextResponse.json({ error: patch }, { status: 400 });
+  // The resume sent with the application (for the Dashboard's insights), one of the job's user's.
+  const sent = (body as Record<string, unknown>).resumeId;
+  if (sent !== undefined) {
+    if (sent !== null && !(Number.isInteger(sent) && (sent as number) > 0)) {
+      return NextResponse.json({ error: "resumeId must be a resume's id or null" }, { status: 400 });
+    }
+    const set = await setSentResume(id, sent as number | null, userWhere(scope));
+    if (set === null) return NextResponse.json({ error: "Job not found" }, { status: 404 });
+    if (!set) return NextResponse.json({ error: "That resume is not one of this user's resumes" }, { status: 400 });
+  }
   const updated = await updateJobs([id], patch, { scope: userWhere(scope), actor: adminActor(scope) });
   if (!updated) return NextResponse.json({ error: "Job not found" }, { status: 404 });
   // Approved by hand: to the user's Google Sheet right after the response; moved: its Stage there.

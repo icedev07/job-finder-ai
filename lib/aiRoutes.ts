@@ -7,7 +7,7 @@
 // task, so e.g. board scans can run on a cheap model while the LinkedIn
 // extension uses a stronger one.
 
-export const AI_TASKS = ["scan", "extension", "resume", "answers"] as const;
+export const AI_TASKS = ["scan", "extension", "resume", "answers", "writing"] as const;
 export type AiTask = (typeof AI_TASKS)[number];
 
 export const AI_TASK_INFO: Record<AiTask, { label: string; description: string }> = {
@@ -26,6 +26,11 @@ export const AI_TASK_INFO: Record<AiTask, { label: string; description: string }
   answers: {
     label: "Form answers",
     description: "Drafts free-text answers for application forms from your profile facts. Personal data — Claude recommended.",
+  },
+  writing: {
+    label: "Writing",
+    description:
+      "Resume match, cover letters, intro and follow-up messages and interview prep in a job's panel. Personal data — Claude recommended.",
   },
 };
 
@@ -150,6 +155,8 @@ const DEFAULT_EFFORT: Record<AiTask, ClaudeEffort> = {
   extension: "low",
   resume: "medium",
   answers: "medium",
+  // A draft has to be ready within the minute a request may take.
+  writing: "low",
 };
 
 // Routes used until the admin saves their own: the scan/extension chains are
@@ -166,6 +173,7 @@ export function defaultAiRoutes(legacySelected: string[]): AiRoutes {
     },
     resume: { providers: ["claude"], claudeModel: DEFAULT_CLAUDE_MODEL, claudeEffort: DEFAULT_EFFORT.resume },
     answers: { providers: ["claude"], claudeModel: DEFAULT_CLAUDE_MODEL, claudeEffort: DEFAULT_EFFORT.answers },
+    writing: { providers: ["claude"], claudeModel: DEFAULT_CLAUDE_MODEL, claudeEffort: DEFAULT_EFFORT.writing },
   };
 }
 

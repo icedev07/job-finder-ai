@@ -44,6 +44,11 @@ export type ApplicationEvent = $Result.DefaultSelection<Prisma.$ApplicationEvent
  */
 export type Interview = $Result.DefaultSelection<Prisma.$InterviewPayload>
 /**
+ * Model Draft
+ * 
+ */
+export type Draft = $Result.DefaultSelection<Prisma.$DraftPayload>
+/**
  * Model AppConfig
  * 
  */
@@ -297,6 +302,16 @@ export class PrismaClient<
     * ```
     */
   get interview(): Prisma.InterviewDelegate<ExtArgs>;
+
+  /**
+   * `prisma.draft`: Exposes CRUD operations for the **Draft** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Drafts
+    * const drafts = await prisma.draft.findMany()
+    * ```
+    */
+  get draft(): Prisma.DraftDelegate<ExtArgs>;
 
   /**
    * `prisma.appConfig`: Exposes CRUD operations for the **AppConfig** model.
@@ -824,6 +839,7 @@ export namespace Prisma {
     ScrapedJob: 'ScrapedJob',
     ApplicationEvent: 'ApplicationEvent',
     Interview: 'Interview',
+    Draft: 'Draft',
     AppConfig: 'AppConfig',
     SkipRule: 'SkipRule',
     ScanLog: 'ScanLog',
@@ -847,7 +863,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "user" | "extensionToken" | "userConfig" | "scrapedJob" | "applicationEvent" | "interview" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "resume" | "savedAnswer" | "aiUsage" | "extensionLog"
+      modelProps: "user" | "extensionToken" | "userConfig" | "scrapedJob" | "applicationEvent" | "interview" | "draft" | "appConfig" | "skipRule" | "scanLog" | "analysisLog" | "resume" | "savedAnswer" | "aiUsage" | "extensionLog"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1268,6 +1284,76 @@ export namespace Prisma {
           count: {
             args: Prisma.InterviewCountArgs<ExtArgs>
             result: $Utils.Optional<InterviewCountAggregateOutputType> | number
+          }
+        }
+      }
+      Draft: {
+        payload: Prisma.$DraftPayload<ExtArgs>
+        fields: Prisma.DraftFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.DraftFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.DraftFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          findFirst: {
+            args: Prisma.DraftFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.DraftFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          findMany: {
+            args: Prisma.DraftFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>[]
+          }
+          create: {
+            args: Prisma.DraftCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          createMany: {
+            args: Prisma.DraftCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.DraftCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>[]
+          }
+          delete: {
+            args: Prisma.DraftDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          update: {
+            args: Prisma.DraftUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          deleteMany: {
+            args: Prisma.DraftDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.DraftUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.DraftUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$DraftPayload>
+          }
+          aggregate: {
+            args: Prisma.DraftAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateDraft>
+          }
+          groupBy: {
+            args: Prisma.DraftGroupByArgs<ExtArgs>
+            result: $Utils.Optional<DraftGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.DraftCountArgs<ExtArgs>
+            result: $Utils.Optional<DraftCountAggregateOutputType> | number
           }
         }
       }
@@ -2071,12 +2157,14 @@ export namespace Prisma {
     analysisLogs: number
     events: number
     interviews: number
+    drafts: number
   }
 
   export type ScrapedJobCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     analysisLogs?: boolean | ScrapedJobCountOutputTypeCountAnalysisLogsArgs
     events?: boolean | ScrapedJobCountOutputTypeCountEventsArgs
     interviews?: boolean | ScrapedJobCountOutputTypeCountInterviewsArgs
+    drafts?: boolean | ScrapedJobCountOutputTypeCountDraftsArgs
   }
 
   // Custom InputTypes
@@ -2109,6 +2197,13 @@ export namespace Prisma {
    */
   export type ScrapedJobCountOutputTypeCountInterviewsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: InterviewWhereInput
+  }
+
+  /**
+   * ScrapedJobCountOutputType without action
+   */
+  export type ScrapedJobCountOutputTypeCountDraftsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DraftWhereInput
   }
 
 
@@ -5653,6 +5748,7 @@ export namespace Prisma {
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
     events?: boolean | ScrapedJob$eventsArgs<ExtArgs>
     interviews?: boolean | ScrapedJob$interviewsArgs<ExtArgs>
+    drafts?: boolean | ScrapedJob$draftsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ScrapedJobCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["scrapedJob"]>
@@ -5728,6 +5824,7 @@ export namespace Prisma {
     analysisLogs?: boolean | ScrapedJob$analysisLogsArgs<ExtArgs>
     events?: boolean | ScrapedJob$eventsArgs<ExtArgs>
     interviews?: boolean | ScrapedJob$interviewsArgs<ExtArgs>
+    drafts?: boolean | ScrapedJob$draftsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ScrapedJobCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -5741,6 +5838,7 @@ export namespace Prisma {
       analysisLogs: Prisma.$AnalysisLogPayload<ExtArgs>[]
       events: Prisma.$ApplicationEventPayload<ExtArgs>[]
       interviews: Prisma.$InterviewPayload<ExtArgs>[]
+      drafts: Prisma.$DraftPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -6141,6 +6239,7 @@ export namespace Prisma {
     analysisLogs<T extends ScrapedJob$analysisLogsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$analysisLogsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AnalysisLogPayload<ExtArgs>, T, "findMany"> | Null>
     events<T extends ScrapedJob$eventsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$eventsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ApplicationEventPayload<ExtArgs>, T, "findMany"> | Null>
     interviews<T extends ScrapedJob$interviewsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$interviewsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InterviewPayload<ExtArgs>, T, "findMany"> | Null>
+    drafts<T extends ScrapedJob$draftsArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJob$draftsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findMany"> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -6576,6 +6675,26 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: InterviewScalarFieldEnum | InterviewScalarFieldEnum[]
+  }
+
+  /**
+   * ScrapedJob.drafts
+   */
+  export type ScrapedJob$draftsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    where?: DraftWhereInput
+    orderBy?: DraftOrderByWithRelationInput | DraftOrderByWithRelationInput[]
+    cursor?: DraftWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: DraftScalarFieldEnum | DraftScalarFieldEnum[]
   }
 
   /**
@@ -8652,6 +8771,1057 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: InterviewInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Draft
+   */
+
+  export type AggregateDraft = {
+    _count: DraftCountAggregateOutputType | null
+    _avg: DraftAvgAggregateOutputType | null
+    _sum: DraftSumAggregateOutputType | null
+    _min: DraftMinAggregateOutputType | null
+    _max: DraftMaxAggregateOutputType | null
+  }
+
+  export type DraftAvgAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    resumeId: number | null
+  }
+
+  export type DraftSumAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    resumeId: number | null
+  }
+
+  export type DraftMinAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    kind: string | null
+    text: string | null
+    instructions: string | null
+    resumeId: number | null
+    model: string | null
+    edited: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type DraftMaxAggregateOutputType = {
+    id: number | null
+    jobId: number | null
+    userId: number | null
+    kind: string | null
+    text: string | null
+    instructions: string | null
+    resumeId: number | null
+    model: string | null
+    edited: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type DraftCountAggregateOutputType = {
+    id: number
+    jobId: number
+    userId: number
+    kind: number
+    text: number
+    instructions: number
+    resumeId: number
+    model: number
+    edited: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type DraftAvgAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    resumeId?: true
+  }
+
+  export type DraftSumAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    resumeId?: true
+  }
+
+  export type DraftMinAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    text?: true
+    instructions?: true
+    resumeId?: true
+    model?: true
+    edited?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type DraftMaxAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    text?: true
+    instructions?: true
+    resumeId?: true
+    model?: true
+    edited?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type DraftCountAggregateInputType = {
+    id?: true
+    jobId?: true
+    userId?: true
+    kind?: true
+    text?: true
+    instructions?: true
+    resumeId?: true
+    model?: true
+    edited?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type DraftAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Draft to aggregate.
+     */
+    where?: DraftWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Drafts to fetch.
+     */
+    orderBy?: DraftOrderByWithRelationInput | DraftOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: DraftWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Drafts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Drafts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Drafts
+    **/
+    _count?: true | DraftCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: DraftAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: DraftSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: DraftMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: DraftMaxAggregateInputType
+  }
+
+  export type GetDraftAggregateType<T extends DraftAggregateArgs> = {
+        [P in keyof T & keyof AggregateDraft]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateDraft[P]>
+      : GetScalarType<T[P], AggregateDraft[P]>
+  }
+
+
+
+
+  export type DraftGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: DraftWhereInput
+    orderBy?: DraftOrderByWithAggregationInput | DraftOrderByWithAggregationInput[]
+    by: DraftScalarFieldEnum[] | DraftScalarFieldEnum
+    having?: DraftScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: DraftCountAggregateInputType | true
+    _avg?: DraftAvgAggregateInputType
+    _sum?: DraftSumAggregateInputType
+    _min?: DraftMinAggregateInputType
+    _max?: DraftMaxAggregateInputType
+  }
+
+  export type DraftGroupByOutputType = {
+    id: number
+    jobId: number
+    userId: number
+    kind: string
+    text: string
+    instructions: string | null
+    resumeId: number | null
+    model: string | null
+    edited: boolean
+    createdAt: Date
+    updatedAt: Date
+    _count: DraftCountAggregateOutputType | null
+    _avg: DraftAvgAggregateOutputType | null
+    _sum: DraftSumAggregateOutputType | null
+    _min: DraftMinAggregateOutputType | null
+    _max: DraftMaxAggregateOutputType | null
+  }
+
+  type GetDraftGroupByPayload<T extends DraftGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<DraftGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof DraftGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], DraftGroupByOutputType[P]>
+            : GetScalarType<T[P], DraftGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type DraftSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    text?: boolean
+    instructions?: boolean
+    resumeId?: boolean
+    model?: boolean
+    edited?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["draft"]>
+
+  export type DraftSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    text?: boolean
+    instructions?: boolean
+    resumeId?: boolean
+    model?: boolean
+    edited?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["draft"]>
+
+  export type DraftSelectScalar = {
+    id?: boolean
+    jobId?: boolean
+    userId?: boolean
+    kind?: boolean
+    text?: boolean
+    instructions?: boolean
+    resumeId?: boolean
+    model?: boolean
+    edited?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type DraftInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }
+  export type DraftIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    job?: boolean | ScrapedJobDefaultArgs<ExtArgs>
+  }
+
+  export type $DraftPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Draft"
+    objects: {
+      job: Prisma.$ScrapedJobPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: number
+      jobId: number
+      userId: number
+      kind: string
+      text: string
+      instructions: string | null
+      resumeId: number | null
+      model: string | null
+      edited: boolean
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["draft"]>
+    composites: {}
+  }
+
+  type DraftGetPayload<S extends boolean | null | undefined | DraftDefaultArgs> = $Result.GetResult<Prisma.$DraftPayload, S>
+
+  type DraftCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<DraftFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: DraftCountAggregateInputType | true
+    }
+
+  export interface DraftDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Draft'], meta: { name: 'Draft' } }
+    /**
+     * Find zero or one Draft that matches the filter.
+     * @param {DraftFindUniqueArgs} args - Arguments to find a Draft
+     * @example
+     * // Get one Draft
+     * const draft = await prisma.draft.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends DraftFindUniqueArgs>(args: SelectSubset<T, DraftFindUniqueArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one Draft that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {DraftFindUniqueOrThrowArgs} args - Arguments to find a Draft
+     * @example
+     * // Get one Draft
+     * const draft = await prisma.draft.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends DraftFindUniqueOrThrowArgs>(args: SelectSubset<T, DraftFindUniqueOrThrowArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first Draft that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftFindFirstArgs} args - Arguments to find a Draft
+     * @example
+     * // Get one Draft
+     * const draft = await prisma.draft.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends DraftFindFirstArgs>(args?: SelectSubset<T, DraftFindFirstArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first Draft that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftFindFirstOrThrowArgs} args - Arguments to find a Draft
+     * @example
+     * // Get one Draft
+     * const draft = await prisma.draft.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends DraftFindFirstOrThrowArgs>(args?: SelectSubset<T, DraftFindFirstOrThrowArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more Drafts that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Drafts
+     * const drafts = await prisma.draft.findMany()
+     * 
+     * // Get first 10 Drafts
+     * const drafts = await prisma.draft.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const draftWithIdOnly = await prisma.draft.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends DraftFindManyArgs>(args?: SelectSubset<T, DraftFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a Draft.
+     * @param {DraftCreateArgs} args - Arguments to create a Draft.
+     * @example
+     * // Create one Draft
+     * const Draft = await prisma.draft.create({
+     *   data: {
+     *     // ... data to create a Draft
+     *   }
+     * })
+     * 
+     */
+    create<T extends DraftCreateArgs>(args: SelectSubset<T, DraftCreateArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many Drafts.
+     * @param {DraftCreateManyArgs} args - Arguments to create many Drafts.
+     * @example
+     * // Create many Drafts
+     * const draft = await prisma.draft.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends DraftCreateManyArgs>(args?: SelectSubset<T, DraftCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Drafts and returns the data saved in the database.
+     * @param {DraftCreateManyAndReturnArgs} args - Arguments to create many Drafts.
+     * @example
+     * // Create many Drafts
+     * const draft = await prisma.draft.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Drafts and only return the `id`
+     * const draftWithIdOnly = await prisma.draft.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends DraftCreateManyAndReturnArgs>(args?: SelectSubset<T, DraftCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a Draft.
+     * @param {DraftDeleteArgs} args - Arguments to delete one Draft.
+     * @example
+     * // Delete one Draft
+     * const Draft = await prisma.draft.delete({
+     *   where: {
+     *     // ... filter to delete one Draft
+     *   }
+     * })
+     * 
+     */
+    delete<T extends DraftDeleteArgs>(args: SelectSubset<T, DraftDeleteArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one Draft.
+     * @param {DraftUpdateArgs} args - Arguments to update one Draft.
+     * @example
+     * // Update one Draft
+     * const draft = await prisma.draft.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends DraftUpdateArgs>(args: SelectSubset<T, DraftUpdateArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more Drafts.
+     * @param {DraftDeleteManyArgs} args - Arguments to filter Drafts to delete.
+     * @example
+     * // Delete a few Drafts
+     * const { count } = await prisma.draft.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends DraftDeleteManyArgs>(args?: SelectSubset<T, DraftDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Drafts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Drafts
+     * const draft = await prisma.draft.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends DraftUpdateManyArgs>(args: SelectSubset<T, DraftUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one Draft.
+     * @param {DraftUpsertArgs} args - Arguments to update or create a Draft.
+     * @example
+     * // Update or create a Draft
+     * const draft = await prisma.draft.upsert({
+     *   create: {
+     *     // ... data to create a Draft
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Draft we want to update
+     *   }
+     * })
+     */
+    upsert<T extends DraftUpsertArgs>(args: SelectSubset<T, DraftUpsertArgs<ExtArgs>>): Prisma__DraftClient<$Result.GetResult<Prisma.$DraftPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of Drafts.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftCountArgs} args - Arguments to filter Drafts to count.
+     * @example
+     * // Count the number of Drafts
+     * const count = await prisma.draft.count({
+     *   where: {
+     *     // ... the filter for the Drafts we want to count
+     *   }
+     * })
+    **/
+    count<T extends DraftCountArgs>(
+      args?: Subset<T, DraftCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], DraftCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Draft.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends DraftAggregateArgs>(args: Subset<T, DraftAggregateArgs>): Prisma.PrismaPromise<GetDraftAggregateType<T>>
+
+    /**
+     * Group by Draft.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {DraftGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends DraftGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: DraftGroupByArgs['orderBy'] }
+        : { orderBy?: DraftGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, DraftGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetDraftGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Draft model
+   */
+  readonly fields: DraftFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Draft.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__DraftClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    job<T extends ScrapedJobDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ScrapedJobDefaultArgs<ExtArgs>>): Prisma__ScrapedJobClient<$Result.GetResult<Prisma.$ScrapedJobPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Draft model
+   */ 
+  interface DraftFieldRefs {
+    readonly id: FieldRef<"Draft", 'Int'>
+    readonly jobId: FieldRef<"Draft", 'Int'>
+    readonly userId: FieldRef<"Draft", 'Int'>
+    readonly kind: FieldRef<"Draft", 'String'>
+    readonly text: FieldRef<"Draft", 'String'>
+    readonly instructions: FieldRef<"Draft", 'String'>
+    readonly resumeId: FieldRef<"Draft", 'Int'>
+    readonly model: FieldRef<"Draft", 'String'>
+    readonly edited: FieldRef<"Draft", 'Boolean'>
+    readonly createdAt: FieldRef<"Draft", 'DateTime'>
+    readonly updatedAt: FieldRef<"Draft", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Draft findUnique
+   */
+  export type DraftFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter, which Draft to fetch.
+     */
+    where: DraftWhereUniqueInput
+  }
+
+  /**
+   * Draft findUniqueOrThrow
+   */
+  export type DraftFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter, which Draft to fetch.
+     */
+    where: DraftWhereUniqueInput
+  }
+
+  /**
+   * Draft findFirst
+   */
+  export type DraftFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter, which Draft to fetch.
+     */
+    where?: DraftWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Drafts to fetch.
+     */
+    orderBy?: DraftOrderByWithRelationInput | DraftOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Drafts.
+     */
+    cursor?: DraftWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Drafts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Drafts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Drafts.
+     */
+    distinct?: DraftScalarFieldEnum | DraftScalarFieldEnum[]
+  }
+
+  /**
+   * Draft findFirstOrThrow
+   */
+  export type DraftFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter, which Draft to fetch.
+     */
+    where?: DraftWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Drafts to fetch.
+     */
+    orderBy?: DraftOrderByWithRelationInput | DraftOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Drafts.
+     */
+    cursor?: DraftWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Drafts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Drafts.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Drafts.
+     */
+    distinct?: DraftScalarFieldEnum | DraftScalarFieldEnum[]
+  }
+
+  /**
+   * Draft findMany
+   */
+  export type DraftFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter, which Drafts to fetch.
+     */
+    where?: DraftWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Drafts to fetch.
+     */
+    orderBy?: DraftOrderByWithRelationInput | DraftOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Drafts.
+     */
+    cursor?: DraftWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Drafts from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Drafts.
+     */
+    skip?: number
+    distinct?: DraftScalarFieldEnum | DraftScalarFieldEnum[]
+  }
+
+  /**
+   * Draft create
+   */
+  export type DraftCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Draft.
+     */
+    data: XOR<DraftCreateInput, DraftUncheckedCreateInput>
+  }
+
+  /**
+   * Draft createMany
+   */
+  export type DraftCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Drafts.
+     */
+    data: DraftCreateManyInput | DraftCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Draft createManyAndReturn
+   */
+  export type DraftCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many Drafts.
+     */
+    data: DraftCreateManyInput | DraftCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Draft update
+   */
+  export type DraftUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Draft.
+     */
+    data: XOR<DraftUpdateInput, DraftUncheckedUpdateInput>
+    /**
+     * Choose, which Draft to update.
+     */
+    where: DraftWhereUniqueInput
+  }
+
+  /**
+   * Draft updateMany
+   */
+  export type DraftUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Drafts.
+     */
+    data: XOR<DraftUpdateManyMutationInput, DraftUncheckedUpdateManyInput>
+    /**
+     * Filter which Drafts to update
+     */
+    where?: DraftWhereInput
+  }
+
+  /**
+   * Draft upsert
+   */
+  export type DraftUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Draft to update in case it exists.
+     */
+    where: DraftWhereUniqueInput
+    /**
+     * In case the Draft found by the `where` argument doesn't exist, create a new Draft with this data.
+     */
+    create: XOR<DraftCreateInput, DraftUncheckedCreateInput>
+    /**
+     * In case the Draft was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<DraftUpdateInput, DraftUncheckedUpdateInput>
+  }
+
+  /**
+   * Draft delete
+   */
+  export type DraftDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
+    /**
+     * Filter which Draft to delete.
+     */
+    where: DraftWhereUniqueInput
+  }
+
+  /**
+   * Draft deleteMany
+   */
+  export type DraftDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Drafts to delete
+     */
+    where?: DraftWhereInput
+  }
+
+  /**
+   * Draft without action
+   */
+  export type DraftDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Draft
+     */
+    select?: DraftSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: DraftInclude<ExtArgs> | null
   }
 
 
@@ -16680,6 +17850,23 @@ export namespace Prisma {
   export type InterviewScalarFieldEnum = (typeof InterviewScalarFieldEnum)[keyof typeof InterviewScalarFieldEnum]
 
 
+  export const DraftScalarFieldEnum: {
+    id: 'id',
+    jobId: 'jobId',
+    userId: 'userId',
+    kind: 'kind',
+    text: 'text',
+    instructions: 'instructions',
+    resumeId: 'resumeId',
+    model: 'model',
+    edited: 'edited',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type DraftScalarFieldEnum = (typeof DraftScalarFieldEnum)[keyof typeof DraftScalarFieldEnum]
+
+
   export const AppConfigScalarFieldEnum: {
     key: 'key',
     value: 'value',
@@ -17186,6 +18373,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogListRelationFilter
     events?: ApplicationEventListRelationFilter
     interviews?: InterviewListRelationFilter
+    drafts?: DraftListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }
 
@@ -17223,6 +18411,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogOrderByRelationAggregateInput
     events?: ApplicationEventOrderByRelationAggregateInput
     interviews?: InterviewOrderByRelationAggregateInput
+    drafts?: DraftOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
   }
 
@@ -17265,6 +18454,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogListRelationFilter
     events?: ApplicationEventListRelationFilter
     interviews?: InterviewListRelationFilter
+    drafts?: DraftListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }, "id" | "userId_platform_url" | "userId_platform_title_company">
 
@@ -17499,6 +18689,94 @@ export namespace Prisma {
     notes?: StringNullableWithAggregatesFilter<"Interview"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Interview"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Interview"> | Date | string
+  }
+
+  export type DraftWhereInput = {
+    AND?: DraftWhereInput | DraftWhereInput[]
+    OR?: DraftWhereInput[]
+    NOT?: DraftWhereInput | DraftWhereInput[]
+    id?: IntFilter<"Draft"> | number
+    jobId?: IntFilter<"Draft"> | number
+    userId?: IntFilter<"Draft"> | number
+    kind?: StringFilter<"Draft"> | string
+    text?: StringFilter<"Draft"> | string
+    instructions?: StringNullableFilter<"Draft"> | string | null
+    resumeId?: IntNullableFilter<"Draft"> | number | null
+    model?: StringNullableFilter<"Draft"> | string | null
+    edited?: BoolFilter<"Draft"> | boolean
+    createdAt?: DateTimeFilter<"Draft"> | Date | string
+    updatedAt?: DateTimeFilter<"Draft"> | Date | string
+    job?: XOR<ScrapedJobRelationFilter, ScrapedJobWhereInput>
+  }
+
+  export type DraftOrderByWithRelationInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    text?: SortOrder
+    instructions?: SortOrderInput | SortOrder
+    resumeId?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    edited?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    job?: ScrapedJobOrderByWithRelationInput
+  }
+
+  export type DraftWhereUniqueInput = Prisma.AtLeast<{
+    id?: number
+    jobId_kind?: DraftJobIdKindCompoundUniqueInput
+    AND?: DraftWhereInput | DraftWhereInput[]
+    OR?: DraftWhereInput[]
+    NOT?: DraftWhereInput | DraftWhereInput[]
+    jobId?: IntFilter<"Draft"> | number
+    userId?: IntFilter<"Draft"> | number
+    kind?: StringFilter<"Draft"> | string
+    text?: StringFilter<"Draft"> | string
+    instructions?: StringNullableFilter<"Draft"> | string | null
+    resumeId?: IntNullableFilter<"Draft"> | number | null
+    model?: StringNullableFilter<"Draft"> | string | null
+    edited?: BoolFilter<"Draft"> | boolean
+    createdAt?: DateTimeFilter<"Draft"> | Date | string
+    updatedAt?: DateTimeFilter<"Draft"> | Date | string
+    job?: XOR<ScrapedJobRelationFilter, ScrapedJobWhereInput>
+  }, "id" | "jobId_kind">
+
+  export type DraftOrderByWithAggregationInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    text?: SortOrder
+    instructions?: SortOrderInput | SortOrder
+    resumeId?: SortOrderInput | SortOrder
+    model?: SortOrderInput | SortOrder
+    edited?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: DraftCountOrderByAggregateInput
+    _avg?: DraftAvgOrderByAggregateInput
+    _max?: DraftMaxOrderByAggregateInput
+    _min?: DraftMinOrderByAggregateInput
+    _sum?: DraftSumOrderByAggregateInput
+  }
+
+  export type DraftScalarWhereWithAggregatesInput = {
+    AND?: DraftScalarWhereWithAggregatesInput | DraftScalarWhereWithAggregatesInput[]
+    OR?: DraftScalarWhereWithAggregatesInput[]
+    NOT?: DraftScalarWhereWithAggregatesInput | DraftScalarWhereWithAggregatesInput[]
+    id?: IntWithAggregatesFilter<"Draft"> | number
+    jobId?: IntWithAggregatesFilter<"Draft"> | number
+    userId?: IntWithAggregatesFilter<"Draft"> | number
+    kind?: StringWithAggregatesFilter<"Draft"> | string
+    text?: StringWithAggregatesFilter<"Draft"> | string
+    instructions?: StringNullableWithAggregatesFilter<"Draft"> | string | null
+    resumeId?: IntNullableWithAggregatesFilter<"Draft"> | number | null
+    model?: StringNullableWithAggregatesFilter<"Draft"> | string | null
+    edited?: BoolWithAggregatesFilter<"Draft"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"Draft"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Draft"> | Date | string
   }
 
   export type AppConfigWhereInput = {
@@ -18336,6 +19614,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventCreateNestedManyWithoutJobInput
     interviews?: InterviewCreateNestedManyWithoutJobInput
+    drafts?: DraftCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -18373,6 +19652,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
     interviews?: InterviewUncheckedCreateNestedManyWithoutJobInput
+    drafts?: DraftUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobUpdateInput = {
@@ -18407,6 +19687,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUpdateManyWithoutJobNestedInput
     interviews?: InterviewUpdateManyWithoutJobNestedInput
+    drafts?: DraftUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -18444,6 +19725,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
     interviews?: InterviewUncheckedUpdateManyWithoutJobNestedInput
+    drafts?: DraftUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobCreateManyInput = {
@@ -18706,6 +19988,100 @@ export namespace Prisma {
     kind?: StringFieldUpdateOperationsInput | string
     link?: NullableStringFieldUpdateOperationsInput | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DraftCreateInput = {
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    job: ScrapedJobCreateNestedOneWithoutDraftsInput
+  }
+
+  export type DraftUncheckedCreateInput = {
+    id?: number
+    jobId: number
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DraftUpdateInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    job?: ScrapedJobUpdateOneRequiredWithoutDraftsNestedInput
+  }
+
+  export type DraftUncheckedUpdateInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    jobId?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DraftCreateManyInput = {
+    id?: number
+    jobId: number
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DraftUpdateManyMutationInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DraftUncheckedUpdateManyInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    jobId?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -19691,6 +21067,12 @@ export namespace Prisma {
     none?: InterviewWhereInput
   }
 
+  export type DraftListRelationFilter = {
+    every?: DraftWhereInput
+    some?: DraftWhereInput
+    none?: DraftWhereInput
+  }
+
   export type AnalysisLogOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
@@ -19700,6 +21082,10 @@ export namespace Prisma {
   }
 
   export type InterviewOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type DraftOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -19979,6 +21365,67 @@ export namespace Prisma {
     id?: SortOrder
     jobId?: SortOrder
     userId?: SortOrder
+  }
+
+  export type DraftJobIdKindCompoundUniqueInput = {
+    jobId: number
+    kind: string
+  }
+
+  export type DraftCountOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    text?: SortOrder
+    instructions?: SortOrder
+    resumeId?: SortOrder
+    model?: SortOrder
+    edited?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DraftAvgOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    resumeId?: SortOrder
+  }
+
+  export type DraftMaxOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    text?: SortOrder
+    instructions?: SortOrder
+    resumeId?: SortOrder
+    model?: SortOrder
+    edited?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DraftMinOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    kind?: SortOrder
+    text?: SortOrder
+    instructions?: SortOrder
+    resumeId?: SortOrder
+    model?: SortOrder
+    edited?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type DraftSumOrderByAggregateInput = {
+    id?: SortOrder
+    jobId?: SortOrder
+    userId?: SortOrder
+    resumeId?: SortOrder
   }
 
   export type AppConfigCountOrderByAggregateInput = {
@@ -20743,6 +22190,13 @@ export namespace Prisma {
     connect?: InterviewWhereUniqueInput | InterviewWhereUniqueInput[]
   }
 
+  export type DraftCreateNestedManyWithoutJobInput = {
+    create?: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput> | DraftCreateWithoutJobInput[] | DraftUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: DraftCreateOrConnectWithoutJobInput | DraftCreateOrConnectWithoutJobInput[]
+    createMany?: DraftCreateManyJobInputEnvelope
+    connect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+  }
+
   export type UserCreateNestedOneWithoutJobsInput = {
     create?: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
     connectOrCreate?: UserCreateOrConnectWithoutJobsInput
@@ -20768,6 +22222,13 @@ export namespace Prisma {
     connectOrCreate?: InterviewCreateOrConnectWithoutJobInput | InterviewCreateOrConnectWithoutJobInput[]
     createMany?: InterviewCreateManyJobInputEnvelope
     connect?: InterviewWhereUniqueInput | InterviewWhereUniqueInput[]
+  }
+
+  export type DraftUncheckedCreateNestedManyWithoutJobInput = {
+    create?: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput> | DraftCreateWithoutJobInput[] | DraftUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: DraftCreateOrConnectWithoutJobInput | DraftCreateOrConnectWithoutJobInput[]
+    createMany?: DraftCreateManyJobInputEnvelope
+    connect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
   }
 
   export type NullableStringFieldUpdateOperationsInput = {
@@ -20828,6 +22289,20 @@ export namespace Prisma {
     deleteMany?: InterviewScalarWhereInput | InterviewScalarWhereInput[]
   }
 
+  export type DraftUpdateManyWithoutJobNestedInput = {
+    create?: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput> | DraftCreateWithoutJobInput[] | DraftUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: DraftCreateOrConnectWithoutJobInput | DraftCreateOrConnectWithoutJobInput[]
+    upsert?: DraftUpsertWithWhereUniqueWithoutJobInput | DraftUpsertWithWhereUniqueWithoutJobInput[]
+    createMany?: DraftCreateManyJobInputEnvelope
+    set?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    disconnect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    delete?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    connect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    update?: DraftUpdateWithWhereUniqueWithoutJobInput | DraftUpdateWithWhereUniqueWithoutJobInput[]
+    updateMany?: DraftUpdateManyWithWhereWithoutJobInput | DraftUpdateManyWithWhereWithoutJobInput[]
+    deleteMany?: DraftScalarWhereInput | DraftScalarWhereInput[]
+  }
+
   export type UserUpdateOneRequiredWithoutJobsNestedInput = {
     create?: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
     connectOrCreate?: UserCreateOrConnectWithoutJobsInput
@@ -20878,6 +22353,20 @@ export namespace Prisma {
     deleteMany?: InterviewScalarWhereInput | InterviewScalarWhereInput[]
   }
 
+  export type DraftUncheckedUpdateManyWithoutJobNestedInput = {
+    create?: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput> | DraftCreateWithoutJobInput[] | DraftUncheckedCreateWithoutJobInput[]
+    connectOrCreate?: DraftCreateOrConnectWithoutJobInput | DraftCreateOrConnectWithoutJobInput[]
+    upsert?: DraftUpsertWithWhereUniqueWithoutJobInput | DraftUpsertWithWhereUniqueWithoutJobInput[]
+    createMany?: DraftCreateManyJobInputEnvelope
+    set?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    disconnect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    delete?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    connect?: DraftWhereUniqueInput | DraftWhereUniqueInput[]
+    update?: DraftUpdateWithWhereUniqueWithoutJobInput | DraftUpdateWithWhereUniqueWithoutJobInput[]
+    updateMany?: DraftUpdateManyWithWhereWithoutJobInput | DraftUpdateManyWithWhereWithoutJobInput[]
+    deleteMany?: DraftScalarWhereInput | DraftScalarWhereInput[]
+  }
+
   export type ScrapedJobCreateNestedOneWithoutEventsInput = {
     create?: XOR<ScrapedJobCreateWithoutEventsInput, ScrapedJobUncheckedCreateWithoutEventsInput>
     connectOrCreate?: ScrapedJobCreateOrConnectWithoutEventsInput
@@ -20904,6 +22393,20 @@ export namespace Prisma {
     upsert?: ScrapedJobUpsertWithoutInterviewsInput
     connect?: ScrapedJobWhereUniqueInput
     update?: XOR<XOR<ScrapedJobUpdateToOneWithWhereWithoutInterviewsInput, ScrapedJobUpdateWithoutInterviewsInput>, ScrapedJobUncheckedUpdateWithoutInterviewsInput>
+  }
+
+  export type ScrapedJobCreateNestedOneWithoutDraftsInput = {
+    create?: XOR<ScrapedJobCreateWithoutDraftsInput, ScrapedJobUncheckedCreateWithoutDraftsInput>
+    connectOrCreate?: ScrapedJobCreateOrConnectWithoutDraftsInput
+    connect?: ScrapedJobWhereUniqueInput
+  }
+
+  export type ScrapedJobUpdateOneRequiredWithoutDraftsNestedInput = {
+    create?: XOR<ScrapedJobCreateWithoutDraftsInput, ScrapedJobUncheckedCreateWithoutDraftsInput>
+    connectOrCreate?: ScrapedJobCreateOrConnectWithoutDraftsInput
+    upsert?: ScrapedJobUpsertWithoutDraftsInput
+    connect?: ScrapedJobWhereUniqueInput
+    update?: XOR<XOR<ScrapedJobUpdateToOneWithWhereWithoutDraftsInput, ScrapedJobUpdateWithoutDraftsInput>, ScrapedJobUncheckedUpdateWithoutDraftsInput>
   }
 
   export type UserCreateNestedOneWithoutSkipRulesInput = {
@@ -21302,6 +22805,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventCreateNestedManyWithoutJobInput
     interviews?: InterviewCreateNestedManyWithoutJobInput
+    drafts?: DraftCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobUncheckedCreateWithoutUserInput = {
@@ -21337,6 +22841,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
     interviews?: InterviewUncheckedCreateNestedManyWithoutJobInput
+    drafts?: DraftUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutUserInput = {
@@ -21936,6 +23441,41 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type DraftCreateWithoutJobInput = {
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DraftUncheckedCreateWithoutJobInput = {
+    id?: number
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type DraftCreateOrConnectWithoutJobInput = {
+    where: DraftWhereUniqueInput
+    create: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput>
+  }
+
+  export type DraftCreateManyJobInputEnvelope = {
+    data: DraftCreateManyJobInput | DraftCreateManyJobInput[]
+    skipDuplicates?: boolean
+  }
+
   export type UserCreateWithoutJobsInput = {
     username: string
     name: string
@@ -22070,6 +23610,39 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Interview"> | Date | string
   }
 
+  export type DraftUpsertWithWhereUniqueWithoutJobInput = {
+    where: DraftWhereUniqueInput
+    update: XOR<DraftUpdateWithoutJobInput, DraftUncheckedUpdateWithoutJobInput>
+    create: XOR<DraftCreateWithoutJobInput, DraftUncheckedCreateWithoutJobInput>
+  }
+
+  export type DraftUpdateWithWhereUniqueWithoutJobInput = {
+    where: DraftWhereUniqueInput
+    data: XOR<DraftUpdateWithoutJobInput, DraftUncheckedUpdateWithoutJobInput>
+  }
+
+  export type DraftUpdateManyWithWhereWithoutJobInput = {
+    where: DraftScalarWhereInput
+    data: XOR<DraftUpdateManyMutationInput, DraftUncheckedUpdateManyWithoutJobInput>
+  }
+
+  export type DraftScalarWhereInput = {
+    AND?: DraftScalarWhereInput | DraftScalarWhereInput[]
+    OR?: DraftScalarWhereInput[]
+    NOT?: DraftScalarWhereInput | DraftScalarWhereInput[]
+    id?: IntFilter<"Draft"> | number
+    jobId?: IntFilter<"Draft"> | number
+    userId?: IntFilter<"Draft"> | number
+    kind?: StringFilter<"Draft"> | string
+    text?: StringFilter<"Draft"> | string
+    instructions?: StringNullableFilter<"Draft"> | string | null
+    resumeId?: IntNullableFilter<"Draft"> | number | null
+    model?: StringNullableFilter<"Draft"> | string | null
+    edited?: BoolFilter<"Draft"> | boolean
+    createdAt?: DateTimeFilter<"Draft"> | Date | string
+    updatedAt?: DateTimeFilter<"Draft"> | Date | string
+  }
+
   export type UserUpsertWithoutJobsInput = {
     update: XOR<UserUpdateWithoutJobsInput, UserUncheckedUpdateWithoutJobsInput>
     create: XOR<UserCreateWithoutJobsInput, UserUncheckedCreateWithoutJobsInput>
@@ -22147,6 +23720,7 @@ export namespace Prisma {
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
     interviews?: InterviewCreateNestedManyWithoutJobInput
+    drafts?: DraftCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -22183,6 +23757,7 @@ export namespace Prisma {
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
     interviews?: InterviewUncheckedCreateNestedManyWithoutJobInput
+    drafts?: DraftUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutEventsInput = {
@@ -22232,6 +23807,7 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
     interviews?: InterviewUpdateManyWithoutJobNestedInput
+    drafts?: DraftUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -22268,6 +23844,7 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
     interviews?: InterviewUncheckedUpdateManyWithoutJobNestedInput
+    drafts?: DraftUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobCreateWithoutInterviewsInput = {
@@ -22301,6 +23878,7 @@ export namespace Prisma {
     signals?: string | null
     analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventCreateNestedManyWithoutJobInput
+    drafts?: DraftCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -22337,6 +23915,7 @@ export namespace Prisma {
     signals?: string | null
     analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
     events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
+    drafts?: DraftUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutInterviewsInput = {
@@ -22386,6 +23965,7 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUpdateManyWithoutJobNestedInput
+    drafts?: DraftUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -22422,6 +24002,165 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
+    drafts?: DraftUncheckedUpdateManyWithoutJobNestedInput
+  }
+
+  export type ScrapedJobCreateWithoutDraftsInput = {
+    platform: string
+    title: string
+    company: string
+    location?: string | null
+    url: string
+    manualApplyUrl?: string | null
+    applyMethod?: string | null
+    description?: string | null
+    salary?: string | null
+    techStack?: string | null
+    status?: $Enums.JobStatus
+    aiScore?: number | null
+    aiReason?: string | null
+    sheetSynced?: boolean
+    createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
+    analysisLogs?: AnalysisLogCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventCreateNestedManyWithoutJobInput
+    interviews?: InterviewCreateNestedManyWithoutJobInput
+    user: UserCreateNestedOneWithoutJobsInput
+  }
+
+  export type ScrapedJobUncheckedCreateWithoutDraftsInput = {
+    id?: number
+    userId: number
+    platform: string
+    title: string
+    company: string
+    location?: string | null
+    url: string
+    manualApplyUrl?: string | null
+    applyMethod?: string | null
+    description?: string | null
+    salary?: string | null
+    techStack?: string | null
+    status?: $Enums.JobStatus
+    aiScore?: number | null
+    aiReason?: string | null
+    sheetSynced?: boolean
+    createdAt?: Date | string
+    stage?: string | null
+    stageUpdatedAt?: Date | string | null
+    closeReason?: string | null
+    appliedAt?: Date | string | null
+    followUpAt?: Date | string | null
+    notes?: string | null
+    resumeId?: number | null
+    applicationData?: string | null
+    feedback?: number | null
+    feedbackAt?: Date | string | null
+    reviewedAt?: Date | string | null
+    eligibility?: string | null
+    signals?: string | null
+    analysisLogs?: AnalysisLogUncheckedCreateNestedManyWithoutScrapedJobInput
+    events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
+    interviews?: InterviewUncheckedCreateNestedManyWithoutJobInput
+  }
+
+  export type ScrapedJobCreateOrConnectWithoutDraftsInput = {
+    where: ScrapedJobWhereUniqueInput
+    create: XOR<ScrapedJobCreateWithoutDraftsInput, ScrapedJobUncheckedCreateWithoutDraftsInput>
+  }
+
+  export type ScrapedJobUpsertWithoutDraftsInput = {
+    update: XOR<ScrapedJobUpdateWithoutDraftsInput, ScrapedJobUncheckedUpdateWithoutDraftsInput>
+    create: XOR<ScrapedJobCreateWithoutDraftsInput, ScrapedJobUncheckedCreateWithoutDraftsInput>
+    where?: ScrapedJobWhereInput
+  }
+
+  export type ScrapedJobUpdateToOneWithWhereWithoutDraftsInput = {
+    where?: ScrapedJobWhereInput
+    data: XOR<ScrapedJobUpdateWithoutDraftsInput, ScrapedJobUncheckedUpdateWithoutDraftsInput>
+  }
+
+  export type ScrapedJobUpdateWithoutDraftsInput = {
+    platform?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    company?: StringFieldUpdateOperationsInput | string
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    salary?: NullableStringFieldUpdateOperationsInput | string | null
+    techStack?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
+    aiScore?: NullableIntFieldUpdateOperationsInput | number | null
+    aiReason?: NullableStringFieldUpdateOperationsInput | string | null
+    sheetSynced?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
+    analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUpdateManyWithoutJobNestedInput
+    interviews?: InterviewUpdateManyWithoutJobNestedInput
+    user?: UserUpdateOneRequiredWithoutJobsNestedInput
+  }
+
+  export type ScrapedJobUncheckedUpdateWithoutDraftsInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    platform?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    company?: StringFieldUpdateOperationsInput | string
+    location?: NullableStringFieldUpdateOperationsInput | string | null
+    url?: StringFieldUpdateOperationsInput | string
+    manualApplyUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    applyMethod?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    salary?: NullableStringFieldUpdateOperationsInput | string | null
+    techStack?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumJobStatusFieldUpdateOperationsInput | $Enums.JobStatus
+    aiScore?: NullableIntFieldUpdateOperationsInput | number | null
+    aiReason?: NullableStringFieldUpdateOperationsInput | string | null
+    sheetSynced?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    stage?: NullableStringFieldUpdateOperationsInput | string | null
+    stageUpdatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    closeReason?: NullableStringFieldUpdateOperationsInput | string | null
+    appliedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    followUpAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    notes?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    applicationData?: NullableStringFieldUpdateOperationsInput | string | null
+    feedback?: NullableIntFieldUpdateOperationsInput | number | null
+    feedbackAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    reviewedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    eligibility?: NullableStringFieldUpdateOperationsInput | string | null
+    signals?: NullableStringFieldUpdateOperationsInput | string | null
+    analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
+    events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
+    interviews?: InterviewUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type UserCreateWithoutSkipRulesInput = {
@@ -22541,6 +24280,7 @@ export namespace Prisma {
     signals?: string | null
     events?: ApplicationEventCreateNestedManyWithoutJobInput
     interviews?: InterviewCreateNestedManyWithoutJobInput
+    drafts?: DraftCreateNestedManyWithoutJobInput
     user: UserCreateNestedOneWithoutJobsInput
   }
 
@@ -22577,6 +24317,7 @@ export namespace Prisma {
     signals?: string | null
     events?: ApplicationEventUncheckedCreateNestedManyWithoutJobInput
     interviews?: InterviewUncheckedCreateNestedManyWithoutJobInput
+    drafts?: DraftUncheckedCreateNestedManyWithoutJobInput
   }
 
   export type ScrapedJobCreateOrConnectWithoutAnalysisLogsInput = {
@@ -22626,6 +24367,7 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     events?: ApplicationEventUpdateManyWithoutJobNestedInput
     interviews?: InterviewUpdateManyWithoutJobNestedInput
+    drafts?: DraftUpdateManyWithoutJobNestedInput
     user?: UserUpdateOneRequiredWithoutJobsNestedInput
   }
 
@@ -22662,6 +24404,7 @@ export namespace Prisma {
     signals?: NullableStringFieldUpdateOperationsInput | string | null
     events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
     interviews?: InterviewUncheckedUpdateManyWithoutJobNestedInput
+    drafts?: DraftUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type UserCreateWithoutResumesInput = {
@@ -22966,6 +24709,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUpdateManyWithoutJobNestedInput
     interviews?: InterviewUpdateManyWithoutJobNestedInput
+    drafts?: DraftUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobUncheckedUpdateWithoutUserInput = {
@@ -23001,6 +24745,7 @@ export namespace Prisma {
     analysisLogs?: AnalysisLogUncheckedUpdateManyWithoutScrapedJobNestedInput
     events?: ApplicationEventUncheckedUpdateManyWithoutJobNestedInput
     interviews?: InterviewUncheckedUpdateManyWithoutJobNestedInput
+    drafts?: DraftUncheckedUpdateManyWithoutJobNestedInput
   }
 
   export type ScrapedJobUncheckedUpdateManyWithoutUserInput = {
@@ -23191,6 +24936,19 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
+  export type DraftCreateManyJobInput = {
+    id?: number
+    userId: number
+    kind: string
+    text: string
+    instructions?: string | null
+    resumeId?: number | null
+    model?: string | null
+    edited?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
   export type AnalysisLogUpdateWithoutScrapedJobInput = {
     model?: StringFieldUpdateOperationsInput | string
     approved?: BoolFieldUpdateOperationsInput | boolean
@@ -23290,6 +25048,44 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type DraftUpdateWithoutJobInput = {
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DraftUncheckedUpdateWithoutJobInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type DraftUncheckedUpdateManyWithoutJobInput = {
+    id?: IntFieldUpdateOperationsInput | number
+    userId?: IntFieldUpdateOperationsInput | number
+    kind?: StringFieldUpdateOperationsInput | string
+    text?: StringFieldUpdateOperationsInput | string
+    instructions?: NullableStringFieldUpdateOperationsInput | string | null
+    resumeId?: NullableIntFieldUpdateOperationsInput | number | null
+    model?: NullableStringFieldUpdateOperationsInput | string | null
+    edited?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
 
 
   /**
@@ -23327,6 +25123,10 @@ export namespace Prisma {
      * @deprecated Use InterviewDefaultArgs instead
      */
     export type InterviewArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = InterviewDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use DraftDefaultArgs instead
+     */
+    export type DraftArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = DraftDefaultArgs<ExtArgs>
     /**
      * @deprecated Use AppConfigDefaultArgs instead
      */

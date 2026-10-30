@@ -210,6 +210,20 @@ exports.Prisma.InterviewScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.DraftScalarFieldEnum = {
+  id: 'id',
+  jobId: 'jobId',
+  userId: 'userId',
+  kind: 'kind',
+  text: 'text',
+  instructions: 'instructions',
+  resumeId: 'resumeId',
+  model: 'model',
+  edited: 'edited',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.AppConfigScalarFieldEnum = {
   key: 'key',
   value: 'value',
@@ -334,6 +348,7 @@ exports.Prisma.ModelName = {
   ScrapedJob: 'ScrapedJob',
   ApplicationEvent: 'ApplicationEvent',
   Interview: 'Interview',
+  Draft: 'Draft',
   AppConfig: 'AppConfig',
   SkipRule: 'SkipRule',
   ScanLog: 'ScanLog',

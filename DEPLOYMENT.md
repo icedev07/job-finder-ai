@@ -17,7 +17,7 @@ Upgrading an existing deployment? Follow the README's notes for your version fir
 | Cloudflare Workers AI | AI job analysis | **yes, free** (10k Neurons/day) | **no card required** |
 | Anthropic Claude API | optional: best-quality verdicts, resume reading, form answers | pay as you go | yes (prepaid credits) |
 
-**Everything except Claude is free and needs no credit card.** Each AI task (board scans, the LinkedIn extension, resume reading, form answers) has its own route: an ordered list of providers that fails over automatically when one hits its rate limit. Claude is optional, and a monthly budget cap (default $10) keeps its cost predictable.
+**Everything except Claude is free and needs no credit card.** Each AI task (board scans, the LinkedIn extension, resume reading, form answers, writing) has its own route: an ordered list of providers that fails over automatically when one hits its rate limit. Claude is optional, and a monthly budget cap (default $10) keeps its cost predictable.
 
 ---
 

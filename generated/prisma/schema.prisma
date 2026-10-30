@@ -142,6 +142,7 @@ model ScrapedJob {
   analysisLogs AnalysisLog[]
   events       ApplicationEvent[]
   interviews   Interview[]
+  drafts       Draft[]
   user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, platform, url])
@@ -200,6 +201,33 @@ model Interview {
 
   @@index([jobId, at])
   @@index([userId, at])
+}
+
+// What the AI wrote for an application (Writing in the job's panel): one draft
+// of each kind, rewritten by the AI or edited by hand.
+model Draft {
+  id           Int      @id @default(autoincrement())
+  jobId        Int
+  // The job's user: whose application it is.
+  userId       Int
+  // match, cover_letter, intro, follow_up or interview_prep.
+  kind         String   @db.VarChar(20)
+  text         String
+  // What the last write was asked to do ("shorter", "mention the Kafka project").
+  instructions String?
+  // The resume it drew on; null: the profile only.
+  resumeId     Int?
+  // Who wrote it ("claude:claude-opus-5-5"); null when written by hand.
+  model        String?  @db.VarChar(160)
+  // Changed by hand since the AI wrote it.
+  edited       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  job ScrapedJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, kind])
+  @@index([userId])
 }
 
 // ── Admin configuration ─────────────────────────────────────────────────────

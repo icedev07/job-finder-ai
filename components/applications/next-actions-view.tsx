@@ -6,6 +6,7 @@ import {
   ChevronDownIcon,
   MessageSquareReplyIcon,
   MoreHorizontalIcon,
+  NotebookPenIcon,
   SendIcon,
   UsersRoundIcon,
   XIcon,
@@ -19,6 +20,7 @@ import { FOLLOW_UPS, inDays } from '@/components/applications/board-card';
 import { CLOSE_CHOICES } from '@/components/applications/close-dialog';
 import { InterviewLink } from '@/components/applications/interviews';
 import type { BoardCard, Destination } from '@/components/applications/types';
+import type { WritingRequest } from '@/components/applications/writing';
 import { ScoreChip } from '@/components/jobs/chips';
 import { JobDetailSheet } from '@/components/jobs/job-detail-sheet';
 import { useStatus } from '@/components/shell/status-provider';
@@ -41,14 +43,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Spinner } from '@/components/ui/spinner';
 import { useLoadOnMount } from '@/hooks/use-load-on-mount';
 import { api, errorMessage } from '@/lib/clientApi';
-import { CLOSE_REASON_LABEL, formatDate, formatNumber, formatWhen, INTERVIEW_KIND_LABEL, interviewName, isInterviewKind, timeAgo } from '@/lib/format';
+import {
+  CLOSE_REASON_LABEL,
+  formatDate,
+  formatNumber,
+  formatWhen,
+  INTERVIEW_KIND_LABEL,
+  interviewName,
+  isInterviewKind,
+  timeAgo,
+  type DraftKind,
+} from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 // Next actions (lib/nextActions.ts): interviews in the next two days, follow-ups
 // that are due, applications with no answer for weeks and saved jobs not applied
 // to yet, for the user being viewed (or every user with Applications on). Each
-// row has its main action, Snooze and a menu; several rows at once from the
-// selection bar. Every change can be undone from its message (or u).
+// row has its main action, Snooze and a menu (with a draft of what to send);
+// several rows at once from the selection bar. Every change can be undone from
+// its message (or u).
 
 type Kind = 'interview' | 'follow_up' | 'no_answer' | 'apply';
 type ActionJob = Omit<BoardCard, 'nextInterviewAt'>;
@@ -139,6 +152,8 @@ export function NextActionsView() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [active, setActive] = useState(0);
   const [openId, setOpenId] = useState<number | null>(null);
+  // Opened from Draft a follow-up / cover letter or Prepare: the panel's Writing writes it.
+  const [writing, setWriting] = useState<WritingRequest | null>(null);
   // The last change's undo, for u and the toast.
   const lastUndo = useRef<(() => Promise<void>) | null>(null);
   // Times are relative to when the list loaded.
@@ -269,7 +284,10 @@ export function NextActionsView() {
       if (e.key === 'j') setActive(Math.min(ordered.length - 1, current + 1));
       else if (e.key === 'k') setActive(Math.max(0, current - 1));
       else if (e.key === 'x' && row && row.kind !== 'interview') toggle(row.job.id, !selected.has(row.job.id));
-      else if (e.key === 'Enter' && row) setOpenId(row.job.id);
+      else if (e.key === 'Enter' && row) {
+        setWriting(null);
+        setOpenId(row.job.id);
+      }
       else if (e.key === 'u' && lastUndo.current) void lastUndo.current();
       else if (e.key === 'Escape') setSelected(new Set());
     };
@@ -425,6 +443,12 @@ export function NextActionsView() {
                     onSelect={(v) => toggle(item.job.id, v)}
                     onOpen={() => {
                       setActive(index);
+                      setWriting(null);
+                      setOpenId(item.job.id);
+                    }}
+                    onDraft={(kind) => {
+                      setActive(index);
+                      setWriting({ kind, write: true });
                       setOpenId(item.job.id);
                     }}
                     onFollowedUp={() => void followedUp([item])}
@@ -451,7 +475,7 @@ export function NextActionsView() {
         />
       ) : null}
 
-      <JobDetailSheet jobId={openId} onOpenChange={(o) => !o && setOpenId(null)} onChanged={changed} />
+      <JobDetailSheet jobId={openId} onOpenChange={(o) => !o && setOpenId(null)} onChanged={changed} writing={writing} />
     </div>
   );
 }
@@ -469,6 +493,7 @@ function ActionRow({
   busy,
   onSelect,
   onOpen,
+  onDraft,
   onFollowedUp,
   onApplied,
   onSnooze,
@@ -481,6 +506,8 @@ function ActionRow({
   busy: boolean;
   onSelect: (on: boolean) => void;
   onOpen: () => void;
+  /** Open the job on Writing and draft this. */
+  onDraft: (kind: DraftKind) => void;
   onFollowedUp: () => void;
   onApplied: () => void;
   onSnooze: (days: number) => void;
@@ -544,9 +571,15 @@ function ActionRow({
           </Button>
         ) : null}
         {interview ? (
-          <Button size="sm" variant="outline" onClick={onOpen}>
-            Open
-          </Button>
+          <>
+            <Button size="sm" variant="outline" onClick={() => onDraft('interview_prep')} aria-label={`Prepare for the interview for ${j.title}`}>
+              <NotebookPenIcon />
+              Prepare
+            </Button>
+            <Button size="sm" variant="outline" onClick={onOpen}>
+              Open
+            </Button>
+          </>
         ) : (
           <>
             <DropdownMenu>
@@ -569,6 +602,11 @@ function ActionRow({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onClick={onOpen}>Open the job</DropdownMenuItem>
+                {item.kind === 'apply' ? (
+                  <DropdownMenuItem onClick={() => onDraft('cover_letter')}>Draft a cover letter</DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => onDraft('follow_up')}>Draft a follow-up</DropdownMenuItem>
+                )}
                 {item.kind === 'no_answer' ? <DropdownMenuItem onClick={onFollowedUp}>Followed up</DropdownMenuItem> : null}
                 <DropdownMenuSeparator />
                 <DropdownMenuSub>

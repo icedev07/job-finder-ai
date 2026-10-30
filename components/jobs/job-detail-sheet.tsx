@@ -12,10 +12,12 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 
 import { markFollowedUp } from '@/components/applications/application-commands';
 import { Interviews, type Interview } from '@/components/applications/interviews';
 import { Timeline, type TimelineEvent } from '@/components/applications/timeline';
+import { Writing, type Draft, type WritingRequest, type WritingSetup } from '@/components/applications/writing';
 import { ApplyMethodChip, EligibilityChip, ScoreChip, StatusChip } from '@/components/jobs/chips';
 import { FeedbackButtons } from '@/components/jobs/feedback-buttons';
 import { patchJobs, reanalyzeJobs } from '@/components/jobs/job-commands';
@@ -68,6 +70,7 @@ type JobDetail = {
   eligibility: string | null;
   signals: Record<string, unknown> | null;
   applicationData: { resumeName?: string; answers?: { question: string; answer: string }[] } | null;
+  resumeId: number | null;
   createdAt: string;
   analysisLogs: AnalysisLog[];
 };
@@ -78,6 +81,8 @@ type DetailResponse = {
   resume: { id: number; name: string; fileName: string } | null;
   events: TimelineEvent[];
   interviews: Interview[];
+  drafts: Draft[];
+  writing: WritingSetup;
 };
 
 // The reasons an archived application can have (Rejected is its own stage).
@@ -94,10 +99,13 @@ export function JobDetailSheet({
   jobId,
   onOpenChange,
   onChanged,
+  writing,
 }: {
   jobId: number | null;
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
+  /** Open on Writing, on this kind (written unless there is a draft already). */
+  writing?: WritingRequest | null;
 }) {
   const [data, setData] = useState<DetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -130,6 +138,13 @@ export function JobDetailSheet({
   };
 
   const job = data?.job;
+  const resumes = data?.writing?.resumes ?? [];
+  // The resume sent with the application, among the user's (one deleted since is still named).
+  const sentItems = [
+    { value: 'NONE', label: 'Not recorded' },
+    ...resumes.map((r) => ({ value: String(r.id), label: r.name })),
+    ...(job?.resumeId != null && !resumes.some((r) => r.id === job.resumeId) ? [{ value: String(job.resumeId), label: 'A deleted resume' }] : []),
+  ];
   const applyHref = safeHref(job?.manualApplyUrl) ?? safeHref(job?.url);
   const jobHref = safeHref(job?.url);
   const signals = job?.signals ?? {};
@@ -273,6 +288,35 @@ export function JobDetailSheet({
                   <Label>Applied</Label>
                   <p className="text-muted-foreground">{job.appliedAt ? formatDateTime(job.appliedAt) : 'Not yet'}</p>
                 </div>
+                {resumes.length || job.resumeId != null ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="sent-resume">Resume sent</Label>
+                    <Select
+                      items={sentItems}
+                      value={job.resumeId != null ? String(job.resumeId) : 'NONE'}
+                      onValueChange={(v) => {
+                        const resumeId = v == null || v === 'NONE' ? null : Number(v);
+                        void api(`/api/admin/jobs/${job.id}`, { method: 'PATCH', json: { resumeId } })
+                          .then(() => {
+                            toast.success(resumeId == null ? 'Resume sent: not recorded' : `Resume sent: ${sentItems.find((i) => i.value === v)?.label}`);
+                            changed();
+                          })
+                          .catch((e) => toast.error(errorMessage(e)));
+                      }}
+                    >
+                      <SelectTrigger id="sent-resume" size="sm" className="w-full sm:w-56">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sentItems.map((i) => (
+                          <SelectItem key={i.value} value={i.value}>
+                            {i.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
                 {job.stage === 'REJECTED' ? (
                   <div className="space-y-1.5 text-sm sm:col-span-2">
                     <Label>Closed</Label>
@@ -332,13 +376,23 @@ export function JobDetailSheet({
                 </div>
               </section>
 
-              {job.applicationData?.answers?.length || data.resume ? (
+              <Separator />
+
+              <Writing
+                key={job.id}
+                jobId={job.id}
+                stage={job.stage}
+                drafts={data.drafts ?? []}
+                setup={data.writing ?? { resumes: [], suggested: null }}
+                request={writing}
+              />
+
+              {job.applicationData?.answers?.length ? (
                 <>
                   <Separator />
                   <section className="space-y-2">
                     <h3 className="text-sm font-semibold">What you sent</h3>
-                    {data.resume ? <p className="text-sm text-muted-foreground">Resume: {data.resume.name} ({data.resume.fileName})</p> : null}
-                    {job.applicationData?.answers?.map((a, i) => (
+                    {job.applicationData.answers.map((a, i) => (
                       <div key={i} className="rounded-lg border bg-muted/30 p-2 text-sm">
                         <p className="font-medium">{a.question}</p>
                         <p className="whitespace-pre-wrap text-muted-foreground">{a.answer}</p>

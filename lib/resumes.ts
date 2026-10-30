@@ -57,10 +57,23 @@ export async function setDefaultResume(userId: number, id: number): Promise<void
 // Pick the resume variant for a job: the one whose tags overlap most with the
 // job text, else the default, else the newest.
 export async function pickResumeForJob(userId: number, jobText: string): Promise<ResumeListItem | null> {
-  const list = await listResumes(userId);
+  return bestResume(await listResumes(userId), jobText);
+}
+
+/** Records which resume was sent with the application (null: none recorded); false when the resume isn't the job's user's. */
+export async function setSentResume(jobId: number, resumeId: number | null, scope: { userId?: number } = {}): Promise<boolean | null> {
+  const job = await prisma.scrapedJob.findFirst({ where: { id: jobId, ...scope }, select: { userId: true } });
+  if (!job) return null;
+  if (resumeId != null && !(await prisma.resume.findFirst({ where: { id: resumeId, userId: job.userId }, select: { id: true } }))) return false;
+  await prisma.scrapedJob.update({ where: { id: jobId }, data: { resumeId } });
+  return true;
+}
+
+/** The same choice among these resumes (the default first, then the newest, as listResumes orders them). */
+export function bestResume<R extends { tags: string | null; isDefault: boolean }>(list: R[], jobText: string): R | null {
   if (list.length === 0) return null;
   const text = jobText.toLowerCase();
-  let best: { r: ResumeListItem; hits: number } | null = null;
+  let best: { r: R; hits: number } | null = null;
   for (const r of list) {
     const tags = (r.tags || "")
       .split(",")

@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/common/page-header";
 import { SectionCard } from "@/components/common/section-card";
 import { ActivityChart } from "@/components/dashboard/activity-chart";
 import { Funnel } from "@/components/dashboard/funnel";
+import { InsightsPanel } from "@/components/dashboard/insights";
 import { KpiTile } from "@/components/dashboard/kpi-tile";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { UsersTable, type UserSummaryRow } from "@/components/dashboard/users-table";
@@ -35,6 +36,7 @@ import {
   ratio,
   timeAgo,
 } from "@/lib/format";
+import { applicationInsights } from "@/lib/insights";
 import { upcomingInterviews } from "@/lib/interviews";
 import { listNextActions, type NextActionKind } from "@/lib/nextActions";
 import { pageScope, scopedUsers, viewingUserId, type AdminScope } from "@/lib/scope";
@@ -50,14 +52,22 @@ const ACTION_LABEL: Record<NextActionKind, string> = {
   apply: "Apply or archive",
 };
 
-// Next actions and interviews of the users with Applications on (null: off for everyone in view, or unreadable).
+// Next actions, interviews and insights of the users with Applications on (null: off for everyone in view, or
+// unreadable; insights alone null when they are).
 async function applicationsOverview(scope: AdminScope) {
   try {
     const users = (await scopedUsers(scope)).filter((u) => u.settings.applicationsEnabled);
     if (!users.length) return null;
     const ids = users.map((u) => u.id);
-    const [actions, interviews] = await Promise.all([listNextActions(users, new Date(), 6), upcomingInterviews(ids, 14, 6)]);
-    return { actions, interviews };
+    const [actions, interviews, insights] = await Promise.all([
+      listNextActions(users, new Date(), 6),
+      upcomingInterviews(ids, 14, 6),
+      applicationInsights(ids).catch((err) => {
+        console.error(`[dashboard] could not read the insights: ${(err as Error)?.message || err}`);
+        return null;
+      }),
+    ]);
+    return { actions, interviews, insights };
   } catch (err) {
     console.error(`[dashboard] could not read next actions and interviews: ${(err as Error)?.message || err}`);
     return null;
@@ -282,6 +292,15 @@ export default async function DashboardPage() {
             )}
           </SectionCard>
         </div>
+      ) : null}
+
+      {overview?.insights ? (
+        <SectionCard
+          title="Insights"
+          description="Every application sent so far: how many got an answer, an interview or an offer, how soon the first answer came, and which sources and resumes did best."
+        >
+          <InsightsPanel data={overview.insights} showUsers={viewingUserId(scope) == null && scope.users.length > 1} />
+        </SectionCard>
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[2fr_1fr]">

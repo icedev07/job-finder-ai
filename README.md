@@ -2,7 +2,18 @@
 
 Automated job finder for software developers: it finds remote and on-site jobs, has AI judge each one against where the candidate is based and the market they target, and tracks the applications. One install serves many job searches: each user has their own location, profile, results and Google Sheet, and admins manage all of them from one dashboard.
 
-It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews.
+It pulls jobs from 19 job sources, has AI judge every job against the user's target market (and, optionally, their profile), scans LinkedIn searches through a Chrome extension, and pushes approved jobs to Google Sheets. Version 4 adds a full admin workspace (review queue, applications board, AI cost tracking), per-task AI routing with optional Claude models, profiles and resumes, and an extension side panel that fills company application forms. Version 4.1 adds user accounts: everyone signs in with a user ID and password, and admins add people on the **Users** page. Version 4.2 gives each user their own jobs and settings. Version 4.3, with extension 2.1, lets each user sign in to the Chrome extension. Version 4.4 turns Review into a list with **Mark all reviewed**, sends the jobs you approve to the Google Sheet right away and lets you turn Review off for each user. Version 4.5 puts every user's applications on one board with search, filters, bulk moves, close reasons and a timeline for each application; the Google Sheet's Stage column follows the board, and Applications can be off for each user. Version 4.6 adds **Next actions**, the list of what to do next on each application, and interviews. Version 4.7 adds **Writing**, AI drafts for each application (resume match, cover letter, intro, follow-up and interview prep), and insights into every application on the Dashboard.
+
+## Upgrading from 4.6
+
+Version 4.7 adds **Writing** and the Dashboard's **Insights**. After you deploy it, open `https://your-app.vercel.app/api/setup` once: it adds the `Draft` table. (Or run `npx prisma migrate deploy`.)
+
+- **Writing**, in a job's panel, drafts what an application needs: a **Resume match** (how the resume fits the job: strengths, gaps, keywords to add and lines to rewrite), a **Cover letter**, an **Intro message** to the recruiter, a **Follow-up** e-mail that fits where the application stands, and **Interview prep** for the next interview. The AI writes only from the user's own profile and resume and from the application: the job, your notes, its interviews and history. Pick the resume under **Write from** (one read with Claude in Profile & resumes).
+- Each job keeps one draft of each kind: edit it, **Copy** it, **Rewrite** it with instructions ("shorter", "in German"), or delete it. Every change can be undone from its message.
+- **The Writing route** (**AI → Routes**) runs the drafts: Claude Opus 5.5 at effort `low` by default, so a draft is ready within the minute a request may take. Like form answers, it sends personal data, so Claude is recommended.
+- **Next actions**: a row's menu has **Draft a follow-up** (or **Draft a cover letter** for a saved job), and an interview has **Prepare**: the job opens on Writing and the draft is written.
+- **Insights** on the Dashboard: for every application sent so far, how many got an answer, reached an interview or an offer, how soon the first answer came, and how each source and resume did, with the best of each.
+- **Resume sent**, in a job's panel, records which resume went with an application, for the resume insights. The extension already records the one it attaches.
 
 ## Upgrading from 4.5
 
@@ -104,10 +115,10 @@ With more than one user, the **Viewing** menu at the top right picks whose data 
 
 | Page | URL | What it is for |
 |---|---|---|
-| Dashboard | `/admin` | KPIs (found, approved, to review, applications, AI calls, Claude spend), 30-day activity, funnel, source yield, setup reminders, quick actions (run a scan pass, analyze pending, sync Sheets). Next actions and upcoming interviews. With **All users**, a table of every user's last 7 days, applications, LinkedIn activity and AI cost |
-| Jobs | `/admin/jobs` | Every stored job. Search with `"exact phrase"` and `-exclude`; filter by status, source, stage, Easy Apply, score, rating, eligibility and age; use saved views; bulk stage / approve / reject / rate / re-analyze / delete; export CSV. The detail drawer holds notes, follow-up date (with **Followed up**), signals, what you sent, the application's interviews and its timeline |
+| Dashboard | `/admin` | KPIs (found, approved, to review, applications, AI calls, Claude spend), 30-day activity, funnel, source yield, setup reminders, quick actions (run a scan pass, analyze pending, sync Sheets). Next actions, upcoming interviews and insights into every application sent (answer, interview and offer rates, time to the first answer, the best source and resume). With **All users**, a table of every user's last 7 days, applications, LinkedIn activity and AI cost |
+| Jobs | `/admin/jobs` | Every stored job. Search with `"exact phrase"` and `-exclude`; filter by status, source, stage, Easy Apply, score, rating, eligibility and age; use saved views; bulk stage / approve / reject / rate / re-analyze / delete; export CSV. The detail drawer holds notes, follow-up date (with **Followed up**), the resume sent, signals, **Writing** (AI drafts of a resume match, cover letter, intro, follow-up and interview prep), what you sent, the application's interviews and its timeline |
 | Review | `/admin/review` | Close calls as a list: approve, reject or keep the AI verdict for one row or the selected ones, **Mark all reviewed**, and with **All users** a user filter. Or one at a time in **Focus**: `y` or `→` good match, `n` or `←` not a match, `k` keep the AI verdict, `s` skip, `o` open the posting, `u` undo. A switch turns Review off for the viewed user |
-| Next actions | `/admin/next-actions` | What to do next on each application, for the viewed user or everyone: interviews in the next two days, follow-ups that are due, no answer weeks after applying, saved jobs not applied to yet. **Followed up**, **Applied**, **Snooze** or close with a reason, one row or the selected ones; with **All users**, a user filter. The sidebar badge counts them |
+| Next actions | `/admin/next-actions` | What to do next on each application, for the viewed user or everyone: interviews in the next two days, follow-ups that are due, no answer weeks after applying, saved jobs not applied to yet. **Followed up**, **Applied**, **Snooze** or close with a reason, one row or the selected ones; with **All users**, a user filter. A row's menu drafts a follow-up (or a cover letter), and **Prepare** writes interview prep. The sidebar badge counts them |
 | Applications | `/admin/applications` | Every user's applications on one board: Saved → Applied → Interview → Offer / Rejected (+ Archived), with each user's numbers on top. Search, filter by user, source and score. Drag cards, use a card's menu, or focus one and press `1`–`6` or `←` / `→`; tick cards to move, close or follow up several at once. Moving to Archived asks why it closed. Follow-up badges turn amber when due and red when overdue, and a card shows its next interview; a card opens the job with its interviews and timeline. A switch turns Applications off for the viewed user |
 | Sources | `/admin/sources` | Enable and configure each job source, run one or **Scrape all sources**, set the analyzer batch size and the MyGreenhouse cookie |
 | Skip rules | `/admin/skip-rules` | Block jobs by company, title keyword or URL pattern, for one user or for everyone. Rules run before the AI, so they also save quota |
@@ -143,6 +154,7 @@ Each AI task has its own route: an ordered list of providers. The first provider
 | LinkedIn extension | the extension, one job at a time while it scans | free providers in the order Cerebras → Groq → Cloudflare → Gemini → OpenRouter |
 | Resume reading | **Read with Claude** on an uploaded resume | Claude (required: it reads PDFs) |
 | Form answers | free-text answers drafted by the autofill side panel | Claude (you can add free providers) |
+| Writing | **Writing** in a job's panel: resume match, cover letter, intro, follow-up and interview prep | Claude (you can add free providers) |
 
 The **Board scans** and **LinkedIn extension** routes start with the free providers that were ticked in Settings before the upgrade. A fresh install ticks Gemini, Groq, Cerebras and OpenRouter; add Cloudflare in **Routes** once you have its key. The defaults keep the high-volume tasks on the free providers. Once you have a Claude key, add Claude where quality matters, for example first on **LinkedIn extension**, or Haiku on **Board scans**.
 
@@ -158,7 +170,7 @@ Create a key in the Claude Console (https://platform.claude.com → API keys), p
 |---|---|---|
 | Claude Haiku 5.5 | $0.10 / $0.50 (prompts over 100K tokens: $0.50 / $2.50) | Board scans and other high-volume classification |
 | Claude Sonnet 5.5 | $2 / $10 | Balanced quality and price |
-| Claude Opus 5.5 | $4 / $20 | Anthropic's default and the strongest everyday model: LinkedIn extension, resume reading, form answers |
+| Claude Opus 5.5 | $4 / $20 | Anthropic's default and the strongest everyday model: LinkedIn extension, resume reading, form answers, writing |
 | Claude Fable 5.1 | $10 / $50 | The most capable model; rarely worth it for job matching |
 
 These are Anthropic's list prices, checked 2026-10-29. Cached prompt reads cost a tenth of the input price or less.
@@ -168,7 +180,7 @@ These are Anthropic's list prices, checked 2026-10-29. Cached prompt reads cost 
 - **Strict JSON**: Claude answers through a JSON schema, so its verdicts always parse.
 - **Prompt caching**: the shared instructions are cached, so repeated calls during a scan cost less.
 - **Refusal fallback**: for Opus, Sonnet and Fable the app opts into Anthropic's server-side fallback, so a policy decline is retried on Anthropic's recommended substitute model inside the same call. A refusal never puts Claude on cooldown.
-- **Monthly budget**: set a cap under **AI → Usage & cost** (default **$10 per month**; `0` means no cap). Spend is computed from token counts and list prices; your Anthropic invoice is the source of truth. At the cap, Claude is skipped until the 1st of the next month (UTC), and each route falls back to its free providers. Claude-only tasks (resume reading, and form answers unless you add a free provider) pause until then.
+- **Monthly budget**: set a cap under **AI → Usage & cost** (default **$10 per month**; `0` means no cap). Spend is computed from token counts and list prices; your Anthropic invoice is the source of truth. At the cap, Claude is skipped until the 1st of the next month (UTC), and each route falls back to its free providers. Claude-only tasks (resume reading, and form answers and writing unless you add a free provider) pause until then.
 
 The other AI tabs:
 
@@ -273,7 +285,7 @@ What autofill does and does not do:
 **Admin → Profile & resumes** holds what autofill and matching know about you:
 
 - **Profile**: name and contact details, links (LinkedIn, GitHub, portfolio), headline and summary, years of experience, work authorization and sponsorship, contractor and relocation preferences, remote preference, notice period, salary expectation, skills, languages, experience, education, optional EEO answers (decline by default), and extra facts.
-- **Resumes**: keep one file per variant (for example ".NET backend" and "Full-stack JS"). PDF, DOCX, DOC, TXT or Markdown, up to 4 MB each. Files are stored in the database, so they count toward Supabase's 500 MB. Tags pick the variant for a job: the resume whose tags appear most in the job text wins, else the default. **Read with Claude** turns a PDF or plain-text resume into your profile so you do not have to type it (this needs a Claude key; it uses the **Resume reading** route). Word files can be attached to applications but not read; upload a PDF copy to extract your profile.
+- **Resumes**: keep one file per variant (for example ".NET backend" and "Full-stack JS"). PDF, DOCX, DOC, TXT or Markdown, up to 4 MB each. Files are stored in the database, so they count toward Supabase's 500 MB. Tags pick the variant for a job: the resume whose tags appear most in the job text wins, else the default. **Read with Claude** turns a PDF or plain-text resume into your profile so you do not have to type it (this needs a Claude key; it uses the **Resume reading** route). Word files can be attached to applications but not read; upload a PDF copy to extract your profile. **Writing** in a job's panel drafts from a resume only once it has been read.
 - **Answer bank**: your answers to questions that forms keep asking. Autofill reuses them, and the AI copies your voice from them.
 
 Once your profile has content, a short summary of it is added to the job analysis prompt as soft signals: stack overlap and seniority fit. It never overrides a hard reject rule. Turn it off with **Settings → Target & matching → Use my profile when judging jobs** (on by default). A custom prompt can place it with the `{{CANDIDATE_PROFILE}}` placeholder.
@@ -508,7 +520,7 @@ Default column config JSON:
 | Cerebras model | `llama-3.3-70b` | AI → Providers & keys |
 | OpenRouter model | `auto` (free models) | AI → Providers & keys |
 | Cloudflare model | `@cf/meta/llama-3.1-8b-instruct` | AI → Providers & keys |
-| Claude model / effort | Opus 5.5; effort `low` for scans and the extension, `medium` for resumes and answers | AI → Routes |
+| Claude model / effort | Opus 5.5; effort `low` for scans, the extension and writing, `medium` for resumes and answers | AI → Routes |
 | Claude monthly budget | `$10` (`0` = no cap) | AI → Usage & cost |
 | Target market, where a user is based | none: asked when you add a user (Setup flags users without them) | Settings → Target & matching |
 | Use the profile when judging jobs | on (applies once the profile has content) | Settings → Target & matching |
@@ -541,6 +553,7 @@ The prompt asks for one JSON object: `approved`, `score` (0–100), `reason` and
 - **ScrapedJob**: every stored job (approved/rejected) of one user with its verdict, eligibility, apply method (Easy Apply or company site) and LinkedIn signals, plus the pipeline data: stage, why it closed, applied and follow-up dates, notes, 👍 / 👎 feedback, when it left the Review queue, the resume used and the application answers. The same posting found for two users is two rows, each with its own verdict.
 - **ApplicationEvent**: each application's timeline: stage changes, close reasons, follow-up dates, **Followed up**, interviews, notes and **Mark as applied**, with when and who (an admin on the dashboard, or whoever was signed in to the extension).
 - **Interview**: each application's interviews: when, the kind (HR, technical, final or other), the link or address, and notes.
+- **Draft**: what the AI wrote for each application (Writing), one draft of each kind: the text, the instructions it was written with, the resume it drew on, who wrote it, and whether it was edited by hand.
 - **AppConfig**: app-wide key/value settings (AI providers and keys, routes, budget, the Google service account, board set-up; secrets never returned to the browser).
 - **SkipRule**: company/title/url block rules, for one user or for everyone.
 - **ScanLog**: scan history.

@@ -151,7 +151,7 @@ async function loadStatusSnapshot(scope: AdminScope): Promise<StatusSnapshot> {
     // The newest table and column: both exist once /api/setup ran after the last upgrade.
     soft(
       prisma
-        .$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Interview"') IS NOT NULL
+        .$queryRaw<{ ok: boolean }[]>`SELECT to_regclass('"Draft"') IS NOT NULL
           AND EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'ScrapedJob' AND column_name = 'closeReason') AS ok`
         .then((r) => !!r[0]?.ok),
       false,

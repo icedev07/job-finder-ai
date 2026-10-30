@@ -37,13 +37,14 @@ import { formatUsd } from '@/lib/format';
 import { saveAdminConfig, type AdminConfig } from '@/lib/useAdminConfig';
 import { cn } from '@/lib/utils';
 
-// Rough tokens per unit of work (one job / resume / answer), with the shared
+// Rough tokens per unit of work (one job / resume / answer / draft), with the shared
 // rules prompt served from cache. Only for the estimate shown under each route.
 const UNIT: Record<AiTask, { unit: string; input: number; cached: number; output: number }> = {
   scan: { unit: 'jobs', input: 900, cached: 220, output: 250 },
   extension: { unit: 'jobs', input: 2000, cached: 1100, output: 400 },
   resume: { unit: 'resumes', input: 6000, cached: 0, output: 2500 },
   answers: { unit: 'answers', input: 2500, cached: 900, output: 350 },
+  writing: { unit: 'drafts', input: 3500, cached: 0, output: 900 },
 };
 // Higher effort → more thinking → more output tokens (approximate).
 const EFFORT_OUTPUT: Record<ClaudeEffort, number> = { low: 1, medium: 1.6, high: 2.5, xhigh: 4, max: 6 };
@@ -137,7 +138,7 @@ export function RoutesTab({ config, reload }: { config: AdminConfig; reload: () 
           const usesClaude = route.providers.includes('claude');
           const anyKey = route.providers.some((p) => hasKey(p, config));
           const estimate = usesClaude ? estimatePer1000(task, route.claudeModel, route.claudeEffort) : null;
-          const privateTask = task === 'answers' || task === 'resume';
+          const privateTask = task === 'answers' || task === 'resume' || task === 'writing';
           const freeOnPrivate = privateTask && route.providers.some((p) => p !== 'claude');
           return (
             <SectionCard key={task} title={info.label} description={info.description}>

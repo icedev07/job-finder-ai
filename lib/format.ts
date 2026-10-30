@@ -181,6 +181,31 @@ export function interviewName(kind: unknown): string {
   return "Interview";
 }
 
+/** What Writing in a job's panel can draft for the application, one draft of each. */
+export const DRAFT_KINDS = ["match", "cover_letter", "intro", "follow_up", "interview_prep"] as const;
+export type DraftKind = (typeof DRAFT_KINDS)[number];
+
+export const DRAFT_KIND_INFO: Record<DraftKind, { label: string; hint: string }> = {
+  match: {
+    label: "Resume match",
+    hint: "How the resume fits this job: strengths, gaps, keywords to add and lines to rewrite.",
+  },
+  cover_letter: { label: "Cover letter", hint: "A cover letter for this job from the resume and profile, ready to paste." },
+  intro: { label: "Intro message", hint: "A short note to the recruiter or hiring manager, for LinkedIn or an e-mail." },
+  follow_up: {
+    label: "Follow-up",
+    hint: "An e-mail that fits where the application stands: no answer yet, after an interview, an offer or a no.",
+  },
+  interview_prep: {
+    label: "Interview prep",
+    hint: "For the next interview: likely questions, stories from the resume to tell, questions to ask and facts to have ready.",
+  },
+};
+
+export function isDraftKind(v: unknown): v is DraftKind {
+  return typeof v === "string" && (DRAFT_KINDS as readonly string[]).includes(v);
+}
+
 /** The stage as the Google Sheet shows it: "Applied", "Archived (no response)", "" outside the pipeline. */
 export function stageText(stage: string | null | undefined, closeReason?: string | null): string {
   if (!stage || !isJobStage(stage)) return "";
