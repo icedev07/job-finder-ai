@@ -12,7 +12,7 @@ import {
   sheetTabs,
   spreadsheetIdFrom,
 } from "@/lib/sheetModel";
-import { USER_KEYS, getUserConfigRaw, getUserSettings, isUserKey, setUserConfig } from "@/lib/userSettings";
+import { USER_KEYS, getUserConfigRaw, getUserSettings, invalidateUserSettings, isUserKey, setUserConfig } from "@/lib/userSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -25,12 +25,14 @@ export async function GET(req: NextRequest) {
   if (scope instanceof NextResponse) return scope;
   const userId = requireOneUser(scope);
   if (userId instanceof NextResponse) return userId;
-  const [raw, s, config, unsent] = await Promise.all([
+  // The settings as saved (the last delivery is written by other instances).
+  invalidateUserSettings(userId);
+  const [raw, config, unsent] = await Promise.all([
     getUserConfigRaw(userId),
-    getUserSettings(userId),
     getConfig(),
     prisma.scrapedJob.count({ where: { userId, status: "APPROVED", sheetSynced: false } }),
   ]);
+  const s = await getUserSettings(userId);
   const user = scope.users.find((u) => u.id === userId)!;
   const who = sheetOwnerName(user, scope.users);
   const plan = planFor(user, s, config, scope.users);

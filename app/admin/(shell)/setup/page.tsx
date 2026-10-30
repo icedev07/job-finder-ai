@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { describeDbError } from "@/lib/dbErrors";
+import { databaseConnection } from "@/lib/dbUrl";
 import { pageScope, type AdminScope } from "@/lib/scope";
 import { freshStatusSnapshot, type StatusSnapshot } from "@/lib/status";
 import { NEAR_DB_MS } from "@/lib/format";
@@ -30,6 +31,27 @@ async function loadStatus(scope: AdminScope): Promise<{ status: StatusSnapshot |
   }
 }
 
+// Which way the app reaches the database (lib/dbUrl.ts), when it is a Supabase pooler.
+function ConnectionNote() {
+  const c = databaseConnection(process.env);
+  if (c.kind === "other") return null;
+  let text: string;
+  if (c.kind === "transaction-pooler") {
+    text = c.switched
+      ? "Connected through Supabase's transaction pooler (port 6543), at the session pooler address in DATABASE_URL: every Vercel function instance shares the database connections, so pages don't fail with “max clients reached”."
+      : "Connected through Supabase's transaction pooler (port 6543).";
+  } else {
+    text = c.sessionKept
+      ? "Connected through Supabase's session pooler (port 5432), because DATABASE_POOL_MODE is set to session: it allows 15 connections for all Vercel function instances together, and pages fail with “max clients reached” when they are taken. Remove DATABASE_POOL_MODE and redeploy to use the transaction pooler."
+      : "Connected through Supabase's session pooler (port 5432).";
+  }
+  return (
+    <p className="text-sm text-muted-foreground" data-testid="db-connection">
+      {text}
+    </p>
+  );
+}
+
 // Every database query waits one round trip: a database in another region slows every page.
 function RegionCard({ db }: { db: StatusSnapshot["db"] }) {
   const far = db.latencyMs != null && db.latencyMs >= NEAR_DB_MS;
@@ -43,6 +65,7 @@ function RegionCard({ db }: { db: StatusSnapshot["db"] }) {
             : `Each database query takes about ${db.latencyMs} ms${far ? ": the app and its database are far apart, and every page waits for that many times over." : ": the app runs next to its database."}`
         }
       >
+        <ConnectionNote />
         {far ? (
           <ol className="list-decimal space-y-1 pl-5 text-sm">
             <li>Vercel → your project → Settings → Functions → Function Region.</li>
@@ -137,6 +160,7 @@ export default async function SetupPage() {
           <AlertDescription>
             <p>{dbError}</p>
             <p>The checklist needs the database, so it shows up once the database answers. Fix the cause above, then press Check again.</p>
+            <ConnectionNote />
           </AlertDescription>
         </Alert>
       )}

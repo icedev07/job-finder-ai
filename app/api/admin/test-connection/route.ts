@@ -431,7 +431,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         ok: true,
         sheetTitle: check.title,
-        tabs: check.tabs.map((t) => (t.created ? `${t.name} (created)` : t.name)),
+        tabs: check.tabs.map((t) => t.name),
+        created: check.tabs.filter((t) => t.created).map((t) => t.name),
         serviceAccount: check.serviceAccount,
       });
     }

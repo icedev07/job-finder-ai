@@ -4,7 +4,6 @@ import { ExternalLinkIcon, FlaskConicalIcon, SendIcon } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
-import { TestResultBox, type TestResult } from '@/components/ai/shared';
 import { CopyButton } from '@/components/common/copy-button';
 import { SecretField } from '@/components/common/secret-field';
 import { SectionCard } from '@/components/common/section-card';
@@ -94,7 +93,6 @@ export function UserSheetCard({
   /** After a test or a delivery: the settings to read again (the last delivery). */
   onChanged: () => Promise<unknown>;
 }) {
-  const [test, setTest] = useState<TestResult>(null);
   const [busy, setBusy] = useState<'test' | 'send' | null>(null);
   const mode = isSheetMode(draft.sheet_mode) ? draft.sheet_mode : 'shared';
   const sharedId = appConfig?.shared_sheet_id ?? '';
@@ -111,13 +109,22 @@ export function UserSheetCard({
   const defaults = sheetTabs(mode, { jobs: '', linkedin: '' }, sheet.who);
   const shared = sheetTabs('shared', { jobs: draft.jobs_sheet_tab, linkedin: draft.linkedin_sheet_tab }, sheet.who);
 
+  // The outcome is a message; the card's last-delivery line keeps it (the test is noted like a delivery).
   async function runTest() {
     setBusy('test');
-    setTest(null);
     try {
-      setTest(await api<TestResult>('/api/admin/test-connection', { method: 'POST', json: { target: 'sheets' } }));
+      const r = await api<{ ok: boolean; error?: string; sheetTitle?: string; tabs?: string[]; created?: string[] }>(
+        '/api/admin/test-connection',
+        { method: 'POST', json: { target: 'sheets' } },
+      );
+      if (r.ok) {
+        const made = r.created?.length ? `; made just now: ${quoted(r.created)}` : '';
+        toast.success(`Ready: the service account can edit ${quoted(r.tabs ?? [])} in “${r.sheetTitle}”${made}.`);
+      } else {
+        toast.error(r.error ?? 'The test failed.');
+      }
     } catch (e) {
-      setTest({ ok: false, error: errorMessage(e) });
+      toast.error(errorMessage(e));
     } finally {
       setBusy(null);
       await onChanged();
@@ -197,12 +204,14 @@ export function UserSheetCard({
           <>
             <FieldGroup className="grid gap-4 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor="jobs-tab">Jobs tab name</FieldLabel>
-                <Input id="jobs-tab" value={draft.jobs_sheet_tab} onChange={(e) => set('jobs_sheet_tab')(e.target.value)} placeholder={defaults.jobs} />
+                <FieldLabel htmlFor="jobs-tab">Jobs tab name (optional)</FieldLabel>
+                <Input id="jobs-tab" value={draft.jobs_sheet_tab} onChange={(e) => set('jobs_sheet_tab')(e.target.value)} />
+                <FieldDescription>Blank: “{defaults.jobs}”.</FieldDescription>
               </Field>
               <Field>
-                <FieldLabel htmlFor="li-tab">LinkedIn tab name</FieldLabel>
-                <Input id="li-tab" value={draft.linkedin_sheet_tab} onChange={(e) => set('linkedin_sheet_tab')(e.target.value)} placeholder={defaults.linkedin} />
+                <FieldLabel htmlFor="li-tab">LinkedIn tab name (optional)</FieldLabel>
+                <Input id="li-tab" value={draft.linkedin_sheet_tab} onChange={(e) => set('linkedin_sheet_tab')(e.target.value)} />
+                <FieldDescription>Blank: “{defaults.linkedin}”.</FieldDescription>
               </Field>
             </FieldGroup>
             <Field>
@@ -256,7 +265,6 @@ export function UserSheetCard({
                 {dirty ? 'These use the saved settings: save first.' : 'The AI’s approvals go when each scan ends, the ones you approve right away.'}
               </span>
             </div>
-            <TestResultBox result={test} />
           </>
         ) : null}
       </SectionCard>

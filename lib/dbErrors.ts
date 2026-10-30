@@ -13,7 +13,7 @@ const HINTS: Hint[] = [
   },
   {
     test: /max client|EMAXCONN|too many clients|remaining connection slots/i,
-    fix: "Supabase's connection pool is full (15 connections on the free plan). Wait a minute and try again; if it keeps happening, add connection_limit=1 to DATABASE_URL in Vercel and redeploy.",
+    fix: "Supabase's session pooler is full: it allows 15 connections on the free plan, and every Vercel function instance keeps its own. On Vercel the app connects through Supabase's transaction pooler instead, unless DATABASE_POOL_MODE is set to session: remove it and redeploy. Otherwise wait a minute and try again.",
   },
   {
     codes: ["P2024"],
@@ -36,7 +36,7 @@ const HINTS: Hint[] = [
   },
   {
     test: /prepared statement .* (already exists|does not exist)/i,
-    fix: "DATABASE_URL uses Supabase's transaction pooler (port 6543). Use the session pooler URI (port 5432) instead.",
+    fix: "DATABASE_URL uses Supabase's transaction pooler (port 6543) without pgbouncer=true. The app adds it on Vercel; elsewhere add ?pgbouncer=true to DATABASE_URL, or use the session pooler URI (port 5432).",
   },
   {
     codes: ["P1017"],

@@ -1,11 +1,11 @@
 import { google, type sheets_v4 } from "googleapis";
 import type { ScrapedJob } from "../generated/prisma";
-import { getConfig, getSheetColumns } from "./config";
+import { getConfig, getSheetColumns, invalidateConfigCache } from "./config";
 import { stageText } from "./format";
 import { prisma } from "./prisma";
 import { planFor, serviceAccountEmail, type SheetPlan, type SheetStatus } from "./sheetModel";
 import { activeUsers, listUsersWith } from "./users";
-import { getUserSettings, setUserConfig, USER_KEYS, type UserSettings } from "./userSettings";
+import { getUserSettings, invalidateUserSettings, setUserConfig, USER_KEYS, type UserSettings } from "./userSettings";
 
 // Approved jobs go to the Google Sheet of the user they were found for: board
 // jobs to their Jobs tab, LinkedIn jobs to their LinkedIn tab. One service
@@ -119,7 +119,17 @@ type SheetTarget = {
 
 type SheetConfig = { googleSheetsCredentials: string; sharedSheetId: string };
 
-async function loadPlan(userId: number): Promise<{ plan: SheetPlan; settings: UserSettings; config: SheetConfig }> {
+/**
+ * fresh: read the settings again instead of this server instance's copy (up to
+ * 10 s old), for what an admin starts by hand right after changing them: on
+ * Vercel the settings are saved by another instance, whose copy is the only one
+ * refreshed.
+ */
+async function loadPlan(userId: number, fresh = false): Promise<{ plan: SheetPlan; settings: UserSettings; config: SheetConfig }> {
+  if (fresh) {
+    invalidateConfigCache();
+    invalidateUserSettings(userId);
+  }
   const [config, settings, everyone] = await Promise.all([getConfig(), getUserSettings(userId), listUsersWith(userId)]);
   const user = everyone.find((u) => u.id === userId);
   const plan: SheetPlan = user
@@ -535,7 +545,7 @@ async function writeStages(target: SheetTarget, tab: string, jobs: RowJob[], mat
 export function syncApprovedJobsToSheet(userId?: number): Promise<{ synced: number }> {
   return oneAtATime(async () => {
     if (userId != null) {
-      const { plan } = await loadPlan(userId);
+      const { plan } = await loadPlan(userId, true);
       if (!plan.ok) throw new Error(capitalize(plan.reason));
       const target = await targetOrNote(userId);
       return { synced: await syncUserApprovedJobs(userId, target) };
@@ -665,7 +675,7 @@ export type SheetCheck =
  */
 export function prepareSheet(userId: number): Promise<SheetCheck> {
   return oneAtATime(async () => {
-    const { plan } = await loadPlan(userId);
+    const { plan } = await loadPlan(userId, true);
     if (!plan.ok) return { ok: false, error: capitalize(plan.reason) };
     let target: SheetTarget | null = null;
     try {
@@ -706,7 +716,7 @@ export function prepareSheet(userId: number): Promise<SheetCheck> {
  */
 export function fullSyncToSheet(userId: number): Promise<{ synced: number }> {
   return oneAtATime(async () => {
-    const { plan } = await loadPlan(userId);
+    const { plan } = await loadPlan(userId, true);
     if (!plan.ok) throw new Error(capitalize(plan.reason));
     const target = await targetOrNote(userId);
     try {

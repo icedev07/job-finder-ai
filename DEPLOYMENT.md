@@ -1,6 +1,6 @@
 # Deployment & Configuration Guide
 
-Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.9.1](README.md#upgrading-from-491), [4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
+Upgrading an existing deployment? Follow the README's notes for your version first ([from 4.10.0](README.md#upgrading-from-4100), [4.9.1](README.md#upgrading-from-491), [4.9.0](README.md#upgrading-from-490), [4.8](README.md#upgrading-from-48), [4.7](README.md#upgrading-from-47), [4.6](README.md#upgrading-from-46), [4.5](README.md#upgrading-from-45), [4.4](README.md#upgrading-from-44), [4.3](README.md#upgrading-from-43), [4.2](README.md#upgrading-from-42), [4.1](README.md#upgrading-from-41), [4.0](README.md#upgrading-from-40) or [3.x](README.md#upgrading-from-3x)): they cover new environment variables, the database update and signing in to the extension.
 
 ## Services used
 
@@ -38,9 +38,7 @@ Upgrading an existing deployment? Follow the README's notes for your version fir
 10. Replace `[YOUR-PASSWORD]` with the database password you set
 11. Save this. You'll need it as `DATABASE_URL`
 
-**Important**: use port `5432` (session pooler), NOT `6543` (transaction pooler). The session pooler is required for Prisma to work correctly with Vercel.
-
-The session pooler allows about 15 connections for the whole project on the free plan, and every running Vercel function instance keeps its own. The app limits each Vercel instance to 2 connections unless your `DATABASE_URL` already sets `connection_limit`, which keeps it inside that limit.
+Use this session pooler string (port `5432`) as it is. On Vercel the app connects to the same address through Supabase's transaction pooler (port `6543`, with `pgbouncer=true`), which serverless functions need: the session pooler allows only about 15 connections for the whole project on the free plan, and every running Vercel function instance keeps its own. Each Vercel instance also keeps at most 2 connections unless your `DATABASE_URL` sets `connection_limit`. To keep the session pooler, set `DATABASE_POOL_MODE=session`.
 
 ### Keep Supabase alive
 
@@ -379,7 +377,7 @@ Each user's approved jobs go to their own two tabs in the shared spreadsheet, to
 
 **An admin page says "This page couldn't load" or "Can't read the database"**
 - The database did not answer that request. **Admin → Setup** and the status bar at the top name the cause and the fix. For the full message, open Vercel → your project → **Logs** and search for the error id shown on the page.
-- "max clients reached": Supabase's session pooler is full (about 15 connections on the free plan). Wait a minute and reload. If it keeps happening, add `connection_limit=1` to `DATABASE_URL` (`…/postgres?connection_limit=1`, or `&connection_limit=1` if the URL already has a `?`) and redeploy.
+- "max clients reached": Supabase's session pooler is full (about 15 connections on the free plan). Since 4.10.1 the app uses the transaction pooler on Vercel, which does not fill up this way: deploy the latest version, and remove `DATABASE_POOL_MODE=session` if you set it. Keeping the session pooler, wait a minute and reload; if it keeps happening, add `connection_limit=1` to `DATABASE_URL` (`…/postgres?connection_limit=1`, or `&connection_limit=1` if the URL already has a `?`) and redeploy.
 - "Can't reach database server": check `DATABASE_URL`, and whether Supabase paused the project (see **Supabase database is paused** below).
 - "Authentication failed" or "Tenant or user not found": copy the session pooler URI again from Supabase → Connect, with the right password.
 - A missing table or column right after an upgrade: open `/api/setup` once.
